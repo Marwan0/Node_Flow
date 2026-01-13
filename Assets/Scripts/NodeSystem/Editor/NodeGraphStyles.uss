@@ -1,0 +1,134 @@
+/* Grid Background */
+GridBackground {
+    --grid-background-color: #282828;
+    --line-color: rgba(193, 196, 192, 0.1);
+    --thick-line-color: rgba(193, 196, 192, 0.1);
+    --spacing: 15;
+}
+
+/* Node styling */
+.node {
+    min-width: 150px;
+    margin: 0;
+    padding: 0;
+    /* Always have border to prevent shift on selection */
+    border-width: 2px;
+    border-color: rgba(0, 0, 0, 0);
+    border-radius: 6px;
+}
+
+.node #title {
+    background-color: #3C3C3C;
+    height: 30px;
+    padding-left: 10px;
+    padding-right: 10px;
+}
+
+.node #title-label {
+    color: #FFFFFF;
+    font-size: 12px;
+    -unity-font-style: bold;
+}
+
+.node #contents {
+    background-color: #2D2D2D;
+}
+
+.node #input {
+    background-color: #2D2D2D;
+}
+
+.node #output {
+    background-color: #2D2D2D;
+}
+
+/* Port styling */
+.port {
+    height: 24px;
+}
+
+.port > #connector {
+    border-color: #888888;
+    background-color: #444444;
+}
+
+.port > #connector:hover {
+    border-color: #FFFFFF;
+}
+
+/* Edge styling */
+.edge {
+    --edge-width: 2;
+}
+
+.edge:hover {
+    --edge-width: 4;
+}
+
+/* Hover - subtle highlight */
+.node:hover {
+    border-color: rgba(100, 150, 200, 0.5);
+}
+
+/* Selection - prominent highlight (same width, different color) */
+.node:selected {
+    border-color: #44C0FF;
+}
+
+/* Selected AND hovered */
+.node:selected:hover {
+    border-color: #66D0FF;
+}
+
+/* === Execution State Styles === */
+
+/* Idle state - default */
+.node-idle {
+    border-color: rgba(0, 0, 0, 0);
+}
+
+/* Running/Active state - ORANGE (attention-grabbing) */
+.node-running {
+    border-color: #FFB000 !important;
+}
+
+.node-running #title {
+    background-color: #E68A00 !important;
+}
+
+/* Completed state - GREEN (success) */
+.node-completed {
+    border-color: #4DB34D !important;
+}
+
+.node-completed #title {
+    background-color: #267326 !important;
+}
+
+/* Failed state - RED (error) */
+.node-failed {
+    border-color: #FF4444 !important;
+}
+
+.node-failed #title {
+    background-color: #B33333 !important;
+}
+
+/* State indicator bar (left side) */
+#state-indicator {
+    border-radius: 2px;
+    transition: background-color 0.2s;
+}
+
+/* Edge styling for active connections */
+.edge.running {
+    --edge-color: #33CCFF;
+    --edge-width: 3;
+}
+
+.edge.completed {
+    --edge-color: #44DD55;
+    --edge-width: 2;
+}
+
+

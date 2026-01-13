@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 15fd7d42a5594b1468bb37902ac70bb5, type: 3}
+  m_Name: Sample_MultipleChoice_Question
+  m_EditorClassIdentifier: Assembly-CSharp::QuizSystem.MultipleChoiceQuestionData
+  serializationData:
+    SerializedFormat: 2
+    SerializedBytes: 
+    ReferencedUnityObjects: []
+    SerializedBytesString: 
+    Prefab: {fileID: 0}
+    PrefabModificationsReferencedUnityObjects: []
+    PrefabModifications: []
+    SerializationNodes: []
+  questionText: What is the capital of France?
+  questionType: 0
+  hints:
+  - It's a famous city known for the Eiffel Tower
+  - It starts with the letter P
+  - It's in the north of France
+  maxAttempts: 3
+  points: 10
+  explanation: Paris is the capital and largest city of France.
+  answers:
+  - London
+  - Berlin
+  - Madrid
+  - Pariss
+  correctAnswerIndex: 3

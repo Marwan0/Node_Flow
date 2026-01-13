@@ -1,0 +1,24 @@
+OVDF v1.1
+Sirenix.OdinInspector.Demos.ListedMinion, Assembly-CSharp-firstpass
+
+# "Non-Listed"
+* [Sirenix.OdinInspector.BoxGroupAttribute]
+	GroupName = "Non-Listed LOKAAA"
+
+# "Non-Listed/Split/Name/NameId"
+* [Sirenix.OdinInspector.BoxGroupAttribute]
+	HideWhenChildrenAreInvisible = True
+	ShowLabel = False
+	CenterLabel = True
+
+# Health
+Visibility: Shown
+
+# Damage
+Visibility: Shown
+
+# Speed
+Visibility: Shown
+
+# Phone
+Position: "Non-Listed/Split/Name/NameId":1

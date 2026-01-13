@@ -1,0 +1,9 @@
+OVDF v1.1
+Sirenix.OdinInspector.Demos.RPGEditor.CharacterTable, Assembly-CSharp-Editor-firstpass
+
+# allCharacters
+* [Sirenix.OdinInspector.TableListAttribute]
+	DefaultMinColumnWidth = 40
+	DrawScrollView = True
+	AlwaysExpanded = True
+	CellPadding = 23

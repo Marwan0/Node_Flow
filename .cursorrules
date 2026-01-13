@@ -1,0 +1,207 @@
+# Node Graph System - Cursor Rules
+
+## Documentation
+- **Creating Custom Nodes**: See `GUIDE_CREATING_CUSTOM_NODES.md` for a complete guide on creating custom nodes
+
+## Project Overview
+This is a Unity visual scripting system built with UI Toolkit. The system allows users to create node-based graphs for game logic execution.
+
+## Key Architecture
+
+### Core Components
+
+1. **NodeGraph.cs** (`Assets/Scripts/NodeSystem/Core/NodeGraph.cs`)
+   - ScriptableObject that stores all graph data as a single JSON string
+   - Uses `_jsonData` field for serialization
+   - Runtime cache: `_runtimeNodes`, `_runtimeConnections`, `_runtimeVariables`, `_runtimeGroups`
+   - `OnEnable()` resets `_loaded = false` and calls `EnsureLoaded()` - this is important for play mode
+   - Has duplicate GUID checking when loading nodes
+   - Restores SequenceNode ports from connections after loading
+
+2. **NodeData.cs** (`Assets/Scripts/NodeSystem/Core/NodeData.cs`)
+   - Base class for all nodes
+   - Contains: GUID, Position, Name, Color, Category, State, Runner, OnComplete callback, hasBreakpoint
+   - All nodes inherit from this
+
+3. **NodeGraphRunner.cs** (`Assets/Scripts/NodeSystem/Core/NodeGraphRunner.cs`)
+   - MonoBehaviour for runtime execution
+   - Handles breakpoints, step mode, pause/resume
+   - Fires static events: `OnNodeStarted`, `OnNodeCompleted`, `OnGraphStarted`, `OnGraphEnded`
+   - Has helper methods: `BroadcastNodeStarted()`, `BroadcastNodeCompleted()` for visual feedback
+
+4. **NodeGraphView.cs** (`Assets/Scripts/NodeSystem/Editor/NodeGraphView.cs`)
+   - Main graph editor view (extends Unity's GraphView)
+   - Handles node creation, connections, visual states
+   - Has `CleanupFloatingEdges()` to remove invalid/duplicate edges
+   - `LoadGraph()` clears graph first, then loads nodes and connections
+   - `RefreshEdgesForNode()` recreates edges for a specific node (used for SequenceNode port changes)
+   - Prevents duplicate node views by checking `GetNodeByGuid()` before creating
+
+5. **NodeView.cs** (`Assets/Scripts/NodeSystem/Editor/NodeView.cs`)
+   - Visual representation of NodeData
+   - Has `RefreshPorts()` method to rebuild ports
+   - Has `RefreshInlineContent()` to rebuild inline UI
+   - Visual states: Idle, Running (orange), Completed (green), Failed (red)
+
+### Node System
+
+#### SequenceNode (`Assets/Scripts/NodeSystem/Nodes/SequenceNode.cs`)
+- **CRITICAL**: Uses dynamic ports (`sequence0`, `sequence1`, etc.)
+- `_sequencePorts` list stores port IDs - must be serialized
+- `GetOutputPorts()` adds default "sequence0" if list is empty
+- `RestorePortsFromConnections()` restores ports from graph connections after load
+- When connecting to "addStep" port:
+  1. Creates new sequence port
+  2. Removes old "addStep" connection from graph data
+  3. Refreshes node ports
+  4. Creates new connection with actual port ID
+  5. Calls `RefreshEdgesForNode()` to recreate all edges
+- Execution: Waits for each step to complete before moving to next
+- Fires visual events: `BroadcastNodeStarted()` and `BroadcastNodeCompleted()` for each step
+
+#### Important Node Patterns
+- All nodes call `Complete()` when done
+- Async nodes use coroutines and set completion callbacks
+- Nodes should fire visual events for editor feedback
+- Nodes with dynamic ports need special handling in `NodeGraphView.OnGraphViewChanged()`
+
+### Editor UI System
+
+#### Inline Content (`Assets/Scripts/NodeSystem/Editor/NodeInlineContent/`)
+- Base class: `NodeInlineContentBase`
+- Factory: `NodeInlineContentFactory` - registers all custom inline content
+- Custom inline content classes render node properties inside the node
+- Has `RequestRefresh()` mechanism for adaptive UI (e.g., when enum changes)
+- Helper methods: `CreateTextField()`, `CreateIntField()`, `CreateFloatField()`, `CreateEnumField()`, `CreateObjectField()`, `CreateToggle()`, `CreateSlider()`
+
+#### NodeGraphEditorWindow.cs
+- Main editor window
+- Saves/restores state across play mode using `SessionState`
+- `RestoreState()` loads graph from saved path
+- Always calls `LoadGraph()` to ensure `_currentGraph` and `_graphField` are set
+- Has variable panel, debug toolbar, variable watch panel, breadcrumb navigation
+
+### Important Patterns
+
+#### Preventing Duplicates
+1. **Node Loading**: Check for duplicate GUIDs in `NodeGraph.EnsureLoaded()`
+2. **Node View Creation**: Check `GetNodeByGuid()` before creating in `CreateNodeView()`
+3. **Edge Creation**: Check if edge exists before creating in `CreateEdge()`
+4. **Floating Edges**: `CleanupFloatingEdges()` removes invalid/duplicate edges
+
+#### Play Mode Handling
+- `NodeGraph.OnEnable()` resets `_loaded = false` and reloads from JSON
+- Editor window's `OnEnable()` calls `RestoreState()` which loads graph
+- Must use `EditorApplication.delayCall` to wait for graph's `OnEnable()` to complete
+- Graph field can show "None" if `_currentGraph` isn't set - always call `LoadGraph()` in `RestoreState()`
+
+#### Port Refresh (SequenceNode)
+When SequenceNode ports change:
+1. Remove all "addStep" edges from graph
+2. Remove old "addStep" connections from graph data
+3. Call `nodeView.RefreshPorts()` - this clears and recreates ports
+4. Call `RefreshEdgesForNode()` - removes old edges and recreates from graph data
+5. Filter out "addStep" connections when recreating edges
+
+#### Visual Feedback
+- Nodes turn orange when executing (`NodeState.Running`)
+- Nodes turn green when completed (`NodeState.Completed`)
+- Events: `NodeGraphRunner.OnNodeStarted`, `OnNodeCompleted`
+- Use `schedule.Execute()` for UI updates in event handlers
+
+### Common Issues & Solutions
+
+1. **Duplicate SequenceNodes on play mode**
+   - Cause: Graph reloads, ports not restored properly
+   - Fix: `RestorePortsFromConnections()` called after loading connections
+   - Fix: Duplicate GUID checking in `EnsureLoaded()`
+   - Fix: Check `GetNodeByGuid()` before creating node views
+
+2. **Floating edges**
+   - Cause: Ports refreshed, edges lose references
+   - Fix: `CleanupFloatingEdges()` removes edges with invalid ports
+   - Fix: `RefreshEdgesForNode()` recreates edges from graph data
+   - Fix: Check for duplicate edges before creating
+
+3. **Graph goes blank on play mode**
+   - Cause: Graph's `OnEnable()` hasn't finished loading
+   - Fix: Use `EditorApplication.delayCall` to wait
+   - Fix: Access `graph.Nodes` and `graph.Connections` to trigger `EnsureLoaded()`
+   - Fix: Always set `_currentGraph` and `_graphField` in `RestoreState()`
+
+4. **SequenceNode not showing visual state**
+   - Cause: Completion events not fired
+   - Fix: Call `BroadcastNodeStarted()` and `BroadcastNodeCompleted()` in `ExecuteSequence()`
+   - Fix: Preserve original `OnComplete` callback when setting local handler
+
+5. **"addStep" edges remaining**
+   - Cause: "addStep" connections saved to graph data
+   - Fix: Remove "addStep" connections from graph data when loading
+   - Fix: Filter out "addStep" in `RefreshEdgesForNode()`
+   - Fix: Remove from `change.edgesToCreate` in `OnGraphViewChanged()`
+
+### File Structure
+
+```
+Assets/Scripts/NodeSystem/
+├── Core/
+│   ├── NodeGraph.cs          # Graph data storage (ScriptableObject)
+│   ├── NodeData.cs            # Base node class
+│   ├── NodeGraphRunner.cs    # Runtime executor
+│   ├── GraphVariable.cs      # Graph variables
+│   ├── NodeGroupData.cs      # Node groups
+│   └── ConnectionData.cs     # Connection data
+├── Nodes/
+│   ├── SequenceNode.cs       # Sequential execution (dynamic ports)
+│   ├── AnimationNode.cs      # UI animations
+│   ├── ConditionalNode.cs    # Branching
+│   └── ... (other nodes)
+└── Editor/
+    ├── NodeGraphEditorWindow.cs    # Main editor window
+    ├── NodeGraphView.cs            # Graph view
+    ├── NodeView.cs                 # Node visual representation
+    ├── NodeInlineContent/
+    │   ├── NodeInlineContentBase.cs
+    │   ├── NodeInlineContentFactory.cs
+    │   └── ... (custom inline content)
+    ├── VariablePanel.cs
+    ├── DebugToolbar.cs
+    └── ...
+```
+
+### Coding Conventions
+
+1. **Serialization**: Use `[SerializeField]` for private fields that need serialization
+2. **NonSerialized**: Use `[NonSerialized]` for runtime-only fields
+3. **Editor Code**: Wrap in `#if UNITY_EDITOR`
+4. **Node Execution**: Always call `Complete()` when done
+5. **Visual Events**: Fire `BroadcastNodeStarted/Completed()` for editor feedback
+6. **Error Handling**: Log errors with `Debug.LogError()` with context
+7. **Naming**: Use descriptive names, prefix private fields with `_`
+
+### Key Dependencies
+
+- Unity UI Toolkit (for editor UI)
+- DOTween (optional, for animations)
+- System.Linq (for LINQ operations)
+
+### Important Notes
+
+- Graph data is stored as a single JSON string in `_jsonData`
+- Nodes are deserialized from JSON on `EnsureLoaded()`
+- Connections are stored separately from nodes
+- SequenceNode ports must be restored from connections after loading
+- Editor window state persists across play mode using `SessionState`
+- Always check for duplicates when loading/creating nodes and edges
+- Use `EditorApplication.delayCall` for timing-sensitive operations
+
+### Testing Checklist
+
+When adding new features:
+- [ ] Test entering/exiting play mode (graph should persist)
+- [ ] Test SequenceNode with multiple steps (no duplicates)
+- [ ] Test port refresh (no floating edges)
+- [ ] Test visual feedback (nodes turn orange/green)
+- [ ] Test graph save/load (data persists)
+- [ ] Test duplicate prevention (no duplicate nodes/edges)
+

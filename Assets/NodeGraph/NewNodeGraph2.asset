@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: efef43d2e8d2b144eba636f40d9de295, type: 3}
+  m_Name: NewNodeGraph2
+  m_EditorClassIdentifier: Assembly-CSharp::NodeSystem.NodeGraph
+  graphName: NewNodeGraph2
+  description: 
+  _jsonData: '{"nodes":[{"typeName":"NodeSystem.Nodes.StartNode, Assembly-CSharp,
+    Version=0.0.0.0, Culture=neutral, PublicKeyToken=null","json":"{\"_guid\":\"5657892c-fc05-47a9-8707-1936029da688\",\"_position\":{\"x\":100.0,\"y\":200.0},\"hasBreakpoint\":false}"},{"typeName":"NodeSystem.Nodes.DebugLogNode,
+    Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null","json":"{\"_guid\":\"8257c380-e49a-4a8e-90cc-c32789ce937b\",\"_position\":{\"x\":308.0,\"y\":176.0},\"hasBreakpoint\":false,\"logType\":0,\"message\":\"Debug
+    message SUB GRAPH\"}"},{"typeName":"NodeSystem.Nodes.EndNode, Assembly-CSharp,
+    Version=0.0.0.0, Culture=neutral, PublicKeyToken=null","json":"{\"_guid\":\"0c5f5ebe-b513-4a57-8ae9-12a91eef4b35\",\"_position\":{\"x\":673.1524658203125,\"y\":281.6925048828125},\"hasBreakpoint\":false,\"message\":\"Flow
+    completed\"}"},{"typeName":"NodeSystem.Nodes.SequenceNode, Assembly-CSharp, Version=0.0.0.0,
+    Culture=neutral, PublicKeyToken=null","json":"{\"_guid\":\"cadb246f-29ae-47b6-985e-cc38a258e28e\",\"_position\":{\"x\":665.0,\"y\":47.0},\"hasBreakpoint\":false,\"_sequencePorts\":[\"sequence0\",\"sequence1\"]}"},{"typeName":"NodeSystem.Nodes.DebugLogNode,
+    Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null","json":"{\"_guid\":\"0bd0b422-60da-4f3c-8dee-cf640fd1eb69\",\"_position\":{\"x\":1015.0,\"y\":61.0},\"hasBreakpoint\":false,\"logType\":0,\"message\":\"Debug
+    message SUB GRAPH ERROR 1\"}"},{"typeName":"NodeSystem.Nodes.DebugLogNode, Assembly-CSharp,
+    Version=0.0.0.0, Culture=neutral, PublicKeyToken=null","json":"{\"_guid\":\"81fd9961-0d74-4d77-bf78-ab9bc64ae370\",\"_position\":{\"x\":942.0,\"y\":220.0},\"hasBreakpoint\":false,\"logType\":0,\"message\":\"Debug
+    message SUB GRAPH ERROR 2222222222222\"}"}],"connections":[{"outNode":"5657892c-fc05-47a9-8707-1936029da688","outPort":"output","inNode":"8257c380-e49a-4a8e-90cc-c32789ce937b","inPort":"input"},{"outNode":"8257c380-e49a-4a8e-90cc-c32789ce937b","outPort":"output","inNode":"cadb246f-29ae-47b6-985e-cc38a258e28e","inPort":"input"},{"outNode":"cadb246f-29ae-47b6-985e-cc38a258e28e","outPort":"sequence0","inNode":"0bd0b422-60da-4f3c-8dee-cf640fd1eb69","inPort":"input"},{"outNode":"cadb246f-29ae-47b6-985e-cc38a258e28e","outPort":"sequence1","inNode":"81fd9961-0d74-4d77-bf78-ab9bc64ae370","inPort":"input"}],"variables":[],"groups":[]}'
