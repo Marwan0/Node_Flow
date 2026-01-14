@@ -22,7 +22,6 @@ namespace NodeSystem.Editor
             Register<Nodes.SetTextNode, SetTextNodeInspector>();
             Register<Nodes.PlaySoundNode, PlaySoundNodeInspector>();
             Register<Nodes.DelayNode, DelayNodeInspector>();
-            Register<Nodes.ParallelNode, ParallelNodeInspector>();
         }
 
         public static void Register<TNode, TInspector>() 

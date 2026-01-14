@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace NodeSystem
@@ -33,6 +34,7 @@ namespace NodeSystem
         private bool _isRunning;
         private List<string> _executionPath = new List<string>();
         private NodeData _pendingNextNode; // For step mode
+        private HashSet<string> _activeNodeGuids = new HashSet<string>(); // Track nodes currently executing
         
         // Debug events
         public static event System.Action<NodeGraphRunner> OnPaused;
@@ -110,6 +112,7 @@ namespace NodeSystem
             // Reset all nodes
             _graph.ResetAllNodes();
             _executionPath.Clear();
+            _activeNodeGuids.Clear();
 
             // Initialize all nodes with runner reference
             foreach (var node in _graph.Nodes)
@@ -147,6 +150,7 @@ namespace NodeSystem
             _pendingNextNode = null;
             _isPaused = false;
             _stepMode = false;
+            _activeNodeGuids.Clear();
             StopAllCoroutines();
             
             if (ActiveRunner == this)
@@ -198,11 +202,25 @@ namespace NodeSystem
             if (!_isRunning) return;
             if (node == null) return;
 
-            _currentNode = node;
+            // Reset node state if it was previously completed (allows re-execution in parallel scenarios)
+            if (node.State == NodeState.Completed || node.State == NodeState.Failed)
+            {
+                node.Reset();
+            }
+
+            // Track this node as active (for parallel execution tracking)
+            _activeNodeGuids.Add(node.Guid);
+
+            // Don't overwrite _currentNode if multiple nodes are executing in parallel
+            // Only set it if it's null or if we're executing sequentially
+            if (_currentNode == null)
+            {
+                _currentNode = node;
+            }
+            
             _executionPath.Add(node.Guid);
 
-            if (_debugMode)
-                Debug.Log($"[NodeGraphRunner] Executing: {node.Name}");
+            Debug.Log($"[NodeGraphRunner] Executing: {node.Name} (State before: {node.State}, Active nodes: {_activeNodeGuids.Count})");
 
             // Fire event
             OnNodeStarted?.Invoke(this, node);
@@ -212,6 +230,8 @@ namespace NodeSystem
 
             // Execute
             node.Execute();
+            
+            Debug.Log($"[NodeGraphRunner] After Execute call: {node.Name} (State after: {node.State})");
         }
 
         /// <summary>
@@ -298,19 +318,9 @@ namespace NodeSystem
                 // Reset state for next execution
                 completedNode.State = NodeState.Completed;
             }
-            else if (completedNode is Nodes.ParallelNode)
-            {
-                // ParallelNode uses "done" port after all parallel nodes complete
-                outputPort = "done";
-            }
             else if (completedNode is Nodes.LoopNode)
             {
                 // LoopNode uses "done" port when loop completes
-                outputPort = "done";
-            }
-            else if (completedNode is Nodes.SequenceNode)
-            {
-                // SequenceNode uses "done" port when all sequence steps complete
                 outputPort = "done";
             }
             else if (completedNode is Nodes.SubGraphNode)
@@ -319,24 +329,36 @@ namespace NodeSystem
                 outputPort = "complete";
             }
 
+            // Remove this node from active tracking
+            _activeNodeGuids.Remove(completedNode.Guid);
+
             // Get connected nodes from the appropriate output port
             var nextNodes = _graph.GetConnectedNodes(completedNode.Guid, outputPort);
 
             if (nextNodes.Count == 0)
             {
-                // No more nodes - graph complete
-                _isRunning = false;
-                _currentNode = null;
-                _pendingNextNode = null;
-                
-                if (ActiveRunner == this)
-                    ActiveRunner = null;
+                // This branch has no more nodes
+                // Only stop the graph if NO nodes are currently executing
+                if (_activeNodeGuids.Count == 0)
+                {
+                    // All branches have completed - graph complete
+                    _isRunning = false;
+                    _currentNode = null;
+                    _pendingNextNode = null;
+                    
+                    if (ActiveRunner == this)
+                        ActiveRunner = null;
 
-                // Fire event
-                OnGraphEnded?.Invoke(this);
-                
-                if (_debugMode)
-                    Debug.Log("[NodeGraphRunner] Graph execution complete");
+                    // Fire event
+                    OnGraphEnded?.Invoke(this);
+                    
+                    Debug.Log($"[NodeGraphRunner] Graph execution complete (all branches finished)");
+                }
+                else
+                {
+                    // Other branches are still running, just this branch ended
+                    Debug.Log($"[NodeGraphRunner] Branch ended at {completedNode.Name}, but {_activeNodeGuids.Count} other nodes are still running");
+                }
                 return;
             }
 
@@ -359,10 +381,19 @@ namespace NodeSystem
             }
 
             // Execute next node(s)
-            // For simplicity, execute first connected node
-            // (For parallel execution, you'd execute all)
-            // Use ExecuteNode (not ExecuteNodeInternal) to check for breakpoints
-            ExecuteNode(nextNodes[0]);
+            // If there are multiple connections, execute ALL of them in parallel
+            // All connected nodes will execute simultaneously when the current node completes
+            // This enables parallel execution through one-to-many connections
+            if (nextNodes.Count > 1)
+            {
+                Debug.Log($"[NodeGraphRunner] Executing {nextNodes.Count} nodes in parallel from {completedNode.Name}: {string.Join(", ", nextNodes.Select(n => n.Name))}");
+            }
+            
+            foreach (var nextNode in nextNodes)
+            {
+                Debug.Log($"[NodeGraphRunner] Executing node: {nextNode.Name} (Current State: {nextNode.State})");
+                ExecuteNode(nextNode);
+            }
         }
 
         /// <summary>

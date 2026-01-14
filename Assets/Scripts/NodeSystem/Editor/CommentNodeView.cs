@@ -14,10 +14,12 @@ namespace NodeSystem.Editor
     {
         public CommentNode Data { get; private set; }
         private TextField _textField;
+        private NodeGraphView _graphView;
 
-        public CommentNodeView(CommentNode data)
+        public CommentNodeView(CommentNode data, NodeGraphView graphView = null)
         {
             Data = data;
+            _graphView = graphView;
             viewDataKey = data.Guid;
 
             // Sticky note style
@@ -65,12 +67,33 @@ namespace NodeSystem.Editor
             _textField.style.flexGrow = 1;
             _textField.style.whiteSpace = WhiteSpace.Normal;
             _textField.style.fontSize = 12;
+            
+            // Make text field focusable and handle input
+            _textField.focusable = true;
+            _textField.selectAllOnFocus = false;
+            
+            // Prevent keyboard events from being intercepted by GraphView when text field is focused
+            _textField.RegisterCallback<KeyDownEvent>(evt => evt.StopPropagation());
+            _textField.RegisterCallback<KeyUpEvent>(evt => evt.StopPropagation());
+            
             _textField.RegisterValueChangedCallback(evt =>
             {
-                data.comment = evt.newValue;
-                if (Data.Runner?.Graph != null)
+                if (Data != null && evt.newValue != Data.comment)
                 {
-                    EditorUtility.SetDirty(Data.Runner.Graph);
+                    // Record undo
+                    if (_graphView?.Graph != null)
+                    {
+                        Undo.RecordObject(_graphView.Graph, "Edit Comment");
+                    }
+                    
+                    Data.comment = evt.newValue;
+                    
+                    // Save the graph
+                    if (_graphView?.Graph != null)
+                    {
+                        _graphView.Graph.Save();
+                        EditorUtility.SetDirty(_graphView.Graph);
+                    }
                 }
             });
 
@@ -86,18 +109,32 @@ namespace NodeSystem.Editor
 
         private void OnGeometryChanged(GeometryChangedEvent evt)
         {
-            if (Data != null)
+            if (Data != null && _graphView?.Graph != null)
             {
-                Data.Position = GetPosition().position;
+                var newPos = GetPosition().position;
+                if (Data.Position != newPos)
+                {
+                    Undo.RecordObject(_graphView.Graph, "Move Comment");
+                    Data.Position = newPos;
+                    _graphView.Graph.Save();
+                    EditorUtility.SetDirty(_graphView.Graph);
+                }
             }
         }
 
         public override void SetPosition(Rect newPos)
         {
             base.SetPosition(newPos);
-            if (Data != null)
+            if (Data != null && _graphView?.Graph != null)
             {
-                Data.Position = new Vector2(newPos.x, newPos.y);
+                var newPosition = new Vector2(newPos.x, newPos.y);
+                if (Data.Position != newPosition)
+                {
+                    Undo.RecordObject(_graphView.Graph, "Move Comment");
+                    Data.Position = newPosition;
+                    _graphView.Graph.Save();
+                    EditorUtility.SetDirty(_graphView.Graph);
+                }
             }
         }
 
@@ -106,11 +143,18 @@ namespace NodeSystem.Editor
         /// </summary>
         public void SetColor(Color color)
         {
+            if (_graphView?.Graph != null)
+            {
+                Undo.RecordObject(_graphView.Graph, "Change Comment Color");
+            }
+            
             Data.commentColor = color;
             style.backgroundColor = color;
-            if (Data.Runner?.Graph != null)
+            
+            if (_graphView?.Graph != null)
             {
-                EditorUtility.SetDirty(Data.Runner.Graph);
+                _graphView.Graph.Save();
+                EditorUtility.SetDirty(_graphView.Graph);
             }
         }
     }

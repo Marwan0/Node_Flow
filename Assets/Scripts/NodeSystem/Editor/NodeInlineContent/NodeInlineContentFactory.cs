@@ -19,8 +19,6 @@ namespace NodeSystem.Editor
             // Exclude simple flow nodes that have no editable properties
             _excludedTypes.Add(typeof(Nodes.StartNode));
             _excludedTypes.Add(typeof(Nodes.EndNode));
-            _excludedTypes.Add(typeof(Nodes.SequenceNode));   // Flow only
-            _excludedTypes.Add(typeof(Nodes.ParallelNode));   // Flow only
             _excludedTypes.Add(typeof(Nodes.WaitForAllNode)); // Flow only
             _excludedTypes.Add(typeof(Nodes.CommentNode));    // Uses CommentNodeView
             
