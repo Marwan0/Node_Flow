@@ -812,23 +812,22 @@ namespace NodeSystem.Editor
                     {
                         // Skip "addStep" connections (legacy from SequenceNode)
                         if (edge.output.name == "addStep")
-                            {
-                                // Mark for removal and remove visually
-                                edgesToRemove.Add(edge);
-                                RemoveElement(edge);
-                                continue;
-                            }
-                            
-                            var conn = new ConnectionData(
-                                outputData.Guid,
-                                edge.output.name,
-                                inputData.Guid,
-                                edge.input.name
-                            );
-                            
-                            Undo.RecordObject(Graph, "Add Connection");
-                            Graph.AddConnection(conn);
+                        {
+                            // Mark for removal and remove visually
+                            edgesToRemove.Add(edge);
+                            RemoveElement(edge);
+                            continue;
                         }
+                            
+                        var conn = new ConnectionData(
+                            outputData.Guid,
+                            edge.output.name,
+                            inputData.Guid,
+                            edge.input.name
+                        );
+                            
+                        Undo.RecordObject(Graph, "Add Connection");
+                        Graph.AddConnection(conn);
                     }
                 }
                 
