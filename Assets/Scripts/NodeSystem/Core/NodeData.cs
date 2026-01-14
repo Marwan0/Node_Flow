@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace NodeSystem
@@ -49,7 +50,17 @@ namespace NodeSystem
             this.id = id;
             this.name = name;
             this.direction = direction;
-            this.capacity = capacity;
+            
+            // Smart default: Output ports allow multiple connections (one-to-many)
+            // Input ports are single by default (many-to-one)
+            if (capacity == PortCapacity.Single && direction == PortDirection.Output)
+            {
+                this.capacity = PortCapacity.Multi; // Output ports default to Multi
+            }
+            else
+            {
+                this.capacity = capacity; // Use specified capacity or Single for inputs
+            }
         }
     }
 
@@ -115,10 +126,26 @@ namespace NodeSystem
         /// <summary>Define output ports</summary>
         public abstract List<PortData> GetOutputPorts();
 
+        /// <summary>
+        /// Get the capacity of an output port (Single or Multi)
+        /// </summary>
+        public PortCapacity GetOutputPortCapacity(string portId)
+        {
+            var ports = GetOutputPorts();
+            var port = ports.FirstOrDefault(p => p.id == portId);
+            return port?.capacity ?? PortCapacity.Single;
+        }
+
         /// <summary>Execute the node (called by runner)</summary>
         public void Execute()
         {
-            if (State == NodeState.Running) return;
+            // Allow execution even if already running (for parallel execution scenarios)
+            // The node's OnExecute() should handle re-entrancy if needed
+            if (State == NodeState.Running)
+            {
+                Debug.LogWarning($"[NodeData] Node {Name} is already running, skipping execution. This might indicate a parallel execution issue.");
+                return;
+            }
             
             State = NodeState.Running;
             OnExecute();

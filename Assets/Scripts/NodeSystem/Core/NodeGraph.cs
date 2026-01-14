@@ -14,7 +14,6 @@ namespace NodeSystem
         public List<NodeEntry> nodes = new List<NodeEntry>();
         public List<ConnectionEntry> connections = new List<ConnectionEntry>();
         public List<GraphVariable> variables = new List<GraphVariable>();
-        public List<NodeGroupData> groups = new List<NodeGroupData>();
     }
 
     [Serializable]
@@ -54,7 +53,6 @@ namespace NodeSystem
         [NonSerialized] private List<NodeData> _runtimeNodes;
         [NonSerialized] private List<ConnectionData> _runtimeConnections;
         [NonSerialized] private List<GraphVariable> _runtimeVariables;
-        [NonSerialized] private List<NodeGroupData> _runtimeGroups;
         [NonSerialized] private bool _loaded = false;
 
         public IReadOnlyList<NodeData> Nodes
@@ -87,16 +85,6 @@ namespace NodeSystem
             get { EnsureLoaded(); return _runtimeVariables.Count; }
         }
 
-        public IReadOnlyList<NodeGroupData> Groups
-        {
-            get { EnsureLoaded(); return _runtimeGroups; }
-        }
-
-        public int GroupCount
-        {
-            get { EnsureLoaded(); return _runtimeGroups.Count; }
-        }
-
         private void OnEnable()
         {
             _loaded = false;
@@ -112,7 +100,6 @@ namespace NodeSystem
             _runtimeNodes = new List<NodeData>();
             _runtimeConnections = new List<ConnectionData>();
             _runtimeVariables = new List<GraphVariable>();
-            _runtimeGroups = new List<NodeGroupData>();
             _loaded = true;
 
             if (string.IsNullOrEmpty(_jsonData))
@@ -177,21 +164,6 @@ namespace NodeSystem
                     _runtimeVariables.AddRange(data.variables);
                 }
 
-                // Load groups
-                if (data.groups != null)
-                {
-                    _runtimeGroups.AddRange(data.groups);
-                }
-
-                // Restore sequence ports for SequenceNodes from connections
-                // This ensures ports are restored even if they weren't serialized properly
-                foreach (var node in _runtimeNodes)
-                {
-                    if (node is Nodes.SequenceNode sequenceNode)
-                    {
-                        sequenceNode.RestorePortsFromConnections(this);
-                    }
-                }
             }
             catch (Exception e)
             {
@@ -229,12 +201,9 @@ namespace NodeSystem
             // Save variables
             data.variables = new List<GraphVariable>(_runtimeVariables);
 
-            // Save groups
-            data.groups = new List<NodeGroupData>(_runtimeGroups);
-
             _jsonData = JsonUtility.ToJson(data);
             
-            Debug.Log($"[NodeGraph] SaveToJson: {_runtimeNodes.Count} nodes, {_runtimeConnections.Count} connections, {_runtimeVariables.Count} variables, {_runtimeGroups.Count} groups");
+            Debug.Log($"[NodeGraph] SaveToJson: {_runtimeNodes.Count} nodes, {_runtimeConnections.Count} connections, {_runtimeVariables.Count} variables");
         }
 
         // === Public API ===
@@ -322,14 +291,28 @@ namespace NodeSystem
             SaveToJson();
 #if UNITY_EDITOR
             UnityEditor.EditorUtility.SetDirty(this);
-            UnityEditor.AssetDatabase.SaveAssets();
+            // Don't call AssetDatabase.SaveAssets() here - it interferes with Unity's Undo system
+            // Let Unity save assets when appropriate (e.g., on explicit save, scene save, etc.)
 #endif
+        }
+
+        /// <summary>
+        /// Force reload graph data from JSON (useful after undo/redo)
+        /// </summary>
+        public void ForceReload()
+        {
+            _loaded = false;
+            EnsureLoaded();
         }
 
         public void Save()
         {
             SaveAndMarkDirty();
-            Debug.Log($"[NodeGraph] Saved: {NodeCount} nodes, {ConnectionCount} connections, {VariableCount} variables, {GroupCount} groups");
+#if UNITY_EDITOR
+            // Explicit save should write to disk immediately
+            UnityEditor.AssetDatabase.SaveAssets();
+#endif
+            Debug.Log($"[NodeGraph] Saved: {NodeCount} nodes, {ConnectionCount} connections, {VariableCount} variables");
         }
 
         // === Variable Management ===
@@ -401,46 +384,6 @@ namespace NodeSystem
             }
         }
 
-        // === Group Management ===
-
-        public NodeGroupData GetGroup(string guid)
-        {
-            EnsureLoaded();
-            return _runtimeGroups.FirstOrDefault(g => g.Guid == guid);
-        }
-
-        public void AddGroup(NodeGroupData group)
-        {
-            EnsureLoaded();
-            if (_runtimeGroups.Any(g => g.Guid == group.Guid))
-            {
-                Debug.LogWarning($"[NodeGraph] Group '{group.Title}' already exists");
-                return;
-            }
-            _runtimeGroups.Add(group);
-            SaveAndMarkDirty();
-            Debug.Log($"[NodeGraph] Added group: {group.Title}");
-        }
-
-        public void RemoveGroup(NodeGroupData group)
-        {
-            EnsureLoaded();
-            if (_runtimeGroups.Remove(group))
-            {
-                SaveAndMarkDirty();
-                Debug.Log($"[NodeGraph] Removed group: {group.Title}");
-            }
-        }
-
-        public void RemoveGroup(string guid)
-        {
-            EnsureLoaded();
-            var group = GetGroup(guid);
-            if (group != null)
-            {
-                RemoveGroup(group);
-            }
-        }
 
         public List<string> Validate()
         {

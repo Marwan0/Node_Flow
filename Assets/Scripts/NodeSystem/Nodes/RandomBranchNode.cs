@@ -140,11 +140,7 @@ namespace NodeSystem.Nodes
             // Handle special node types
             if (node is ConditionalNode)
                 return node.State == NodeState.Completed ? "true" : "false";
-            if (node is ParallelNode)
-                return "done";
             if (node is LoopNode)
-                return "done";
-            if (node is SequenceNode)
                 return "done";
             return "output";
         }

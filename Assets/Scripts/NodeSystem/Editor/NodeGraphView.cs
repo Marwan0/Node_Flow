@@ -69,6 +69,9 @@ namespace NodeSystem.Editor
             // Handle keyboard shortcuts
             RegisterCallback<KeyDownEvent>(OnKeyDown);
             
+            // Also handle via IMGUI for undo/redo (more reliable)
+            RegisterCallback<AttachToPanelEvent>(OnAttachToPanel);
+            
             // Enable copy/paste callbacks
             serializeGraphElements = SerializeGraphElementsCallback;
             canPasteSerializedData = CanPasteSerializedDataCallback;
@@ -86,43 +89,11 @@ namespace NodeSystem.Editor
             // Only show if clicking on empty space (not on a node)
             if (evt.target == this || evt.target is GridBackground)
             {
-                evt.menu.AppendAction("Create Group", _ => CreateGroupAtMousePosition(), DropdownMenuAction.AlwaysEnabled);
+                // Group functionality removed due to persistent issues
             }
         }
 
-        private void CreateGroupAtMousePosition()
-        {
-            if (Graph == null) return;
-
-            var mousePos = contentViewContainer.WorldToLocal(_lastMousePosition);
-            var groupData = new NodeGroupData
-            {
-                Title = "New Group",
-                Position = new Rect(mousePos.x, mousePos.y, 200, 150)
-            };
-
-            Undo.RecordObject(Graph, "Create Group");
-            Graph.AddGroup(groupData);
-            Graph.Save();
-
-            CreateGroupView(groupData);
-        }
-
-        private void CreateGroupView(NodeGroupData groupData)
-        {
-            var groupView = new NodeGroupView(groupData, this);
-            AddElement(groupView);
-
-            // Add nodes to group
-            foreach (var nodeGuid in groupData.ContainedNodeGuids)
-            {
-                var node = GetNodeByGuid(nodeGuid);
-                if (node != null)
-                {
-                    groupView.AddElement(node);
-                }
-            }
-        }
+        // Group functionality removed due to persistent serialization and restoration issues
 
         private void OnContextMenu(ContextualMenuPopulateEvent evt)
         {
@@ -170,12 +141,53 @@ namespace NodeSystem.Editor
 
         private void OnKeyDown(KeyDownEvent evt)
         {
+            // Only handle if GraphView has focus and graph is loaded
+            if (Graph == null) return;
+            
+            // Don't intercept if a text field is focused
+            if (evt.target is TextField || evt.target is TextInputBaseField<char>)
+            {
+                return;
+            }
+            
             // Ctrl+D for duplicate
             if (evt.ctrlKey && evt.keyCode == KeyCode.D)
             {
                 DuplicateSelection();
                 evt.StopPropagation();
+                return;
             }
+            
+            // Ctrl+Z for undo
+            if (evt.ctrlKey && evt.keyCode == KeyCode.Z && !evt.shiftKey)
+            {
+                Undo.PerformUndo();
+                evt.StopPropagation();
+                return;
+            }
+            
+            // Ctrl+Y for redo (Windows)
+            if (evt.ctrlKey && evt.keyCode == KeyCode.Y)
+            {
+                Undo.PerformRedo();
+                evt.StopPropagation();
+                return;
+            }
+            
+            // Ctrl+Shift+Z for redo (Mac/alternative)
+            if (evt.ctrlKey && evt.shiftKey && evt.keyCode == KeyCode.Z)
+            {
+                Undo.PerformRedo();
+                evt.StopPropagation();
+                return;
+            }
+        }
+
+
+        private void OnAttachToPanel(AttachToPanelEvent evt)
+        {
+            // Make sure GraphView can receive keyboard focus
+            focusable = true;
         }
 
         ~NodeGraphView()
@@ -409,14 +421,6 @@ namespace NodeSystem.Editor
                 }
             }
             
-            // Refresh ports for SequenceNodes to ensure they show restored ports
-            foreach (var element in graphElements.ToList())
-            {
-                if (element is NodeView nodeView && nodeView.Data is Nodes.SequenceNode)
-                {
-                    nodeView.RefreshPorts();
-                }
-            }
             
             // Clean up floating edges after port refresh (ports refresh disconnects edges)
             CleanupFloatingEdges();
@@ -439,12 +443,6 @@ namespace NodeSystem.Editor
             
             // Schedule another cleanup after a short delay to catch any timing issues
             schedule.Execute(() => CleanupFloatingEdges()).ExecuteLater(100);
-
-            // Create groups
-            foreach (var groupData in graph.Groups)
-            {
-                CreateGroupView(groupData);
-            }
 
             // Sync with runtime state if in play mode
             if (EditorApplication.isPlaying)
@@ -568,13 +566,6 @@ namespace NodeSystem.Editor
                 RemoveElement(comment);
             }
             
-            // Remove groups
-            var allGroups = allElements.OfType<NodeGroupView>().ToList();
-            foreach (var group in allGroups)
-            {
-                RemoveElement(group);
-            }
-            
             // Clear any remaining elements
             DeleteElements(graphElements.ToList());
             
@@ -601,7 +592,7 @@ namespace NodeSystem.Editor
             // Special handling for comment nodes
             if (data is Nodes.CommentNode commentNode)
             {
-                var commentView = new CommentNodeView(commentNode);
+                var commentView = new CommentNodeView(commentNode, this);
                 AddElement(commentView);
                 return null; // Comment nodes don't use NodeView
             }
@@ -775,6 +766,10 @@ namespace NodeSystem.Editor
                         nodeData = odinView.Data;
                     }
 #endif
+                    else if (elem is CommentNodeView commentView)
+                    {
+                        nodeData = commentView.Data;
+                    }
                     
                     if (nodeData != null)
                     {
@@ -815,63 +810,8 @@ namespace NodeSystem.Editor
 
                     if (outputData != null && inputData != null)
                     {
-                        // Check if this is a SequenceNode connecting to "addStep" port
-                        if (outputData is Nodes.SequenceNode sequenceNode && edge.output.name == "addStep")
-                        {
-                            // Mark this edge for removal from edgesToCreate
-                            edgesToRemove.Add(edge);
-                            
-                            // Remove ALL "addStep" connections from graph data for this node (cleanup)
-                            var allAddStepConnections = Graph.Connections.Where(c => 
-                                c.outputNodeGuid == outputData.Guid && c.outputPortId == "addStep"
-                            ).ToList();
-                            foreach (var oldConn in allAddStepConnections)
-                            {
-                                Graph.RemoveConnection(oldConn);
-                            }
-                            
-                            // Add a new sequence port
-                            Undo.RecordObject(Graph, "Add Sequence Step");
-                            sequenceNode.AddSequencePort();
-                            
-                            // Get the new port ID before refreshing
-                            string newPortId = sequenceNode.GetSequencePorts()[sequenceNode.GetSequencePorts().Count - 1];
-                            
-                            // Store the input port reference before refreshing
-                            var inputPortRef = edge.input;
-                            var inputDataGuid = inputData.Guid;
-                            var inputPortName = inputPortRef.name;
-                            
-                            // Remove the old edge visually
-                            RemoveElement(edge);
-                            
-                            // Refresh the node view to show new port (this will disconnect all remaining edges)
-                            var nodeView = GetNodeByGuid(sequenceNode.Guid) as NodeView;
-                            if (nodeView != null)
-                            {
-                                nodeView.RefreshPorts();
-                            }
-                            
-                            // Create connection with the new port
-                            var newConn = new ConnectionData(
-                                outputData.Guid,
-                                newPortId, // Use the new port instead of "addStep"
-                                inputDataGuid,
-                                inputPortName
-                            );
-                            
-                            Graph.AddConnection(newConn);
-                            
-                            // Recreate ALL edges for this node from graph data (preserves all connections)
-                            RefreshEdgesForNode(sequenceNode.Guid);
-                            
-                            // Schedule cleanup of floating edges after a frame (to catch any that weren't cleaned up)
-                            schedule.Execute(() => CleanupFloatingEdges()).ExecuteLater(100);
-                        }
-                        else
-                        {
-                            // Skip "addStep" connections - they are handled specially above
-                            if (edge.output.name == "addStep")
+                        // Skip "addStep" connections (legacy from SequenceNode)
+                        if (edge.output.name == "addStep")
                             {
                                 // Mark for removal and remove visually
                                 edgesToRemove.Add(edge);
@@ -935,6 +875,9 @@ namespace NodeSystem.Editor
         {
             if (Graph != null)
             {
+                // Force reload graph data from JSON (undo restores the ScriptableObject state)
+                Graph.ForceReload();
+                // Reload the visual graph
                 LoadGraph(Graph);
             }
         }
