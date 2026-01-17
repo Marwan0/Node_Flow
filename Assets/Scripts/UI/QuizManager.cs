@@ -442,6 +442,13 @@ namespace QuizSystem
                 currentScore += points;
                 Debug.Log($"Correct! +{points} points. Total: {currentScore}");
             }
+            
+            // Notify QuizState to fire the OnLastAnswerResult event
+            // This allows LoadQuestionNode to detect when an answer is submitted
+            if (QuizState.Instance != null)
+            {
+                QuizState.Instance.RecordAnswer(currentQuestionIndex, isCorrect, isCorrect ? points : 0);
+            }
         }
 
         private void EndQuiz()

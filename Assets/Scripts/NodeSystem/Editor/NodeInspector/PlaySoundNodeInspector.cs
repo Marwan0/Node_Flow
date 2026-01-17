@@ -1,6 +1,7 @@
 #if UNITY_EDITOR
 using UnityEngine;
 using UnityEngine.UIElements;
+using UnityEditor;
 using UnityEditor.UIElements;
 using NodeSystem.Nodes;
 
@@ -18,83 +19,110 @@ namespace NodeSystem.Editor
             _node = Node as PlaySoundNode;
             if (_node == null) return;
 
-            // Audio Source picker
-            CreateLabel("Audio Source", true);
-            
-            var sourceField = new ObjectField("AudioSource (Optional)")
-            {
-                objectType = typeof(AudioSource),
-                allowSceneObjects = true
-            };
-
-            if (!string.IsNullOrEmpty(_node.audioSourcePath))
-            {
-                var go = GameObject.Find(_node.audioSourcePath);
-                if (go != null)
-                {
-                    sourceField.value = go.GetComponent<AudioSource>();
-                }
-            }
-
-            sourceField.RegisterValueChangedCallback(evt =>
-            {
-                if (evt.newValue is AudioSource source)
-                {
-                    _node.audioSourcePath = GetGameObjectPath(source.gameObject);
-                }
-                else
-                {
-                    _node.audioSourcePath = "";
-                }
-                MarkDirty();
-            });
-            sourceField.style.marginBottom = 5;
-            Container.Add(sourceField);
-
-            var sourceHint = new Label("Leave empty to use any AudioSource in scene");
-            sourceHint.style.color = new Color(0.5f, 0.5f, 0.5f);
-            sourceHint.style.fontSize = 10;
-            sourceHint.style.marginBottom = 10;
-            Container.Add(sourceHint);
-
-            CreateSeparator();
-
-            // Audio Clip
+            // Audio Clip picker
             CreateLabel("Audio Clip", true);
+
+            // Load current clip from path
+            AudioClip currentClip = null;
+            if (!string.IsNullOrEmpty(_node.audioClipPath))
+            {
+                currentClip = AssetDatabase.LoadAssetAtPath<AudioClip>(_node.audioClipPath);
+            }
 
             var clipField = new ObjectField("Clip")
             {
                 objectType = typeof(AudioClip),
-                allowSceneObjects = false
+                allowSceneObjects = false,
+                value = currentClip
             };
-
-            // Try to load clip from Resources
-            if (!string.IsNullOrEmpty(_node.clipName))
-            {
-                clipField.value = Resources.Load<AudioClip>(_node.clipName);
-            }
 
             clipField.RegisterValueChangedCallback(evt =>
             {
                 if (evt.newValue is AudioClip clip)
                 {
-                    // Store the asset name (for Resources.Load)
-                    _node.clipName = clip.name;
+                    // Store the asset path for serialization
+                    _node.audioClipPath = AssetDatabase.GetAssetPath(clip);
                 }
                 else
                 {
-                    _node.clipName = "";
+                    _node.audioClipPath = "";
                 }
                 MarkDirty();
             });
             clipField.style.marginBottom = 5;
             Container.Add(clipField);
 
-            var clipHint = new Label("Clip must be in a Resources folder");
-            clipHint.style.color = new Color(0.5f, 0.5f, 0.5f);
-            clipHint.style.fontSize = 10;
-            clipHint.style.marginBottom = 10;
-            Container.Add(clipHint);
+            // Show path info
+            if (!string.IsNullOrEmpty(_node.audioClipPath))
+            {
+                var pathLabel = new Label($"Path: {_node.audioClipPath}");
+                pathLabel.style.color = new Color(0.5f, 0.5f, 0.5f);
+                pathLabel.style.fontSize = 9;
+                pathLabel.style.marginBottom = 5;
+                Container.Add(pathLabel);
+            }
+
+            CreateSeparator();
+
+            // Play Mode
+            CreateLabel("Play Mode", true);
+            
+            var modeField = new EnumField("Mode", _node.playMode);
+            modeField.RegisterValueChangedCallback(evt =>
+            {
+                _node.playMode = (AudioPlayMode)evt.newValue;
+                MarkDirty();
+                // Note: Inspector doesn't auto-refresh like inline content
+                // User needs to re-select the node to see updated options
+            });
+            modeField.style.marginBottom = 5;
+            Container.Add(modeField);
+
+            // Audio Source picker (only for PlayOnSource mode)
+            if (_node.playMode == AudioPlayMode.PlayOnSource)
+            {
+                CreateSeparator();
+                CreateLabel("Audio Source", true);
+                
+                var sourceField = new ObjectField("AudioSource")
+                {
+                    objectType = typeof(AudioSource),
+                    allowSceneObjects = true
+                };
+
+                if (!string.IsNullOrEmpty(_node.audioSourcePath))
+                {
+                    var go = GameObject.Find(_node.audioSourcePath);
+                    if (go != null)
+                    {
+                        sourceField.value = go.GetComponent<AudioSource>();
+                    }
+                }
+
+                sourceField.RegisterValueChangedCallback(evt =>
+                {
+                    if (evt.newValue is AudioSource source)
+                    {
+                        _node.audioSourcePath = GetGameObjectPath(source.gameObject);
+                    }
+                    else
+                    {
+                        _node.audioSourcePath = "";
+                    }
+                    MarkDirty();
+                });
+                sourceField.style.marginBottom = 5;
+                Container.Add(sourceField);
+
+                var sourceHint = new Label("Leave empty to use auto-created source");
+                sourceHint.style.color = new Color(0.5f, 0.5f, 0.5f);
+                sourceHint.style.fontSize = 10;
+                sourceHint.style.marginBottom = 5;
+                Container.Add(sourceHint);
+
+                // Loop toggle (only for PlayOnSource)
+                CreateToggle("Loop", _node.loop, v => _node.loop = v);
+            }
 
             CreateSeparator();
 
@@ -110,9 +138,17 @@ namespace NodeSystem.Editor
             volumeSlider.style.marginBottom = 5;
             Container.Add(volumeSlider);
 
+            var pitchSlider = new Slider("Pitch", 0.5f, 2f) { value = _node.pitch };
+            pitchSlider.RegisterValueChangedCallback(evt =>
+            {
+                _node.pitch = evt.newValue;
+                MarkDirty();
+            });
+            pitchSlider.style.marginBottom = 5;
+            Container.Add(pitchSlider);
+
             CreateToggle("Wait For Completion", _node.waitForCompletion, v => _node.waitForCompletion = v);
         }
     }
 }
 #endif
-

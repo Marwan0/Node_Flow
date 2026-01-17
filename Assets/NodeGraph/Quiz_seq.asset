@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: efef43d2e8d2b144eba636f40d9de295, type: 3}
+  m_Name: Quiz_seq
+  m_EditorClassIdentifier: Assembly-CSharp::NodeSystem.NodeGraph
+  graphName: New Graph
+  description: 
+  _jsonData: '{"nodes":[{"typeName":"NodeSystem.Nodes.StartNode, Assembly-CSharp,
+    Version=0.0.0.0, Culture=neutral, PublicKeyToken=null","json":"{\"_guid\":\"19e38e58-ab8a-4083-b969-c72b6717d432\",\"_position\":{\"x\":-1533.0,\"y\":242.0},\"hasBreakpoint\":false,\"displayLabel\":\"\"}"},{"typeName":"NodeSystem.Nodes.Quiz.StartQuizNode,
+    Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null","json":"{\"_guid\":\"bda48d08-7ae9-4f04-b5d7-1b63aac72105\",\"_position\":{\"x\":-1150.0,\"y\":186.0},\"hasBreakpoint\":false,\"displayLabel\":\"\",\"totalQuestions\":1,\"maxScore\":100,\"startTimer\":false,\"timerDuration\":300.0,\"quizManagerPath\":\"QuizManager\"}"},{"typeName":"NodeSystem.Nodes.PlaySoundNode,
+    Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null","json":"{\"_guid\":\"3641150a-55bf-4e7e-a847-b61cb42d0933\",\"_position\":{\"x\":-232.0,\"y\":-299.0},\"hasBreakpoint\":false,\"displayLabel\":\"hvjljhvjvh\",\"audioClipPath\":\"Assets/Score
+    and Times - Game Sound Solutions/Electronic/Score_chord_2_a.wav\",\"playMode\":0,\"audioSourcePath\":\"\",\"volume\":1.0,\"pitch\":1.0,\"waitForCompletion\":false,\"loop\":false}"},{"typeName":"NodeSystem.Nodes.PlaySoundNode,
+    Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null","json":"{\"_guid\":\"aa09ae3d-f7ff-45f9-b5f1-ccb0c7cece02\",\"_position\":{\"x\":-209.0,\"y\":45.0},\"hasBreakpoint\":false,\"displayLabel\":\"
+    \",\"audioClipPath\":\"Assets/Score and Times - Game Sound Solutions/Electronic/Score_swap_6_a.wav\",\"playMode\":0,\"audioSourcePath\":\"\",\"volume\":1.0,\"pitch\":1.0,\"waitForCompletion\":false,\"loop\":false}"},{"typeName":"NodeSystem.Nodes.Quiz.LoadQuestionNode,
+    Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null","json":"{\"_guid\":\"2d8a3fda-e80f-47dc-a5f0-36b0802d1031\",\"_position\":{\"x\":-801.0,\"y\":61.0},\"hasBreakpoint\":false,\"displayLabel\":\"\",\"questionAssetPath\":\"Assets/Data/Questions/Sample_MultipleChoice_Question.asset\",\"quizManagerPath\":\"QuizManager\",\"waitForAnswer\":true,\"trackInQuizState\":true}"},{"typeName":"NodeSystem.Nodes.AnimationSequencerNode,
+    Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null","json":"{\"_guid\":\"a2654099-0ba5-48b9-964d-c306927f730c\",\"_position\":{\"x\":169.0,\"y\":428.0},\"hasBreakpoint\":false,\"displayLabel\":\"\",\"targetPath\":\"QuestionContainerCanvas/RawImage\",\"autoCreateIfMissing\":false}"},{"typeName":"NodeSystem.Nodes.SetActiveNode,
+    Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null","json":"{\"_guid\":\"0fb11538-c7e1-4356-9603-4856e848d484\",\"_position\":{\"x\":-262.0,\"y\":414.0},\"hasBreakpoint\":false,\"displayLabel\":\"\",\"targetPath\":\"QuestionContainerCanvas/RawImage\",\"setActive\":true}"},{"typeName":"NodeSystem.Nodes.TweenPropertyNode,
+    Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null","json":"{\"_guid\":\"e4f8becc-3d80-403f-90dc-7956a9be869f\",\"_position\":{\"x\":328.0,\"y\":-113.0},\"hasBreakpoint\":false,\"displayLabel\":\"\",\"targetPath\":\"\",\"propertyType\":0,\"fromMode\":0,\"fromValue\":{\"x\":0.0,\"y\":0.0,\"z\":0.0},\"fromFloat\":0.0,\"fromTransformPath\":\"\",\"useCurrentAsFrom\":false,\"toMode\":0,\"toValue\":{\"x\":1.0,\"y\":1.0,\"z\":1.0},\"toFloat\":1.0,\"toTransformPath\":\"\",\"duration\":1.0,\"delay\":0.0,\"easeType\":1}"}],"connections":[{"outNode":"19e38e58-ab8a-4083-b969-c72b6717d432","outPort":"output","inNode":"bda48d08-7ae9-4f04-b5d7-1b63aac72105","inPort":"input"},{"outNode":"bda48d08-7ae9-4f04-b5d7-1b63aac72105","outPort":"output","inNode":"2d8a3fda-e80f-47dc-a5f0-36b0802d1031","inPort":"input"},{"outNode":"0fb11538-c7e1-4356-9603-4856e848d484","outPort":"output","inNode":"a2654099-0ba5-48b9-964d-c306927f730c","inPort":"input"},{"outNode":"2d8a3fda-e80f-47dc-a5f0-36b0802d1031","outPort":"complete","inNode":"0fb11538-c7e1-4356-9603-4856e848d484","inPort":"input"},{"outNode":"2d8a3fda-e80f-47dc-a5f0-36b0802d1031","outPort":"correct","inNode":"3641150a-55bf-4e7e-a847-b61cb42d0933","inPort":"input"},{"outNode":"2d8a3fda-e80f-47dc-a5f0-36b0802d1031","outPort":"on_wrong","inNode":"aa09ae3d-f7ff-45f9-b5f1-ccb0c7cece02","inPort":"input"}],"variables":[]}'
