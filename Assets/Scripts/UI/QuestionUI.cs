@@ -201,6 +201,10 @@ namespace QuizSystem
             {
                 AnimateWrongAnswer();
             }
+            
+            // Notify QuizState of wrong attempt (for VFX/sounds via node system)
+            // This does NOT complete the question - user can still try again
+            QuizState.Instance?.NotifyWrongAttempt();
         }
 
         protected virtual void AnimateCorrectAnswer()
@@ -226,14 +230,16 @@ namespace QuizSystem
 
         protected virtual void OnAutoCorrect()
         {
-            Debug.Log("Auto-correct triggered.");
+            Debug.Log("Auto-correct triggered - user exhausted all attempts.");
             ShowHint($"Correct answer: {GetCorrectAnswerDisplay()}");
             if (!string.IsNullOrEmpty(currentQuestion.explanation))
             {
                 ShowHint($"{hintText.text}\n\nExplanation: {currentQuestion.explanation}");
             }
             
-            quizManager?.OnQuestionAnswered(true, currentQuestion.points / 2); // Half points for auto-correct
+            // User exhausted all attempts without getting the correct answer
+            // Pass false since they didn't actually answer correctly
+            quizManager?.OnQuestionAnswered(false, 0);
         }
 
         protected abstract string GetCorrectAnswerDisplay();

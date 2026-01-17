@@ -195,6 +195,68 @@ Assets/Scripts/NodeSystem/
 - Always check for duplicates when loading/creating nodes and edges
 - Use `EditorApplication.delayCall` for timing-sensitive operations
 
+### Quiz System Integration
+
+#### Key Components
+- **QuizManager** (`Assets/Scripts/UI/QuizManager.cs`) - Main quiz controller
+- **QuizState** (`Assets/Scripts/UI/QuizState.cs`) - Singleton tracking quiz progress/score/events
+- **QuestionUI** (`Assets/Scripts/UI/QuestionUI.cs`) - Base class for question UI types
+- **QuestionData** (`Assets/Scripts/Data/QuestionData.cs`) - ScriptableObject base for questions
+
+#### LoadQuestionNode Output Ports
+1. **"on_wrong"** (On Wrong Attempt) - Fires on EACH wrong answer while attempts remain → Use for VFX/sounds
+2. **"correct"** (Correct) - Fires once when user answers correctly (final result)
+3. **"incorrect"** (Incorrect) - Fires once when ALL attempts exhausted with wrong answers (final result)
+4. **"complete"** (Complete) - Always fires after question is done (regardless of result)
+
+#### Quiz Event Flow
+
+```
+User answers WRONG (has attempts left):
+    → QuestionUI.OnWrongAnswer()
+    → QuizState.Instance.NotifyWrongAttempt()
+    → QuizState.OnWrongAttempt event fires
+    → LoadQuestionNode fires "on_wrong" port (for VFX/sounds)
+    → Question continues waiting for more attempts
+
+User answers CORRECTLY:
+    → QuestionUI.OnCorrectAnswer()
+    → QuizManager.OnQuestionAnswered(true, points)
+    → QuizState.RecordAnswer(index, true, points)
+    → QuizState.OnLastAnswerResult(true) event fires
+    → LoadQuestionNode sets State = NodeState.Completed
+    → LoadQuestionNode fires "correct" port
+    → LoadQuestionNode fires "complete" port
+
+User exhausts ALL attempts (wrong):
+    → QuestionUI.OnAutoCorrect()
+    → QuizManager.OnQuestionAnswered(false, 0)
+    → QuizState.RecordAnswer(index, false, 0)
+    → QuizState.OnLastAnswerResult(false) event fires
+    → LoadQuestionNode sets State = NodeState.Failed
+    → LoadQuestionNode fires "incorrect" port
+    → LoadQuestionNode fires "complete" port
+```
+
+#### Key Quiz Events (QuizState)
+- `OnWrongAttempt` - Fires on each wrong answer (intermediate, doesn't complete question)
+- `OnLastAnswerResult(bool)` - Fires when question is COMPLETE (correct or all attempts used)
+- `OnScoreChanged(int)` - Fires when score changes
+- `OnQuestionAnswered(int, int)` - Fires with question index and total
+- `OnQuizStarted` / `OnQuizCompleted` - Quiz lifecycle events
+- `OnTimerTick(float)` - Timer updates
+
+#### NodeState for Branching
+- `NodeState.Completed` → triggers "correct" port in NodeGraphRunner
+- `NodeState.Failed` → triggers "incorrect" port in NodeGraphRunner
+- NodeData.Complete() preserves Failed state if already set (doesn't overwrite to Completed)
+
+#### Important Notes
+- LoadQuestionNode subscribes to both `OnWrongAttempt` and `OnLastAnswerResult`
+- "on_wrong" port fires nodes but does NOT complete the LoadQuestionNode
+- "correct"/"incorrect" ports fire BEFORE "complete" port
+- NodeGraphRunner.ExecuteNode() is public to allow nodes to trigger connected nodes
+
 ### Testing Checklist
 
 When adding new features:
@@ -204,4 +266,10 @@ When adding new features:
 - [ ] Test visual feedback (nodes turn orange/green)
 - [ ] Test graph save/load (data persists)
 - [ ] Test duplicate prevention (no duplicate nodes/edges)
+
+When testing Quiz nodes:
+- [ ] Test correct answer → "correct" and "complete" ports fire
+- [ ] Test all wrong answers → "incorrect" and "complete" ports fire
+- [ ] Test wrong then correct → "on_wrong" fires, then "correct" and "complete"
+- [ ] Test VFX/sounds connected to "on_wrong" port fire on each wrong attempt
 

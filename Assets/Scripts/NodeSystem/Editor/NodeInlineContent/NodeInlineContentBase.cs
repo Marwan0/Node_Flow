@@ -39,6 +39,14 @@ namespace NodeSystem.Editor
         public abstract void Draw();
 
         /// <summary>
+        /// Called before content is cleared for refresh. Override to cleanup resources.
+        /// </summary>
+        public virtual void Cleanup()
+        {
+            // Override in derived classes to cleanup cached resources
+        }
+
+        /// <summary>
         /// Mark data as changed (for saving)
         /// </summary>
         protected void MarkDirty()

@@ -28,7 +28,7 @@ RectTransform:
   m_GameObject: {fileID: 585353699401088365}
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 3809969261124621839}
@@ -149,7 +149,7 @@ RectTransform:
   m_GameObject: {fileID: 606374254805139164}
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1239892225712492865}
@@ -339,7 +339,7 @@ MonoBehaviour:
   attemptCounterText: {fileID: 5989995013101643429}
   hintPanel: {fileID: 5150631238754156362}
   submitButton: {fileID: 0}
-  enableFeedbackAnimations: 1
+  enableFeedbackAnimations: 0
   feedbackDuration: 0.5
   answerButtons:
   - {fileID: 6987800974104300205}
@@ -935,7 +935,7 @@ RectTransform:
   m_GameObject: {fileID: 5391481667507451879}
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 5611180839438826308}
@@ -1193,7 +1193,7 @@ RectTransform:
   m_GameObject: {fileID: 6457730353035324653}
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 557501555153772585}

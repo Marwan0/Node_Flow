@@ -19,6 +19,7 @@ namespace NodeSystem.Editor
 
         private NodeSearchWindow _searchWindow;
         private bool _isSubscribedToRuntime;
+        private MinimapView _minimap;
 
         // Odin Inspector support removed - always use custom inline content
         
@@ -33,9 +34,8 @@ namespace NodeSystem.Editor
             // Add background grid
             Insert(0, new GridBackground());
 
-            // Add minimap
-            var minimap = new MinimapView();
-            Add(minimap);
+            // Minimap will be added after graph loads to prevent zoom flicker on play mode entry
+            _minimap = new MinimapView();
 
             // Add manipulators
             this.AddManipulator(new ContentZoomer());
@@ -444,6 +444,17 @@ namespace NodeSystem.Editor
             // Schedule another cleanup after a short delay to catch any timing issues
             schedule.Execute(() => CleanupFloatingEdges()).ExecuteLater(100);
 
+            // Add minimap after graph content is loaded to prevent zoom flicker
+            // This ensures minimap calculates bounds from actual content, not empty graph
+            if (_minimap == null || _minimap.parent == null)
+            {
+                if (_minimap == null)
+                {
+                    _minimap = new MinimapView();
+                }
+                Add(_minimap);
+            }
+
             // Sync with runtime state if in play mode
             if (EditorApplication.isPlaying)
             {
@@ -850,7 +861,9 @@ namespace NodeSystem.Editor
                         nodeView.Data.Position = nodeView.GetPosition().position;
                     }
                 }
+                // Persist updated positions so they are restored on reopen
                 EditorUtility.SetDirty(Graph);
+                Graph.Save();
             }
 
             return change;

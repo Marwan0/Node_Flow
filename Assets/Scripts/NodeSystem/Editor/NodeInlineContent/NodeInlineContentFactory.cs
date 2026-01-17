@@ -34,6 +34,7 @@ namespace NodeSystem.Editor
             Register<Nodes.SetTextNode, SetTextNodeInlineContent>();
             Register<Nodes.ButtonActivationNode, ButtonActivationNodeInlineContent>();
             Register<Nodes.ButtonActionNode, ButtonActionNodeInlineContent>();
+            Register<Nodes.SetActiveNode, SetActiveNodeInlineContent>();
             
             // Flow nodes
             Register<Nodes.DelayNode, DelayNodeInlineContent>();
@@ -57,6 +58,13 @@ namespace NodeSystem.Editor
             // Quiz nodes
             Register<Nodes.Quiz.ShowQuestionNode, ShowQuestionNodeInlineContent>();
             Register<Nodes.Quiz.CheckAnswerNode, CheckAnswerNodeInlineContent>();
+            Register<Nodes.Quiz.LoadQuestionNode, LoadQuestionNodeInlineContent>();
+            Register<Nodes.Quiz.ScoreNode, ScoreNodeInlineContent>();
+            Register<Nodes.Quiz.QuizTimerNode, QuizTimerNodeInlineContent>();
+            Register<Nodes.Quiz.QuizProgressNode, QuizProgressNodeInlineContent>();
+            Register<Nodes.Quiz.QuizBranchNode, QuizBranchNodeInlineContent>();
+            Register<Nodes.Quiz.StartQuizNode, StartQuizNodeInlineContent>();
+            Register<Nodes.Quiz.EndQuizNode, EndQuizNodeInlineContent>();
         }
 
         public static void Register<TNode, TContent>() 

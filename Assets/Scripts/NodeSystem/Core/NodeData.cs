@@ -115,6 +115,10 @@ namespace NodeSystem
         [SerializeField]
         public bool hasBreakpoint = false;
 
+        /// <summary>Custom label shown next to node name (optional)</summary>
+        [SerializeField]
+        public string displayLabel = "";
+
         protected NodeData()
         {
             _guid = System.Guid.NewGuid().ToString();
@@ -157,7 +161,11 @@ namespace NodeSystem
         /// <summary>Call when execution completes</summary>
         protected void Complete()
         {
-            State = NodeState.Completed;
+            // Only set to Completed if not already set to Failed (for branching nodes)
+            if (State != NodeState.Failed)
+            {
+                State = NodeState.Completed;
+            }
             OnComplete?.Invoke(this);
         }
 

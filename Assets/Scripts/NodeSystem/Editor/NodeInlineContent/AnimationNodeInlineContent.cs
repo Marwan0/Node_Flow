@@ -12,21 +12,11 @@ namespace NodeSystem.Editor
             if (node == null) return;
 
             // Target GameObject - use ObjectField for better UX
-            // Convert path to GameObject if possible, otherwise show as text
+            // Convert path to GameObject if possible (including disabled objects)
             GameObject currentTarget = null;
             if (!string.IsNullOrEmpty(node.targetPath))
             {
-                // Try to find the GameObject by path
-                currentTarget = GameObject.Find(node.targetPath);
-                // If not found by name, try to find in scene by hierarchy path
-                if (currentTarget == null)
-                {
-                    var parts = node.targetPath.Split('/');
-                    if (parts.Length > 0)
-                    {
-                        currentTarget = GameObject.Find(parts[parts.Length - 1]);
-                    }
-                }
+                currentTarget = FindGameObjectByPath(node.targetPath);
             }
             
             CreateObjectField<GameObject>("Target", currentTarget, (GameObject go) =>
@@ -81,6 +71,74 @@ namespace NodeSystem.Editor
             }
             
             return path;
+        }
+
+        /// <summary>
+        /// Find a GameObject by hierarchy path, including disabled objects
+        /// </summary>
+        private GameObject FindGameObjectByPath(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return null;
+
+            // First try the fast method (only works for active objects)
+            var found = GameObject.Find(path);
+            if (found != null) return found;
+
+            // Search through all root GameObjects in loaded scenes (includes disabled)
+            string[] pathParts = path.Split('/');
+            string rootName = pathParts[0];
+
+            for (int i = 0; i < UnityEngine.SceneManagement.SceneManager.sceneCount; i++)
+            {
+                var scene = UnityEngine.SceneManagement.SceneManager.GetSceneAt(i);
+                if (!scene.isLoaded) continue;
+
+                foreach (var rootGo in scene.GetRootGameObjects())
+                {
+                    if (rootGo.name == rootName)
+                    {
+                        if (pathParts.Length == 1)
+                            return rootGo;
+
+                        Transform current = rootGo.transform;
+                        for (int j = 1; j < pathParts.Length; j++)
+                        {
+                            current = current.Find(pathParts[j]);
+                            if (current == null) break;
+                        }
+
+                        if (current != null)
+                            return current.gameObject;
+                    }
+                }
+            }
+
+            // Fallback: search by name only
+            string targetName = pathParts[pathParts.Length - 1];
+            for (int i = 0; i < UnityEngine.SceneManagement.SceneManager.sceneCount; i++)
+            {
+                var scene = UnityEngine.SceneManagement.SceneManager.GetSceneAt(i);
+                if (!scene.isLoaded) continue;
+
+                foreach (var rootGo in scene.GetRootGameObjects())
+                {
+                    var result = FindInHierarchy(rootGo.transform, targetName);
+                    if (result != null) return result;
+                }
+            }
+
+            return null;
+        }
+
+        private GameObject FindInHierarchy(Transform parent, string name)
+        {
+            if (parent.name == name) return parent.gameObject;
+            for (int i = 0; i < parent.childCount; i++)
+            {
+                var result = FindInHierarchy(parent.GetChild(i), name);
+                if (result != null) return result;
+            }
+            return null;
         }
     }
 }

@@ -4,33 +4,29 @@ using UnityEngine;
 using UnityEngine.UIElements;
 using UnityEditor;
 using NodeSystem.Nodes;
-
 namespace NodeSystem.Editor
 {
     public class AnimationSequencerNodeInlineContent : NodeInlineContentBase
     {
-        // Static cache to persist editors across repaints
-        private static System.Collections.Generic.Dictionary<int, UnityEditor.Editor> _editorCache = new System.Collections.Generic.Dictionary<int, UnityEditor.Editor>();
-        private static bool _playModeState = false;
+        // Cache editors for the embedded inspector
+        private static System.Collections.Generic.Dictionary<int, UnityEditor.Editor> _editorCache 
+            = new System.Collections.Generic.Dictionary<int, UnityEditor.Editor>();
 
         static AnimationSequencerNodeInlineContent()
         {
-            // Clear cache when play mode changes
-            // Note: NodeGraphEditorWindow will handle refreshing all node inline content
             EditorApplication.playModeStateChanged += (state) =>
             {
                 ClearEditorCache();
-                _playModeState = EditorApplication.isPlaying;
             };
         }
-
+        
         private static void ClearEditorCache()
         {
             foreach (var editor in _editorCache.Values)
             {
                 if (editor != null)
                 {
-                    UnityEngine.Object.DestroyImmediate(editor);
+                    try { UnityEngine.Object.DestroyImmediate(editor); } catch { }
                 }
             }
             _editorCache.Clear();
@@ -47,17 +43,8 @@ namespace NodeSystem.Editor
             GameObject currentTarget = null;
             if (!string.IsNullOrEmpty(node.targetPath))
             {
-                // Try to find the GameObject by path
-                currentTarget = GameObject.Find(node.targetPath);
-                // If not found by name, try to find in scene by hierarchy path
-                if (currentTarget == null)
-                {
-                    var parts = node.targetPath.Split('/');
-                    if (parts.Length > 0)
-                    {
-                        currentTarget = GameObject.Find(parts[parts.Length - 1]);
-                    }
-                }
+                // Find GameObject by path - including disabled objects
+                currentTarget = FindGameObjectByPath(node.targetPath);
             }
             
             CreateObjectField<GameObject>("Target", currentTarget, (GameObject go) =>
@@ -139,151 +126,101 @@ namespace NodeSystem.Editor
                 }
             }
             
-            // Render the Animation Sequencer Controller inspector if component exists
+            // Draw the full Animation Sequencer editor inside the node
             if (hasSequencer && sequencerComponent != null)
             {
-                // Get or create editor for the sequencer component (cached)
                 int instanceId = sequencerComponent.GetInstanceID();
-                UnityEditor.Editor sequencerEditor;
                 
-                // Check if we need to recreate the editor (play mode change, target changed, or editor is null)
-                bool needsNewEditor = !_editorCache.TryGetValue(instanceId, out sequencerEditor) || 
-                                     sequencerEditor == null || 
-                                     sequencerEditor.target == null ||
-                                     sequencerEditor.target != sequencerComponent;
-                
-                if (needsNewEditor)
+                // Get or create Editor using our safe wrapper
+                if (!_editorCache.TryGetValue(instanceId, out UnityEditor.Editor sequencerEditor) || 
+                    sequencerEditor == null || sequencerEditor.target != sequencerComponent)
                 {
-                    // Clean up old editor if exists
-                    if (_editorCache.TryGetValue(instanceId, out UnityEditor.Editor oldEditor) && oldEditor != null)
+                    // Clean up old editor
+                    if (_editorCache.TryGetValue(instanceId, out var oldEditor) && oldEditor != null)
                     {
-                        UnityEngine.Object.DestroyImmediate(oldEditor);
+                        try { UnityEngine.Object.DestroyImmediate(oldEditor); } catch { }
+                        _editorCache.Remove(instanceId);
                     }
                     
-                    sequencerEditor = UnityEditor.Editor.CreateEditor(sequencerComponent);
-                    _editorCache[instanceId] = sequencerEditor;
+                    try
+                    {
+                        // Create editor - this will use our SafeAnimationSequencerEditor
+                        sequencerEditor = UnityEditor.Editor.CreateEditor(sequencerComponent);
+                        _editorCache[instanceId] = sequencerEditor;
+                    }
+                    catch
+                    {
+                        sequencerEditor = null;
+                    }
                 }
 
-                // Create scrollable container for the inspector
-                var scrollView = new ScrollView(ScrollViewMode.Vertical);
-                scrollView.style.marginTop = 4;
-                scrollView.style.marginBottom = 2;
-                scrollView.style.minHeight = 300;
-                scrollView.style.maxHeight = 800;
-                scrollView.style.backgroundColor = new Color(0.15f, 0.15f, 0.15f, 0.8f);
-                
-                // Store component reference for closure (will be used to get fresh editor)
-                var componentRef = sequencerComponent;
-                var instanceIdRef = instanceId;
-                
-                // Create IMGUI container to render the editor
-                IMGUIContainer imguiContainer = null;
-                imguiContainer = new IMGUIContainer(() =>
+                if (sequencerEditor != null)
                 {
-                    if (componentRef == null) return;
-                    
-                    // Get or recreate editor (always get fresh from cache)
-                    UnityEditor.Editor currentEditor = null;
-                    if (_editorCache.TryGetValue(instanceIdRef, out currentEditor) && currentEditor != null && currentEditor.target == componentRef)
+                    // Create scrollable container
+                    var scrollView = new ScrollView(ScrollViewMode.Vertical);
+                    scrollView.style.marginTop = 4;
+                    scrollView.style.marginBottom = 2;
+                    scrollView.style.minHeight = 200;
+                    scrollView.style.maxHeight = 600;
+                    scrollView.style.backgroundColor = new Color(0.15f, 0.15f, 0.15f, 0.8f);
+
+                    var editorRef = sequencerEditor;
+                    var componentRef = sequencerComponent;
+
+                    var imguiContainer = new IMGUIContainer(() =>
                     {
-                        // Editor is valid, use it
+                        if (componentRef == null || editorRef == null || editorRef.target == null) return;
+                        
+                        try
+                        {
+                            EditorGUI.BeginChangeCheck();
+                            editorRef.OnInspectorGUI();
+                            if (EditorGUI.EndChangeCheck())
+                            {
+                                MarkDirty();
+                            }
+                        }
+                        catch { }
+                    });
+
+                    imguiContainer.style.minHeight = 150;
+                    imguiContainer.style.flexGrow = 1;
+                    
+                    scrollView.Add(imguiContainer);
+                    Container.Add(scrollView);
+                }
+            }
+            else if (currentTarget != null)
+            {
+                // Show button to add component if no sequencer exists
+                var button = new Button(() =>
+                {
+                    var component = CreateAnimationSequencerComponent(currentTarget);
+                    if (component != null)
+                    {
+                        Undo.RegisterCreatedObjectUndo(component, "Add Animation Sequencer Controller");
+                        EditorUtility.SetDirty(currentTarget);
+                        if (!Application.isPlaying && currentTarget.scene.IsValid())
+                        {
+                            UnityEditor.SceneManagement.EditorSceneManager.MarkAllScenesDirty();
+                        }
+                        Selection.activeObject = component;
+                        EditorGUIUtility.PingObject(component);
+                        MarkDirty();
+                        EditorApplication.delayCall += () => RequestRefresh();
                     }
                     else
                     {
-                        // Recreate editor
-                        if (_editorCache.TryGetValue(instanceIdRef, out var oldEditor) && oldEditor != null)
-                        {
-                            UnityEngine.Object.DestroyImmediate(oldEditor);
-                        }
-                        currentEditor = UnityEditor.Editor.CreateEditor(componentRef);
-                        _editorCache[instanceIdRef] = currentEditor;
+                        Debug.LogError("[AnimationSequencerNode] Failed to create Animation Sequencer Controller.");
                     }
-                    
-                    if (currentEditor != null && currentEditor.target != null)
-                    {
-                        EditorGUI.BeginChangeCheck();
-                        currentEditor.OnInspectorGUI();
-                        if (EditorGUI.EndChangeCheck())
-                        {
-                            MarkDirty();
-                        }
-                    }
-                });
-                
-                // Always repaint to keep it updated (especially during play mode and preview)
-                imguiContainer.schedule.Execute(() =>
+                })
                 {
-                    if (imguiContainer != null)
-                    {
-                        imguiContainer.MarkDirtyRepaint();
-                    }
-                }).Every(16); // ~60fps - repaint every frame
-                
-                // Let IMGUI container size itself based on content
-                imguiContainer.style.minHeight = 200;
-                imguiContainer.style.flexGrow = 1;
-                
-                scrollView.Add(imguiContainer);
-                Container.Add(scrollView);
-            }
-            else
-            {
-                // Show button to add component or open sequencer
-                if (currentTarget != null)
-                {
-                    var button = new Button(() =>
-                    {
-                        if (hasSequencer && sequencerComponent != null)
-                        {
-                            // Open in Inspector
-                            Selection.activeObject = sequencerComponent;
-                            EditorGUIUtility.PingObject(sequencerComponent);
-                        }
-                        else
-                        {
-                            // Add the component
-                            var component = CreateAnimationSequencerComponent(currentTarget);
-                            if (component != null)
-                            {
-                                // Record undo
-                                Undo.RegisterCreatedObjectUndo(component, "Add Animation Sequencer Controller");
-                                
-                                // Mark scene dirty
-                                EditorUtility.SetDirty(currentTarget);
-                                if (!Application.isPlaying && currentTarget.scene.IsValid())
-                                {
-                                    UnityEditor.SceneManagement.EditorSceneManager.MarkAllScenesDirty();
-                                }
-                                
-                                // Select and ping
-                                Selection.activeObject = component;
-                                EditorGUIUtility.PingObject(component);
-                                
-                                // Force immediate refresh to show embedded inspector
-                                MarkDirty();
-                                
-                                // Use delayCall to ensure component is fully initialized
-                                EditorApplication.delayCall += () =>
-                                {
-                                    RequestRefresh();
-                                };
-                            }
-                            else
-                            {
-                                Debug.LogError("[AnimationSequencerNode] Failed to create Animation Sequencer Controller. Make sure the Animation Sequencer package is installed.");
-                            }
-                        }
-                    })
-                    {
-                        text = hasSequencer ? "Open Sequencer" : "Add Component"
-                    };
-                    button.style.marginTop = 4;
-                    button.style.marginBottom = 2;
-                    button.style.height = 22;
-                    button.style.fontSize = 10;
-                    button.style.minWidth = 120;
-                    Container.Add(button);
-                }
+                    text = "Add Animation Sequencer"
+                };
+                button.style.marginTop = 4;
+                button.style.height = 24;
+                button.style.fontSize = 11;
+                Container.Add(button);
             }
         }
         
@@ -304,6 +241,81 @@ namespace NodeSystem.Editor
             }
             
             return path;
+        }
+
+        /// <summary>
+        /// Find a GameObject by hierarchy path, including disabled objects
+        /// </summary>
+        private GameObject FindGameObjectByPath(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return null;
+
+            // First try the fast method (only works for active objects)
+            var found = GameObject.Find(path);
+            if (found != null) return found;
+
+            // Search through all root GameObjects in loaded scenes (includes disabled)
+            string[] pathParts = path.Split('/');
+            string rootName = pathParts[0];
+
+            // Search all loaded scenes
+            for (int i = 0; i < UnityEngine.SceneManagement.SceneManager.sceneCount; i++)
+            {
+                var scene = UnityEngine.SceneManagement.SceneManager.GetSceneAt(i);
+                if (!scene.isLoaded) continue;
+
+                foreach (var rootGo in scene.GetRootGameObjects())
+                {
+                    if (rootGo.name == rootName)
+                    {
+                        // Found root, now traverse the path
+                        if (pathParts.Length == 1)
+                            return rootGo;
+
+                        Transform current = rootGo.transform;
+                        for (int j = 1; j < pathParts.Length; j++)
+                        {
+                            current = current.Find(pathParts[j]);
+                            if (current == null) break;
+                        }
+
+                        if (current != null)
+                            return current.gameObject;
+                    }
+                }
+            }
+
+            // Fallback: search by name only (last part of path)
+            string targetName = pathParts[pathParts.Length - 1];
+            for (int i = 0; i < UnityEngine.SceneManagement.SceneManager.sceneCount; i++)
+            {
+                var scene = UnityEngine.SceneManagement.SceneManager.GetSceneAt(i);
+                if (!scene.isLoaded) continue;
+
+                foreach (var rootGo in scene.GetRootGameObjects())
+                {
+                    var result = FindInHierarchy(rootGo.transform, targetName);
+                    if (result != null) return result;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Recursively search for a GameObject by name in hierarchy (includes disabled)
+        /// </summary>
+        private GameObject FindInHierarchy(Transform parent, string name)
+        {
+            if (parent.name == name) return parent.gameObject;
+
+            for (int i = 0; i < parent.childCount; i++)
+            {
+                var result = FindInHierarchy(parent.GetChild(i), name);
+                if (result != null) return result;
+            }
+
+            return null;
         }
 
         /// <summary>

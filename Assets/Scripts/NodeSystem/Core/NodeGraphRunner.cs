@@ -166,7 +166,7 @@ namespace NodeSystem
         /// <summary>
         /// Execute a specific node
         /// </summary>
-        private void ExecuteNode(NodeData node)
+        public void ExecuteNode(NodeData node)
         {
             if (!_isRunning) return;
             if (node == null) return;
@@ -327,6 +327,60 @@ namespace NodeSystem
             {
                 // SubGraphNode uses "complete" port when sub-graph finishes
                 outputPort = "complete";
+            }
+            // === Quiz Nodes with Branching ===
+            else if (completedNode is Nodes.Quiz.QuizBranchNode)
+            {
+                // QuizBranchNode: Completed = true, Failed = false
+                outputPort = completedNode.State == NodeState.Completed ? "true" : "false";
+                completedNode.State = NodeState.Completed;
+            }
+            else if (completedNode is Nodes.Quiz.ScoreNode scoreNode && scoreNode.branchOnThreshold)
+            {
+                // ScoreNode with branching: Completed = above, Failed = below
+                outputPort = completedNode.State == NodeState.Completed ? "above" : "below";
+                completedNode.State = NodeState.Completed;
+            }
+            else if (completedNode is Nodes.Quiz.QuizProgressNode progressNode && progressNode.branchOnThreshold)
+            {
+                // QuizProgressNode with branching: Completed = above, Failed = below
+                outputPort = completedNode.State == NodeState.Completed ? "above" : "below";
+                completedNode.State = NodeState.Completed;
+            }
+            else if (completedNode is Nodes.Quiz.QuizTimerNode timerNode && 
+                     (timerNode.action == Nodes.Quiz.TimerAction.WaitForExpiry || timerNode.branchOnExpiry))
+            {
+                // QuizTimerNode: Completed = expired, Failed = still running
+                outputPort = completedNode.State == NodeState.Completed ? "expired" : "running";
+                completedNode.State = NodeState.Completed;
+            }
+            else if (completedNode is Nodes.Quiz.EndQuizNode endNode && endNode.branchOnPerformance)
+            {
+                // EndQuizNode with performance branching: Completed = passed, Failed = failed
+                outputPort = completedNode.State == NodeState.Completed ? "passed" : "failed";
+                completedNode.State = NodeState.Completed;
+            }
+            else if (completedNode is Nodes.Quiz.LoadQuestionNode || completedNode is Nodes.Quiz.ShowQuestionNode)
+            {
+                // Question nodes: Fire correct/incorrect based on answer, AND fire complete
+                string resultPort = completedNode.State == NodeState.Failed ? "incorrect" : "correct";
+                completedNode.State = NodeState.Completed;
+                
+                // First, execute nodes connected to the result port (correct/incorrect)
+                var resultNodes = _graph.GetConnectedNodes(completedNode.Guid, resultPort);
+                foreach (var nextNode in resultNodes)
+                {
+                    ExecuteNode(nextNode);
+                }
+                
+                // Then, also execute nodes connected to "complete" port
+                outputPort = "complete";
+            }
+            else if (completedNode is Nodes.Quiz.CheckAnswerNode)
+            {
+                // CheckAnswerNode: Completed = correct, Failed = incorrect
+                outputPort = completedNode.State == NodeState.Completed ? "correct" : "incorrect";
+                completedNode.State = NodeState.Completed;
             }
 
             // Remove this node from active tracking

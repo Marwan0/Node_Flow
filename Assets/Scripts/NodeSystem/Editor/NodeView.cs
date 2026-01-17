@@ -21,8 +21,10 @@ namespace NodeSystem.Editor
         private VisualElement _titleContainer;
         private Color _originalColor;
         private VisualElement _stateIndicator;
+        private VisualElement _runtimeDot;
         private NodeState _visualState = NodeState.Idle;
         private VisualElement _inlineContentContainer;
+        private TextField _labelField;
         
         /// <summary>Called when node data changes (for saving)</summary>
         public Action OnDataChanged;
@@ -41,6 +43,9 @@ namespace NodeSystem.Editor
             if (_titleContainer != null)
             {
                 _titleContainer.style.backgroundColor = data.Color;
+                
+                // Add custom label field next to title
+                CreateTitleLabelField(data);
             }
 
             // Add state indicator
@@ -53,6 +58,21 @@ namespace NodeSystem.Editor
             _stateIndicator.style.width = 4;
             _stateIndicator.style.backgroundColor = Color.clear;
             Add(_stateIndicator);
+
+            // Add small runtime state dot in bottom-right corner
+            _runtimeDot = new VisualElement();
+            _runtimeDot.name = "runtime-dot";
+            _runtimeDot.style.position = Position.Absolute;
+            _runtimeDot.style.right = 6;
+            _runtimeDot.style.bottom = 6;
+            _runtimeDot.style.width = 10;
+            _runtimeDot.style.height = 10;
+            _runtimeDot.style.borderTopLeftRadius = 5;
+            _runtimeDot.style.borderTopRightRadius = 5;
+            _runtimeDot.style.borderBottomLeftRadius = 5;
+            _runtimeDot.style.borderBottomRightRadius = 5;
+            _runtimeDot.style.backgroundColor = Color.clear; // hidden by default
+            Add(_runtimeDot);
 
             // Add breakpoint indicator
             var breakpointIndicator = new VisualElement();
@@ -125,6 +145,97 @@ namespace NodeSystem.Editor
         }
 
         /// <summary>
+        /// Create the custom label text field in the title bar
+        /// </summary>
+        private void CreateTitleLabelField(NodeData data)
+        {
+            // Find the title label element
+            var titleLabel = _titleContainer.Q<Label>("title-label");
+            if (titleLabel == null) return;
+
+            // Create a container for title + label field
+            var titleRow = new VisualElement();
+            titleRow.style.flexDirection = FlexDirection.Row;
+            titleRow.style.alignItems = Align.Center;
+            titleRow.style.flexGrow = 1;
+
+            // Move the title label into our row (it will be first)
+            // We need to work with what's already there
+            
+            // Create the label input field
+            _labelField = new TextField();
+            _labelField.value = data.displayLabel ?? "";
+            _labelField.style.marginLeft = 4;
+            _labelField.style.marginRight = 4;
+            _labelField.style.flexGrow = 1;
+            _labelField.style.minWidth = 60;
+            _labelField.style.maxWidth = 150;
+            _labelField.style.height = 16;
+            _labelField.style.fontSize = 10;
+            
+            // Style the input to look nice in the title bar
+            var textInput = _labelField.Q("unity-text-input");
+            if (textInput != null)
+            {
+                textInput.style.backgroundColor = new Color(0.1f, 0.1f, 0.1f, 0.9f);
+                textInput.style.borderTopWidth = 1;
+                textInput.style.borderBottomWidth = 1;
+                textInput.style.borderLeftWidth = 1;
+                textInput.style.borderRightWidth = 1;
+                textInput.style.borderTopColor = new Color(0.4f, 0.7f, 1f, 0.5f);
+                textInput.style.borderBottomColor = new Color(0.4f, 0.7f, 1f, 0.5f);
+                textInput.style.borderLeftColor = new Color(0.4f, 0.7f, 1f, 0.5f);
+                textInput.style.borderRightColor = new Color(0.4f, 0.7f, 1f, 0.5f);
+                textInput.style.borderTopLeftRadius = 3;
+                textInput.style.borderTopRightRadius = 3;
+                textInput.style.borderBottomLeftRadius = 3;
+                textInput.style.borderBottomRightRadius = 3;
+                textInput.style.paddingLeft = 4;
+                textInput.style.paddingRight = 4;
+                textInput.style.paddingTop = 1;
+                textInput.style.paddingBottom = 1;
+                textInput.style.color = new Color(0.4f, 0.85f, 1f); // Cyan/light blue text
+            }
+
+            // Set text color for the label field
+            _labelField.style.color = new Color(0.4f, 0.85f, 1f); // Cyan/light blue text
+
+            // Handle value changes
+            _labelField.RegisterValueChangedCallback(evt =>
+            {
+                data.displayLabel = evt.newValue;
+                OnDataChanged?.Invoke();
+            });
+
+            // Add focus handling to prevent graph interaction while typing
+            _labelField.RegisterCallback<FocusInEvent>(evt =>
+            {
+                evt.StopPropagation();
+            });
+            
+            _labelField.RegisterCallback<KeyDownEvent>(evt =>
+            {
+                // Stop propagation to prevent graph shortcuts
+                if (evt.keyCode != KeyCode.Escape)
+                {
+                    evt.StopPropagation();
+                }
+            });
+
+            // Insert the label field into the title container
+            // Find the title-button-container or add after title label
+            var buttonContainer = _titleContainer.Q("title-button-container");
+            if (buttonContainer != null)
+            {
+                _titleContainer.Insert(_titleContainer.IndexOf(buttonContainer), _labelField);
+            }
+            else
+            {
+                _titleContainer.Add(_labelField);
+            }
+        }
+
+        /// <summary>
         /// Create inline content area for editable properties
         /// </summary>
         private void CreateInlineContent()
@@ -170,6 +281,14 @@ namespace NodeSystem.Editor
         public void RefreshInlineContent()
         {
             if (_inlineContentContainer == null) return;
+            
+            // Call cleanup on existing content before clearing
+            var existingContent = NodeInlineContentFactory.GetContent(Data);
+            if (existingContent != null)
+            {
+                existingContent.Initialize(Data, _inlineContentContainer, null, null);
+                existingContent.Cleanup();
+            }
             
             // Clear existing content
             _inlineContentContainer.Clear();
@@ -296,6 +415,8 @@ namespace NodeSystem.Editor
                 case NodeState.Idle:
                     AddToClassList("node-idle");
                     _stateIndicator.style.backgroundColor = Color.clear;
+                    if (_runtimeDot != null)
+                        _runtimeDot.style.backgroundColor = Color.clear;
                     if (_titleContainer != null)
                         _titleContainer.style.backgroundColor = _originalColor;
                     break;
@@ -303,6 +424,8 @@ namespace NodeSystem.Editor
                 case NodeState.Running:
                     AddToClassList("node-running");
                     _stateIndicator.style.backgroundColor = new Color(1f, 0.6f, 0f); // Orange
+                    if (_runtimeDot != null)
+                        _runtimeDot.style.backgroundColor = new Color(0.1f, 0.8f, 1f); // Cyan/blue dot
                     if (_titleContainer != null)
                         _titleContainer.style.backgroundColor = new Color(0.9f, 0.5f, 0.1f);
                     break;
@@ -310,6 +433,8 @@ namespace NodeSystem.Editor
                 case NodeState.Completed:
                     AddToClassList("node-completed");
                     _stateIndicator.style.backgroundColor = new Color(0.2f, 0.8f, 0.3f); // Green
+                    if (_runtimeDot != null)
+                        _runtimeDot.style.backgroundColor = new Color(0.2f, 0.8f, 0.3f); // Green dot
                     // Update title background color - use a brighter green for visibility
                     if (_titleContainer != null)
                     {
@@ -329,6 +454,8 @@ namespace NodeSystem.Editor
                 case NodeState.Failed:
                     AddToClassList("node-failed");
                     _stateIndicator.style.backgroundColor = new Color(1f, 0.3f, 0.3f); // Red
+                    if (_runtimeDot != null)
+                        _runtimeDot.style.backgroundColor = new Color(1f, 0.3f, 0.3f); // Red dot
                     if (_titleContainer != null)
                         _titleContainer.style.backgroundColor = new Color(0.7f, 0.2f, 0.2f);
                     break;
