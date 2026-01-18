@@ -171,7 +171,11 @@ namespace NodeSystem
             }
         }
 
-        private void SaveToJson()
+        /// <summary>
+        /// Save the current graph state to JSON.
+        /// Call this whenever node data changes to persist modifications.
+        /// </summary>
+        public void SaveToJson()
         {
             var data = new GraphData();
 

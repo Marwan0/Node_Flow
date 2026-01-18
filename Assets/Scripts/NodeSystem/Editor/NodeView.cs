@@ -43,6 +43,16 @@ namespace NodeSystem.Editor
             if (_titleContainer != null)
             {
                 _titleContainer.style.backgroundColor = data.Color;
+                _titleContainer.style.position = Position.Relative; // Enable absolute positioning for children
+                
+                // Ensure title label has padding to prevent overlap with input field
+                var titleLabel = _titleContainer.Q<Label>("title-label");
+                if (titleLabel != null)
+                {
+                    // Reserve space: input field width (120px) + right margin (40px) + spacing (10px) = 170px
+                    titleLabel.style.paddingRight = 170;
+                    titleLabel.style.overflow = Overflow.Hidden; // Prevent text from extending into input field
+                }
                 
                 // Add custom label field next to title
                 CreateTitleLabelField(data);
@@ -149,29 +159,28 @@ namespace NodeSystem.Editor
         /// </summary>
         private void CreateTitleLabelField(NodeData data)
         {
-            // Find the title label element
-            var titleLabel = _titleContainer.Q<Label>("title-label");
-            if (titleLabel == null) return;
-
-            // Create a container for title + label field
-            var titleRow = new VisualElement();
-            titleRow.style.flexDirection = FlexDirection.Row;
-            titleRow.style.alignItems = Align.Center;
-            titleRow.style.flexGrow = 1;
-
-            // Move the title label into our row (it will be first)
-            // We need to work with what's already there
+            // Breakpoint button: width 12px + right 5px = 17px from right
+            // Fold button: typically ~20px width
+            // Total margin needed: ~40px from right edge
+            const float breakpointButtonWidth = 12f;
+            const float breakpointButtonRight = 5f;
+            const float foldButtonWidth = 20f;
+            const float spacing = 3f;
+            const float totalRightMargin = breakpointButtonWidth + breakpointButtonRight + foldButtonWidth + spacing;
             
             // Create the label input field
             _labelField = new TextField();
             _labelField.value = data.displayLabel ?? "";
-            _labelField.style.marginLeft = 4;
-            _labelField.style.marginRight = 4;
-            _labelField.style.flexGrow = 1;
+            _labelField.style.position = Position.Absolute;
+            _labelField.style.right = totalRightMargin;
+            _labelField.style.width = 120; // Reduced width for smaller nodes
+            _labelField.style.maxWidth = 120;
             _labelField.style.minWidth = 60;
-            _labelField.style.maxWidth = 150;
-            _labelField.style.height = 16;
-            _labelField.style.fontSize = 10;
+            _labelField.style.height = 18; // Slightly smaller height
+            _labelField.style.fontSize = 9;
+            
+            // Center vertically - title bar is typically 24px, field is 18px, so (24-18)/2 = 3px offset
+            _labelField.style.top = 3;
             
             // Style the input to look nice in the title bar
             var textInput = _labelField.Q("unity-text-input");
@@ -222,17 +231,8 @@ namespace NodeSystem.Editor
                 }
             });
 
-            // Insert the label field into the title container
-            // Find the title-button-container or add after title label
-            var buttonContainer = _titleContainer.Q("title-button-container");
-            if (buttonContainer != null)
-            {
-                _titleContainer.Insert(_titleContainer.IndexOf(buttonContainer), _labelField);
-            }
-            else
-            {
-                _titleContainer.Add(_labelField);
-            }
+            // Add to title container with absolute positioning
+            _titleContainer.Add(_labelField);
         }
 
         /// <summary>

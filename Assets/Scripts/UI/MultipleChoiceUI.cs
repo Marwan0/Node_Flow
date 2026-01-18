@@ -73,19 +73,56 @@ namespace QuizSystem
             answerSubmitted = false;
             UpdateButtonVisuals();
 
-            // Animate button entrance
-            if (enableFeedbackAnimations && enableButtonEntrance)
-            {
-                AnimateButtonEntrance();
-            }
+            // Animate button entrance - ALWAYS check for custom animations first
+            // Custom animations from LoadQuestionNode take priority over inspector settings
+            AnimateButtonEntrance();
         }
 
         private void AnimateButtonEntrance()
         {
+            // CRITICAL: Kill all existing tweens on all buttons first to prevent conflicts
             for (int i = 0; i < answerButtons.Length; i++)
             {
                 if (answerButtons[i] != null && answerButtons[i].transform != null)
                 {
+                    answerButtons[i].transform.DOKill();
+                    var cg = answerButtons[i].transform.GetComponent<CanvasGroup>();
+                    if (cg != null) cg.DOKill();
+                }
+            }
+
+            // Check if custom animations are set from LoadQuestionNode
+            var customAnimations = QuizState.Instance?.currentAnswerAnimations;
+            bool hasCustomAnimations = customAnimations != null && customAnimations.Length > 0;
+
+            // Determine how many answers we actually have (from question data)
+            int actualAnswerCount = mcData != null && mcData.answers != null ? mcData.answers.Length : answerButtons.Length;
+            int maxAnswers = Mathf.Min(actualAnswerCount, answerButtons.Length);
+
+            for (int i = 0; i < maxAnswers; i++)
+            {
+                if (answerButtons[i] == null || answerButtons[i].transform == null) continue;
+
+                bool usedCustom = false;
+                
+                // PRIORITY 1: Try custom animation from LoadQuestionNode if available
+                if (hasCustomAnimations && i < customAnimations.Length && customAnimations[i] != null)
+                {
+                    if (customAnimations[i].enabled)
+                    {
+                        // Use custom animation settings from LoadQuestionNode
+                        AnimateAnswerWithSettings(answerButtons[i].transform, customAnimations[i]);
+                        usedCustom = true;
+                    }
+                }
+
+                // PRIORITY 2: Fall back to default animation ONLY if no custom animation was used
+                if (!usedCustom && enableFeedbackAnimations && enableButtonEntrance)
+                {
+                    // Use default animation from inspector
+                    // Kill any existing tweens first
+                    answerButtons[i].transform.DOKill();
+                    
                     Vector3 originalScale = answerButtons[i].transform.localScale;
                     answerButtons[i].transform.localScale = Vector3.zero;
 
@@ -93,6 +130,105 @@ namespace QuizSystem
                         .SetDelay(i * buttonStaggerDelay)
                         .SetEase(Ease.OutBack);
                 }
+            }
+        }
+
+        private void AnimateAnswerWithSettings(Transform buttonTransform, NodeSystem.Nodes.Quiz.AnswerAnimationSettings settings)
+        {
+            if (buttonTransform == null || settings == null) return;
+
+            var animType = settings.animationType;
+            if (animType == NodeSystem.Nodes.Quiz.AnswerAnimationType.None) return;
+
+            // CRITICAL: Kill any existing tweens first to prevent conflicts
+            buttonTransform.DOKill();
+            var canvasGroup = buttonTransform.GetComponent<CanvasGroup>();
+            if (canvasGroup != null)
+            {
+                canvasGroup.DOKill();
+            }
+
+            // Capture original values BEFORE any reset
+            Vector3 originalPos = buttonTransform.localPosition;
+            Vector3 originalScale = buttonTransform.localScale;
+            Vector3 originalRot = buttonTransform.localEulerAngles;
+
+            // Reset based on animation type
+            switch (animType)
+            {
+                case NodeSystem.Nodes.Quiz.AnswerAnimationType.Scale:
+                case NodeSystem.Nodes.Quiz.AnswerAnimationType.Bounce:
+                    buttonTransform.localScale = Vector3.zero;
+                    break;
+                case NodeSystem.Nodes.Quiz.AnswerAnimationType.Fade:
+                    // Ensure CanvasGroup exists for fade animation
+                    if (canvasGroup == null) canvasGroup = buttonTransform.gameObject.AddComponent<CanvasGroup>();
+                    canvasGroup.alpha = 0f;
+                    // Make sure button is visible (alpha controls visibility, not active state)
+                    if (!buttonTransform.gameObject.activeSelf)
+                        buttonTransform.gameObject.SetActive(true);
+                    break;
+                case NodeSystem.Nodes.Quiz.AnswerAnimationType.SlideFromLeft:
+                    buttonTransform.localPosition = originalPos + Vector3.left * settings.slideDistance;
+                    break;
+                case NodeSystem.Nodes.Quiz.AnswerAnimationType.SlideFromRight:
+                    buttonTransform.localPosition = originalPos + Vector3.right * settings.slideDistance;
+                    break;
+                case NodeSystem.Nodes.Quiz.AnswerAnimationType.SlideFromTop:
+                    buttonTransform.localPosition = originalPos + Vector3.up * settings.slideDistance;
+                    break;
+                case NodeSystem.Nodes.Quiz.AnswerAnimationType.SlideFromBottom:
+                    buttonTransform.localPosition = originalPos + Vector3.down * settings.slideDistance;
+                    break;
+                case NodeSystem.Nodes.Quiz.AnswerAnimationType.Rotate:
+                    buttonTransform.localEulerAngles = originalRot + Vector3.forward * 180f;
+                    break;
+            }
+
+            // Animate based on type
+            switch (animType)
+            {
+                case NodeSystem.Nodes.Quiz.AnswerAnimationType.Scale:
+                    // Animate to original scale (scaleMultiplier affects the overshoot, not final size)
+                    buttonTransform.DOScale(originalScale, settings.duration)
+                        .SetDelay(settings.delay)
+                        .SetEase(settings.easeType);
+                    break;
+
+                case NodeSystem.Nodes.Quiz.AnswerAnimationType.Bounce:
+                    // For bounce, we can overshoot then settle to original
+                    Sequence bounceSeq = DOTween.Sequence();
+                    bounceSeq.Append(buttonTransform.DOScale(originalScale * settings.scaleMultiplier, settings.duration * 0.6f)
+                        .SetEase(DG.Tweening.Ease.OutBounce));
+                    bounceSeq.Append(buttonTransform.DOScale(originalScale, settings.duration * 0.4f)
+                        .SetEase(DG.Tweening.Ease.InQuad));
+                    bounceSeq.SetDelay(settings.delay);
+                    break;
+
+                case NodeSystem.Nodes.Quiz.AnswerAnimationType.Fade:
+                    var cg = buttonTransform.GetComponent<CanvasGroup>();
+                    if (cg != null)
+                    {
+                        cg.DOFade(1f, settings.duration)
+                            .SetDelay(settings.delay)
+                            .SetEase(settings.easeType);
+                    }
+                    break;
+
+                case NodeSystem.Nodes.Quiz.AnswerAnimationType.SlideFromLeft:
+                case NodeSystem.Nodes.Quiz.AnswerAnimationType.SlideFromRight:
+                case NodeSystem.Nodes.Quiz.AnswerAnimationType.SlideFromTop:
+                case NodeSystem.Nodes.Quiz.AnswerAnimationType.SlideFromBottom:
+                    buttonTransform.DOLocalMove(originalPos, settings.duration)
+                        .SetDelay(settings.delay)
+                        .SetEase(settings.easeType);
+                    break;
+
+                case NodeSystem.Nodes.Quiz.AnswerAnimationType.Rotate:
+                    buttonTransform.DOLocalRotate(originalRot, settings.duration)
+                        .SetDelay(settings.delay)
+                        .SetEase(settings.easeType);
+                    break;
             }
         }
 

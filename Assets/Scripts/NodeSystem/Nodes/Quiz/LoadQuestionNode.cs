@@ -25,6 +25,43 @@ namespace NodeSystem.Nodes.Quiz
         [SerializeField]
         public bool trackInQuizState = true;
 
+        [Header("Answer Animations")]
+        [SerializeField]
+        [Tooltip("Animation type to apply to all answers")]
+        public AnswerAnimationType animationType = AnswerAnimationType.Scale;
+        
+        [SerializeField]
+        [Tooltip("Duration of the animation in seconds")]
+        [Range(0.1f, 2f)]
+        public float animationDuration = 0.3f;
+        
+        [SerializeField]
+        [Tooltip("Delay between each answer (staggered effect)")]
+        [Range(0f, 0.5f)]
+        public float staggerDelay = 0.1f;
+        
+        [SerializeField]
+        [Tooltip("Ease type for the animation")]
+#if DOTWEEN
+        public DG.Tweening.Ease easeType = DG.Tweening.Ease.OutBack;
+#else
+        public int easeType = 0; // Fallback when DOTween not available
+#endif
+        
+        [SerializeField]
+        [Tooltip("Scale multiplier (for Scale/Bounce animations)")]
+        [Range(0.1f, 2f)]
+        public float scaleMultiplier = 1f;
+        
+        [SerializeField]
+        [Tooltip("Slide distance (for Slide animations)")]
+        [Range(10f, 500f)]
+        public float slideDistance = 100f;
+        
+        [SerializeField]
+        [Tooltip("Enable animations")]
+        public bool enableAnimations = true;
+
         [NonSerialized]
         private QuizManager _quizManager;
 
@@ -33,6 +70,9 @@ namespace NodeSystem.Nodes.Quiz
 
         [NonSerialized]
         private bool _lastAnswerCorrect = false;
+
+        [NonSerialized]
+        private AnswerAnimationSettings[] _answerAnimations;
 
         public override string Name => "Load Question";
         public override Color Color => new Color(0.2f, 0.7f, 0.4f); // Green
@@ -61,6 +101,30 @@ namespace NodeSystem.Nodes.Quiz
         {
             _questionAnswered = false;
             _lastAnswerCorrect = false;
+
+            // Create animation settings array from single settings (applied to all answers with stagger)
+            _answerAnimations = null;
+            if (enableAnimations)
+            {
+                _answerAnimations = new AnswerAnimationSettings[4];
+                for (int i = 0; i < 4; i++)
+                {
+                    _answerAnimations[i] = new AnswerAnimationSettings
+                    {
+                        enabled = true,
+                        animationType = animationType,
+                        duration = animationDuration,
+                        delay = i * staggerDelay, // Stagger each answer
+#if DOTWEEN
+                        easeType = easeType,
+#else
+                        easeType = 0,
+#endif
+                        scaleMultiplier = scaleMultiplier,
+                        slideDistance = slideDistance
+                    };
+                }
+            }
 
             // Find QuizManager
             var managerObj = GameObject.Find(quizManagerPath);
@@ -102,6 +166,13 @@ namespace NodeSystem.Nodes.Quiz
 
             int questionIndex = _quizManager.questions.IndexOf(question);
 
+            // Set animations IMMEDIATELY before loading question (synchronously)
+            // This ensures animations are available when QuestionUI.Initialize() -> SetupQuestion() -> AnimateButtonEntrance() is called
+            if (QuizState.Instance != null)
+            {
+                QuizState.Instance.SetAnswerAnimations(_answerAnimations);
+            }
+
             if (waitForAnswer)
             {
                 // Subscribe to answer events
@@ -118,6 +189,8 @@ namespace NodeSystem.Nodes.Quiz
 
         private IEnumerator LoadQuestionOnly(int questionIndex)
         {
+            // Animations are already set synchronously in OnExecute() before this coroutine starts
+            
             // Navigate to the question
             if (_quizManager.currentQuestionIndex == 0 && questionIndex == 0)
             {
@@ -133,11 +206,20 @@ namespace NodeSystem.Nodes.Quiz
             }
 
             yield return new WaitForSeconds(0.1f);
+            
+            // Safety check: Re-set animations in case they were cleared during navigation
+            if (QuizState.Instance != null && _answerAnimations != null)
+            {
+                QuizState.Instance.SetAnswerAnimations(_answerAnimations);
+            }
+            
             Complete();
         }
 
         private IEnumerator LoadAndWaitForAnswer(int questionIndex)
         {
+            // Animations are already set synchronously in OnExecute() before this coroutine starts
+            
             // Navigate to the question
             if (_quizManager.currentQuestionIndex == 0 && questionIndex == 0)
             {
@@ -153,6 +235,12 @@ namespace NodeSystem.Nodes.Quiz
             }
 
             yield return new WaitForSeconds(0.1f);
+            
+            // Safety check: Re-set animations in case they were cleared during navigation
+            if (QuizState.Instance != null && _answerAnimations != null)
+            {
+                QuizState.Instance.SetAnswerAnimations(_answerAnimations);
+            }
 
             // Wait for answer
             while (!_questionAnswered && Runner != null && Runner.IsRunning)
