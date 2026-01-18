@@ -5,6 +5,7 @@ using UnityEditor;
 using UnityEditor.UIElements;
 using NodeSystem.Nodes.Quiz;
 using QuizSystem;
+using NodeSystem;
 
 namespace NodeSystem.Editor
 {
@@ -98,6 +99,116 @@ namespace NodeSystem.Editor
             CreateTextField(node.quizManagerPath, v => node.quizManagerPath = v, "QuizManager path");
             CreateToggle("Wait for Answer", node.waitForAnswer, v => node.waitForAnswer = v);
             CreateToggle("Track in State", node.trackInQuizState, v => node.trackInQuizState = v);
+
+            // === STEP 4: Answer Animation Settings ===
+            AddSeparator("Answer Animations");
+            CreateLabel("One animation applies to all answers with staggered delay:", new Color(0.8f, 0.8f, 0.8f));
+            
+            // Get the node from graph to ensure we're modifying the correct instance
+            var graph = GetNodeGraph();
+            LoadQuestionNode graphNode = null;
+            if (graph != null)
+            {
+                graphNode = graph.GetNode(node.Guid) as LoadQuestionNode;
+            }
+            
+            // Always use the graph's node instance if available (this is what gets serialized)
+            var nodeToModify = graphNode ?? node;
+            
+            CreateToggle("Enable Animations", nodeToModify.enableAnimations, v => {
+                if (graph != null) Undo.RecordObject(graph, "Change Enable Animations");
+                
+                // Update the node that's actually in the graph
+                nodeToModify.enableAnimations = v;
+                // Also update local reference if different
+                if (node != nodeToModify) node.enableAnimations = v;
+                
+                if (graph != null) { graph.SaveToJson(); EditorUtility.SetDirty(graph); }
+                MarkDirty();
+            });
+
+            if (nodeToModify.enableAnimations)
+            {
+                var currentAnimationType = nodeToModify.animationType;
+                
+                CreateEnumField("Animation Type", currentAnimationType, (AnswerAnimationType v) => {
+                    if (graph != null) Undo.RecordObject(graph, "Change Animation Type");
+                    
+                    // CRITICAL: Update the node that's in the graph's _runtimeNodes list
+                    nodeToModify.animationType = v;
+                    // Also update local reference if different
+                    if (node != nodeToModify) node.animationType = v;
+                    
+                    // Force graph save immediately - this serializes from _runtimeNodes
+                    if (graph != null)
+                    {
+                        graph.SaveToJson();
+                        EditorUtility.SetDirty(graph);
+                    }
+                    
+                    MarkDirty();
+                    RequestRefresh();
+                });
+
+                CreateFloatField("Duration", nodeToModify.animationDuration, v => {
+                    if (graph != null) Undo.RecordObject(graph, "Change Animation Duration");
+                    
+                    nodeToModify.animationDuration = Mathf.Clamp(v, 0.1f, 2f);
+                    if (node != nodeToModify) node.animationDuration = nodeToModify.animationDuration;
+                    
+                    if (graph != null) { graph.SaveToJson(); EditorUtility.SetDirty(graph); }
+                    MarkDirty();
+                });
+
+                CreateFloatField("Stagger Delay", nodeToModify.staggerDelay, v => {
+                    if (graph != null) Undo.RecordObject(graph, "Change Stagger Delay");
+                    
+                    nodeToModify.staggerDelay = Mathf.Clamp(v, 0f, 0.5f);
+                    if (node != nodeToModify) node.staggerDelay = nodeToModify.staggerDelay;
+                    
+                    if (graph != null) { graph.SaveToJson(); EditorUtility.SetDirty(graph); }
+                    MarkDirty();
+                });
+
+#if DOTWEEN
+                CreateEnumField("Ease", nodeToModify.easeType, (DG.Tweening.Ease v) => {
+                    if (graph != null) Undo.RecordObject(graph, "Change Animation Ease");
+                    
+                    nodeToModify.easeType = v;
+                    if (node != nodeToModify) node.easeType = nodeToModify.easeType;
+                    
+                    if (graph != null) { graph.SaveToJson(); EditorUtility.SetDirty(graph); }
+                    MarkDirty();
+                });
+#endif
+
+                if (nodeToModify.animationType == AnswerAnimationType.Scale || 
+                    nodeToModify.animationType == AnswerAnimationType.Bounce)
+                {
+                    CreateFloatField("Scale Multiplier", nodeToModify.scaleMultiplier, v => {
+                        if (graph != null) Undo.RecordObject(graph, "Change Scale Multiplier");
+                        
+                        nodeToModify.scaleMultiplier = Mathf.Clamp(v, 0.1f, 2f);
+                        if (node != nodeToModify) node.scaleMultiplier = nodeToModify.scaleMultiplier;
+                        
+                        if (graph != null) { graph.SaveToJson(); EditorUtility.SetDirty(graph); }
+                        MarkDirty();
+                    });
+                }
+
+                if (nodeToModify.animationType.ToString().StartsWith("Slide"))
+                {
+                    CreateFloatField("Slide Distance", nodeToModify.slideDistance, v => {
+                        if (graph != null) Undo.RecordObject(graph, "Change Slide Distance");
+                        
+                        nodeToModify.slideDistance = Mathf.Clamp(v, 10f, 500f);
+                        if (node != nodeToModify) node.slideDistance = nodeToModify.slideDistance;
+                        
+                        if (graph != null) { graph.SaveToJson(); EditorUtility.SetDirty(graph); }
+                        MarkDirty();
+                    });
+                }
+            }
         }
 
         /// <summary>
@@ -427,6 +538,33 @@ namespace NodeSystem.Editor
             propContainer.Bind(_serializedQuestion);
 
             Container.Add(propContainer);
+        }
+
+        /// <summary>
+        /// Get the NodeGraph that contains this node
+        /// </summary>
+        private NodeGraph GetNodeGraph()
+        {
+            if (Node == null) return null;
+            
+            // Search all NodeGraph assets to find which one contains this node
+            string[] guids = AssetDatabase.FindAssets("t:NodeGraph");
+            foreach (string guid in guids)
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guid);
+                var graph = AssetDatabase.LoadAssetAtPath<NodeGraph>(path);
+                if (graph != null && graph.Nodes != null)
+                {
+                    foreach (var node in graph.Nodes)
+                    {
+                        if (node != null && node.Guid == Node.Guid)
+                        {
+                            return graph;
+                        }
+                    }
+                }
+            }
+            return null;
         }
 
         /// <summary>

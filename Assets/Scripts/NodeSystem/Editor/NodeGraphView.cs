@@ -615,6 +615,8 @@ namespace NodeSystem.Editor
             {
                 if (Graph != null)
                 {
+                    // CRITICAL: Re-serialize the graph to JSON so node changes persist
+                    Graph.SaveToJson();
                     EditorUtility.SetDirty(Graph);
                 }
             };

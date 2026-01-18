@@ -323,6 +323,10 @@ namespace QuizSystem
                 ResetContainerForTransitionIn();
             }
 
+            // Note: Animations should be set in QuizState BEFORE Initialize() is called
+            // This is done by LoadQuestionNode or other nodes that control question loading
+            // The QuestionUI will check QuizState.Instance.currentAnswerAnimations in SetupQuestion()
+            
             currentQuestionUI.Initialize(question, currentValidator, this);
 
             // Animate transition in

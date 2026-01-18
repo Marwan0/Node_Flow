@@ -59,6 +59,10 @@ namespace QuizSystem
         public bool quizActive = false;
         public bool quizCompleted = false;
 
+        [Header("Answer Animations")]
+        [NonSerialized]
+        public NodeSystem.Nodes.Quiz.AnswerAnimationSettings[] currentAnswerAnimations = null;
+
         private void Update()
         {
             if (timerActive && timerRemaining > 0)
@@ -181,6 +185,14 @@ namespace QuizSystem
             Debug.Log($"[QuizState] Quiz completed! Score: {currentScore}/{maxPossibleScore}, Correct: {correctAnswers}/{totalQuestions}");
         }
 
+        /// <summary>
+        /// Set answer animation settings for the current question (called by LoadQuestionNode)
+        /// </summary>
+        public void SetAnswerAnimations(NodeSystem.Nodes.Quiz.AnswerAnimationSettings[] animations)
+        {
+            currentAnswerAnimations = animations;
+        }
+
         public void ResetState()
         {
             totalQuestions = 0;
@@ -198,7 +210,10 @@ namespace QuizSystem
             timerActive = false;
             quizActive = false;
             quizCompleted = false;
-            Debug.Log("[QuizState] State reset");
+            // Don't clear currentAnswerAnimations here - they're per-question settings
+            // and should persist until the next question sets new ones
+            // currentAnswerAnimations = null;
+            Debug.Log("[QuizState] State reset (animations preserved)");
         }
 
         // === Computed Properties ===
