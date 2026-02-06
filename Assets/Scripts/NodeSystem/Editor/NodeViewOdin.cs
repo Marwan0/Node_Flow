@@ -84,7 +84,7 @@ namespace NodeSystem.Editor
             // Input ports
             foreach (var portData in Data.GetInputPorts())
             {
-                var port = InstantiatePort(
+                var port = Port.Create<DoozyStyleEdge>(
                     Orientation.Horizontal,
                     Direction.Input,
                     portData.capacity == PortCapacity.Multi ? Port.Capacity.Multi : Port.Capacity.Single,
@@ -101,7 +101,7 @@ namespace NodeSystem.Editor
             // Output ports
             foreach (var portData in Data.GetOutputPorts())
             {
-                var port = InstantiatePort(
+                var port = Port.Create<DoozyStyleEdge>(
                     Orientation.Horizontal,
                     Direction.Output,
                     portData.capacity == PortCapacity.Multi ? Port.Capacity.Multi : Port.Capacity.Single,

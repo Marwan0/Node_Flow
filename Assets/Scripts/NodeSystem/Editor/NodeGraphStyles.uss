@@ -15,6 +15,10 @@ GridBackground {
     border-width: 2px;
     border-color: rgba(0, 0, 0, 0);
     border-radius: 6px;
+    /* Smooth transitions for all state changes (inspired by Doozy AnimBool lerps) */
+    transition-property: border-color, opacity;
+    transition-duration: 0.3s, 0.2s;
+    transition-timing-function: ease-in-out, ease-in-out;
 }
 
 .node #title {
@@ -22,6 +26,10 @@ GridBackground {
     height: 30px;
     padding-left: 10px;
     padding-right: 10px;
+    /* Smooth title color transitions */
+    transition-property: background-color;
+    transition-duration: 0.35s;
+    transition-timing-function: ease-in-out;
 }
 
 .node #title-label {
@@ -80,20 +88,23 @@ GridBackground {
     border-color: #66D0FF;
 }
 
-/* === Execution State Styles === */
+/* ============================================================
+   EXECUTION STATE STYLES (with smooth transitions)
+   ============================================================ */
 
 /* Idle state - default */
 .node-idle {
     border-color: rgba(0, 0, 0, 0);
 }
 
-/* Running/Active state - ORANGE (attention-grabbing) */
+/* Running/Active state - ELECTRIC BLUE (catchy, unmissable) */
 .node-running {
-    border-color: #FFB000 !important;
+    border-color: #1E90FF !important;
+    border-width: 3px;
 }
 
 .node-running #title {
-    background-color: #E68A00 !important;
+    background-color: #1565C0 !important;
 }
 
 /* Completed state - GREEN (success) */
@@ -117,18 +128,120 @@ GridBackground {
 /* State indicator bar (left side) */
 #state-indicator {
     border-radius: 2px;
-    transition: background-color 0.2s;
+    transition-property: background-color;
+    transition-duration: 0.3s;
+    transition-timing-function: ease-in-out;
 }
 
-/* Edge styling for active connections */
-.edge.running {
+/* Runtime dot */
+#runtime-dot {
+    transition-property: background-color;
+    transition-duration: 0.3s;
+    transition-timing-function: ease-in-out;
+}
+
+/* ============================================================
+   NODE GLOW / PULSE EFFECT (inspired by Doozy Ping system)
+   Big, obvious, electric-blue glow that makes the active node
+   impossible to miss.
+   ============================================================ */
+
+#node-glow {
+    position: absolute;
+    left: -20px;
+    top: -20px;
+    right: -20px;
+    bottom: -20px;
+    border-radius: 18px;
+    border-width: 4px;
+    border-color: rgba(0, 0, 0, 0);
+    background-color: rgba(0, 0, 0, 0);
+    transition-property: background-color, border-color, opacity;
+    transition-duration: 0.3s, 0.3s, 0.3s;
+    transition-timing-function: ease-in-out, ease-in-out, ease-in-out;
+}
+
+/* Glow when running - bright electric blue, strong and unmissable */
+.node-running #node-glow {
+    background-color: rgba(30, 144, 255, 0.50);
+    border-color: rgba(80, 200, 255, 0.85);
+}
+
+/* Glow when completed - same electric blue as running */
+.node-completed #node-glow {
+    background-color: rgba(30, 144, 255, 0.20);
+    border-color: rgba(50, 180, 255, 0.4);
+}
+
+/* Glow when failed - same electric blue */
+.node-failed #node-glow {
+    background-color: rgba(30, 144, 255, 0.20);
+    border-color: rgba(50, 180, 255, 0.4);
+}
+
+/* ============================================================
+   EDGE RUNTIME HIGHLIGHTING (shows execution flow)
+   ============================================================ */
+
+.edge-active {
     --edge-color: #33CCFF;
     --edge-width: 3;
 }
 
-.edge.completed {
+.edge-executed {
     --edge-color: #44DD55;
     --edge-width: 2;
 }
 
+/* ============================================================
+   DELETE PREVIEW (Alt+Hover - inspired by Doozy delete mode)
+   ============================================================ */
 
+.node-delete-preview {
+    border-color: rgba(255, 60, 60, 0.85) !important;
+}
+
+.node-delete-preview #title {
+    background-color: rgba(180, 40, 40, 0.9) !important;
+}
+
+.node-delete-preview #node-glow {
+    background-color: rgba(255, 40, 40, 0.15);
+}
+
+/* ============================================================
+   ZOOM-BASED DETAIL HIDING (inspired by Doozy LOD thresholds)
+   
+   Conservative thresholds - nodes stay recognizable at all
+   zoom levels. Title bar + color are NEVER hidden.
+   
+   LOD 1 (< 0.35): Hide inline content only
+   LOD 2 (< 0.20): Also hide port labels and small indicators
+   ============================================================ */
+
+/* LOD 1: Only hide inline content (heavy UI) */
+.zoom-lod-1 #inline-content {
+    display: none;
+}
+
+/* LOD 2: Also hide port type labels and small indicators */
+.zoom-lod-2 #inline-content {
+    display: none;
+}
+
+.zoom-lod-2 .port > #type {
+    display: none;
+}
+
+.zoom-lod-2 #runtime-dot {
+    display: none;
+}
+
+.zoom-lod-2 #breakpoint-indicator {
+    display: none;
+}
+
+/* LOD 2: compact ports but still visible */
+.zoom-lod-2 .port {
+    height: 18px;
+}

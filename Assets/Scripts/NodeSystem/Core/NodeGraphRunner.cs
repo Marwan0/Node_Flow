@@ -368,13 +368,24 @@ namespace NodeSystem
                 
                 // First, execute nodes connected to the result port (correct/incorrect)
                 var resultNodes = _graph.GetConnectedNodes(completedNode.Guid, resultPort);
+                
+                // Also get the "complete" port nodes so we can pre-register all of them
+                outputPort = "complete";
+                var completeNodes = _graph.GetConnectedNodes(completedNode.Guid, outputPort);
+                
+                // Pre-register ALL nodes (result + complete) before executing any,
+                // to prevent synchronous nodes from prematurely stopping the graph.
+                foreach (var nextNode in resultNodes)
+                    _activeNodeGuids.Add(nextNode.Guid);
+                foreach (var nextNode in completeNodes)
+                    _activeNodeGuids.Add(nextNode.Guid);
+                
                 foreach (var nextNode in resultNodes)
                 {
                     ExecuteNode(nextNode);
                 }
                 
-                // Then, also execute nodes connected to "complete" port
-                outputPort = "complete";
+                // outputPort is already set to "complete" for the main loop below
             }
             else if (completedNode is Nodes.Quiz.CheckAnswerNode)
             {
@@ -441,6 +452,15 @@ namespace NodeSystem
             if (nextNodes.Count > 1)
             {
                 Debug.Log($"[NodeGraphRunner] Executing {nextNodes.Count} nodes in parallel from {completedNode.Name}: {string.Join(", ", nextNodes.Select(n => n.Name))}");
+                
+                // IMPORTANT: Pre-register ALL next nodes as active BEFORE executing any.
+                // This prevents a synchronous node from completing and seeing an empty
+                // _activeNodeGuids set, which would incorrectly stop the graph before
+                // the remaining sibling nodes get a chance to execute.
+                foreach (var nextNode in nextNodes)
+                {
+                    _activeNodeGuids.Add(nextNode.Guid);
+                }
             }
             
             foreach (var nextNode in nextNodes)

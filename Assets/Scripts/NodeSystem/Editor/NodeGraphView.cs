@@ -21,13 +21,25 @@ namespace NodeSystem.Editor
         private bool _isSubscribedToRuntime;
         private MinimapView _minimap;
 
-        // Odin Inspector support removed - always use custom inline content
-        
         // Copy/paste
         private List<NodeData> _copiedNodes = new List<NodeData>();
         private List<ConnectionData> _copiedConnections = new List<ConnectionData>();
         private Vector2 _copyCenter;
         private Vector2 _lastMousePosition;
+        
+        // --- UX Enhancements (inspired by Doozy Nody) ---
+        
+        // Edge execution highlighting
+        private HashSet<string> _executedNodeGuids = new HashSet<string>();
+        private string _currentRunningNodeGuid;
+        
+        // Zoom-based LOD
+        private float _currentZoom = 1f;
+        private const float ZoomLodThreshold = 0.6f;
+        
+        // Delete preview (Alt+Hover)
+        private bool _isAltHeld = false;
+        private NodeView _deletePreviewNode;
 
         public NodeGraphView()
         {
@@ -68,6 +80,7 @@ namespace NodeSystem.Editor
             
             // Handle keyboard shortcuts
             RegisterCallback<KeyDownEvent>(OnKeyDown);
+            RegisterCallback<KeyUpEvent>(OnKeyUp);
             
             // Also handle via IMGUI for undo/redo (more reliable)
             RegisterCallback<AttachToPanelEvent>(OnAttachToPanel);
@@ -82,6 +95,9 @@ namespace NodeSystem.Editor
 
             // Add group creation to context menu
             RegisterCallback<ContextualMenuPopulateEvent>(OnGraphContextMenu);
+            
+            // --- Zoom LOD: listen for viewTransform changes ---
+            viewTransformChanged += OnViewTransformChanged;
         }
 
         private void OnGraphContextMenu(ContextualMenuPopulateEvent evt)
@@ -92,8 +108,6 @@ namespace NodeSystem.Editor
                 // Group functionality removed due to persistent issues
             }
         }
-
-        // Group functionality removed due to persistent serialization and restoration issues
 
         private void OnContextMenu(ContextualMenuPopulateEvent evt)
         {
@@ -137,6 +151,12 @@ namespace NodeSystem.Editor
         private void OnMouseMove(MouseMoveEvent evt)
         {
             _lastMousePosition = evt.localMousePosition;
+            
+            // --- Delete preview: update hover state when Alt is held ---
+            if (_isAltHeld)
+            {
+                UpdateDeletePreview(evt.localMousePosition);
+            }
         }
 
         private void OnKeyDown(KeyDownEvent evt)
@@ -147,6 +167,13 @@ namespace NodeSystem.Editor
             // Don't intercept if a text field is focused
             if (evt.target is TextField || evt.target is TextInputBaseField<char>)
             {
+                return;
+            }
+            
+            // Track Alt key for delete preview
+            if (evt.keyCode == KeyCode.LeftAlt || evt.keyCode == KeyCode.RightAlt)
+            {
+                _isAltHeld = true;
                 return;
             }
             
@@ -183,6 +210,17 @@ namespace NodeSystem.Editor
             }
         }
 
+        /// <summary>
+        /// Handle key up - clears delete preview when Alt is released
+        /// </summary>
+        private void OnKeyUp(KeyUpEvent evt)
+        {
+            if (evt.keyCode == KeyCode.LeftAlt || evt.keyCode == KeyCode.RightAlt)
+            {
+                _isAltHeld = false;
+                ClearDeletePreview();
+            }
+        }
 
         private void OnAttachToPanel(AttachToPanelEvent evt)
         {
@@ -196,6 +234,10 @@ namespace NodeSystem.Editor
             EditorApplication.playModeStateChanged -= OnPlayModeStateChanged;
             UnsubscribeFromRuntimeEvents();
         }
+
+        // ============================================================
+        //  RUNTIME EVENT SUBSCRIPTION
+        // ============================================================
 
         private void SubscribeToRuntimeEvents()
         {
@@ -224,30 +266,45 @@ namespace NodeSystem.Editor
             switch (state)
             {
                 case PlayModeStateChange.EnteredPlayMode:
-                    // Refresh to sync with potential runtime changes
                     break;
                     
                 case PlayModeStateChange.ExitingPlayMode:
-                    // Reset all visual states when exiting play mode
                     ResetAllNodeVisualStates();
+                    ClearEdgeHighlights();
+                    break;
+
+                // Safety net: if ExitingPlayMode didn't fully clean up
+                // (UI can be in a transitional state), clean up again.
+                case PlayModeStateChange.EnteredEditMode:
+                    ResetAllNodeVisualStates();
+                    ClearEdgeHighlights();
+                    _executedNodeGuids.Clear();
+                    _currentRunningNodeGuid = null;
                     break;
             }
         }
 
         private void OnRuntimeNodeStarted(NodeGraphRunner runner, NodeData node)
         {
-            // Only update if this is our graph
             if (Graph == null || runner.Graph != Graph) return;
 
+            _currentRunningNodeGuid = node.Guid;
             UpdateNodeVisualState(node.Guid, NodeState.Running);
+            
+            // Highlight edges leading into this node (active execution path)
+            HighlightEdgesForActiveNode(node.Guid);
         }
 
         private void OnRuntimeNodeCompleted(NodeGraphRunner runner, NodeData node)
         {
-            // Only update if this is our graph
             if (Graph == null || runner.Graph != Graph) return;
 
+            _executedNodeGuids.Add(node.Guid);
+            _currentRunningNodeGuid = null;
             UpdateNodeVisualState(node.Guid, NodeState.Completed);
+            
+            // Mark outgoing edges from this node as executed
+            MarkEdgesAsExecuted(node.Guid);
         }
 
         /// <summary>
@@ -255,7 +312,6 @@ namespace NodeSystem.Editor
         /// </summary>
         private void UpdateNodeVisualState(string nodeGuid, NodeState state)
         {
-            // Try immediate update first
             var nodeElement = GetNodeByGuid(nodeGuid);
             if (nodeElement != null)
             {
@@ -295,16 +351,19 @@ namespace NodeSystem.Editor
 
         private void OnRuntimeGraphStarted(NodeGraphRunner runner)
         {
-            // Only update if this is our graph
             if (Graph == null || runner.Graph != Graph) return;
 
-            // Reset all nodes to idle
+            // Reset tracking
+            _executedNodeGuids.Clear();
+            _currentRunningNodeGuid = null;
+            
             ResetAllNodeVisualStates();
+            ClearEdgeHighlights();
         }
 
         private void OnRuntimeGraphEnded(NodeGraphRunner runner)
         {
-            // Could add visual feedback for graph completion
+            // Graph execution finished - edges stay highlighted to show the full path taken
         }
 
         /// <summary>
@@ -338,28 +397,208 @@ namespace NodeSystem.Editor
             var runner = NodeGraphRunner.ActiveRunner;
             if (runner == null || runner.Graph != Graph) return;
 
-            // Mark executed nodes as completed
+            // Rebuild our tracking from the runner's execution path
+            _executedNodeGuids.Clear();
+            _currentRunningNodeGuid = null;
+
             foreach (var guid in runner.ExecutionPath)
             {
                 var nodeElement = GetNodeByGuid(guid);
                 if (nodeElement is NodeView nodeView)
                 {
                     if (runner.CurrentNode != null && runner.CurrentNode.Guid == guid)
+                    {
                         nodeView.SetVisualState(NodeState.Running);
+                        _currentRunningNodeGuid = guid;
+                    }
                     else
+                    {
                         nodeView.SetVisualState(NodeState.Completed);
+                        _executedNodeGuids.Add(guid);
+                    }
                 }
 #if ODIN_INSPECTOR
                 else if (nodeElement is NodeViewOdin odinView)
                 {
                     if (runner.CurrentNode != null && runner.CurrentNode.Guid == guid)
+                    {
                         odinView.SetVisualState(NodeState.Running);
+                        _currentRunningNodeGuid = guid;
+                    }
                     else
+                    {
                         odinView.SetVisualState(NodeState.Completed);
+                        _executedNodeGuids.Add(guid);
+                    }
                 }
 #endif
             }
+            
+            // Sync edge highlights
+            SyncEdgeHighlights();
         }
+
+        // ============================================================
+        //  EDGE EXECUTION HIGHLIGHTING (inspired by Doozy's curve colors)
+        // ============================================================
+        
+        /// <summary>
+        /// Highlight edges feeding into the currently active (running) node.
+        /// These get a bright "active" style to show the live execution path.
+        /// </summary>
+        private void HighlightEdgesForActiveNode(string nodeGuid)
+        {
+            foreach (var edge in edges.ToList())
+            {
+                var inputData = GetNodeData(edge.input?.node);
+                if (inputData != null && inputData.Guid == nodeGuid)
+                {
+                    edge.RemoveFromClassList("edge-executed");
+                    edge.AddToClassList("edge-active");
+                }
+            }
+        }
+        
+        /// <summary>
+        /// Mark outgoing edges from a completed node as "executed".
+        /// These get a green tint to trace the path that was already taken.
+        /// </summary>
+        private void MarkEdgesAsExecuted(string nodeGuid)
+        {
+            foreach (var edge in edges.ToList())
+            {
+                // Outgoing edges from the completed node
+                var outputData = GetNodeData(edge.output?.node);
+                if (outputData != null && outputData.Guid == nodeGuid)
+                {
+                    edge.RemoveFromClassList("edge-active");
+                    edge.AddToClassList("edge-executed");
+                }
+                
+                // Also convert any "active" edges into this node to "executed"
+                var inputData = GetNodeData(edge.input?.node);
+                if (inputData != null && inputData.Guid == nodeGuid && edge.ClassListContains("edge-active"))
+                {
+                    edge.RemoveFromClassList("edge-active");
+                    edge.AddToClassList("edge-executed");
+                }
+            }
+        }
+        
+        /// <summary>
+        /// Rebuild edge highlights from tracked execution state
+        /// (used when syncing with an already-running graph)
+        /// </summary>
+        private void SyncEdgeHighlights()
+        {
+            ClearEdgeHighlights();
+            
+            foreach (var edge in edges.ToList())
+            {
+                var outputData = GetNodeData(edge.output?.node);
+                var inputData = GetNodeData(edge.input?.node);
+                if (outputData == null || inputData == null) continue;
+                
+                bool outputExecuted = _executedNodeGuids.Contains(outputData.Guid) || outputData.Guid == _currentRunningNodeGuid;
+                bool inputExecuted = _executedNodeGuids.Contains(inputData.Guid) || inputData.Guid == _currentRunningNodeGuid;
+                
+                if (outputExecuted && inputData.Guid == _currentRunningNodeGuid)
+                {
+                    edge.AddToClassList("edge-active");
+                }
+                else if (outputExecuted && inputExecuted)
+                {
+                    edge.AddToClassList("edge-executed");
+                }
+            }
+        }
+        
+        /// <summary>
+        /// Remove all execution highlighting from edges
+        /// </summary>
+        private void ClearEdgeHighlights()
+        {
+            foreach (var edge in edges.ToList())
+            {
+                edge.RemoveFromClassList("edge-active");
+                edge.RemoveFromClassList("edge-executed");
+            }
+        }
+
+        // ============================================================
+        //  ZOOM-BASED LOD (inspired by Doozy's NodyWindowDrawViewGraph LOD)
+        // ============================================================
+        
+        /// <summary>
+        /// Called whenever the view transform (pan/zoom) changes.
+        /// Updates zoom-based detail level on all nodes.
+        /// </summary>
+        private void OnViewTransformChanged(GraphView graphView)
+        {
+            float newZoom = viewTransform.scale.x;
+            
+            // Only update if zoom changed meaningfully (avoid unnecessary work)
+            if (Mathf.Abs(newZoom - _currentZoom) < 0.01f) return;
+            _currentZoom = newZoom;
+            
+            // Update all node LOD levels
+            foreach (var element in graphElements.ToList())
+            {
+                if (element is NodeView nodeView)
+                {
+                    nodeView.SetZoomDetailLevel(newZoom);
+                }
+            }
+        }
+
+        // ============================================================
+        //  DELETE PREVIEW (inspired by Doozy's delete mode)
+        // ============================================================
+        
+        /// <summary>
+        /// Find the node under the mouse cursor and apply delete-preview styling.
+        /// Active only while Alt is held.
+        /// </summary>
+        private void UpdateDeletePreview(Vector2 localMousePos)
+        {
+            // Convert to content space
+            var worldPos = this.LocalToWorld(localMousePos);
+            
+            // Find node under cursor by checking all node views
+            NodeView hoveredNode = null;
+            foreach (var element in graphElements.ToList())
+            {
+                if (element is NodeView nv && nv.worldBound.Contains(worldPos))
+                {
+                    hoveredNode = nv;
+                    break;
+                }
+            }
+            
+            // If the hovered node changed, update preview
+            if (hoveredNode != _deletePreviewNode)
+            {
+                // Clear old preview
+                _deletePreviewNode?.SetDeletePreview(false);
+                
+                // Set new preview
+                _deletePreviewNode = hoveredNode;
+                _deletePreviewNode?.SetDeletePreview(true);
+            }
+        }
+        
+        /// <summary>
+        /// Remove delete-preview from all nodes (when Alt is released)
+        /// </summary>
+        private void ClearDeletePreview()
+        {
+            _deletePreviewNode?.SetDeletePreview(false);
+            _deletePreviewNode = null;
+        }
+
+        // ============================================================
+        //  INITIALIZATION & GRAPH LOADING
+        // ============================================================
 
         /// <summary>
         /// Initialize with search window
@@ -387,9 +626,7 @@ namespace NodeSystem.Editor
 
             if (graph == null) return;
 
-            // Ensure graph is fully loaded (this will restore sequence ports)
-            // Access Nodes property to trigger EnsureLoaded and port restoration
-            // Do this BEFORE checking counts to ensure data is loaded
+            // Ensure graph is fully loaded
             var nodes = graph.Nodes;
             var connections = graph.Connections;
             
@@ -400,14 +637,12 @@ namespace NodeSystem.Editor
                 Debug.LogWarning($"[NodeGraphView] Graph {graph.graphName} appears to be empty! Check if _jsonData is populated.");
             }
 
-            // Create node views AFTER ports are restored
-            // Track created GUIDs to prevent duplicates
+            // Create node views - track GUIDs to prevent duplicates
             var createdGuids = new HashSet<string>();
             foreach (var node in nodes)
             {
                 if (node == null) continue;
                 
-                // Skip if we already created a view for this GUID
                 if (createdGuids.Contains(node.Guid))
                 {
                     Debug.LogWarning($"[NodeGraphView] Duplicate node GUID in graph data: {node.Guid} ({node.Name}). Skipping.");
@@ -421,11 +656,10 @@ namespace NodeSystem.Editor
                 }
             }
             
-            
-            // Clean up floating edges after port refresh (ports refresh disconnects edges)
+            // Clean up floating edges after port refresh
             CleanupFloatingEdges();
 
-            // Clean up any "addStep" connections from graph data (they shouldn't be persisted)
+            // Clean up any "addStep" connections from graph data
             var addStepConnections = graph.Connections.Where(c => c.outputPortId == "addStep").ToList();
             foreach (var conn in addStepConnections)
             {
@@ -438,14 +672,11 @@ namespace NodeSystem.Editor
                 CreateEdge(conn);
             }
 
-            // Clean up any floating edges after creating edges
+            // Clean up floating edges
             CleanupFloatingEdges();
-            
-            // Schedule another cleanup after a short delay to catch any timing issues
             schedule.Execute(() => CleanupFloatingEdges()).ExecuteLater(100);
 
-            // Add minimap after graph content is loaded to prevent zoom flicker
-            // This ensures minimap calculates bounds from actual content, not empty graph
+            // Add minimap after graph content is loaded
             if (_minimap == null || _minimap.parent == null)
             {
                 if (_minimap == null)
@@ -453,6 +684,15 @@ namespace NodeSystem.Editor
                     _minimap = new MinimapView();
                 }
                 Add(_minimap);
+            }
+
+            // Apply current zoom LOD to newly created nodes
+            foreach (var element in graphElements.ToList())
+            {
+                if (element is NodeView nv)
+                {
+                    nv.SetZoomDetailLevel(_currentZoom);
+                }
             }
 
             // Sync with runtime state if in play mode
@@ -473,14 +713,12 @@ namespace NodeSystem.Editor
             
             foreach (var edge in allEdges)
             {
-                // Check if edge has valid ports
                 if (edge.output == null || edge.input == null)
                 {
                     edgesToRemove.Add(edge);
                     continue;
                 }
                 
-                // Check if ports have valid nodes
                 if (edge.output.node == null || edge.input.node == null)
                 {
                     edgesToRemove.Add(edge);
@@ -490,43 +728,33 @@ namespace NodeSystem.Editor
                 var outputData = GetNodeData(edge.output.node);
                 var inputData = GetNodeData(edge.input.node);
                 
-                // Check if nodes are valid
                 if (outputData == null || inputData == null)
                 {
                     edgesToRemove.Add(edge);
                     continue;
                 }
                 
-                // Check if ports still exist on their nodes
-                var outputNode = edge.output.node;
-                var inputNode = edge.input.node;
-                
-                // Try to find the port on the output node
                 bool outputPortExists = false;
-                if (outputNode is NodeView outputNodeView)
+                if (edge.output.node is NodeView outputNodeView)
                 {
                     outputPortExists = outputNodeView.GetOutputPort(edge.output.name) != null;
                 }
                 
-                // Try to find the port on the input node
                 bool inputPortExists = false;
-                if (inputNode is NodeView inputNodeView)
+                if (edge.input.node is NodeView inputNodeView)
                 {
                     inputPortExists = inputNodeView.GetInputPort(edge.input.name) != null;
                 }
                 
-                // Remove edge if either port doesn't exist
                 if (!outputPortExists || !inputPortExists)
                 {
                     edgesToRemove.Add(edge);
                     continue;
                 }
                 
-                // Check for duplicate edges (same connection)
                 var connectionKey = (outputData.Guid, edge.output.name, inputData.Guid, edge.input.name);
                 if (seenConnections.Contains(connectionKey))
                 {
-                    // Duplicate edge - remove it
                     edgesToRemove.Add(edge);
                 }
                 else
@@ -553,34 +781,33 @@ namespace NodeSystem.Editor
         {
             graphViewChanged = null;
             
-            // Get all elements before deleting (to avoid modification during iteration)
             var allElements = graphElements.ToList();
             
-            // Remove all edges first
             var allEdges = allElements.OfType<Edge>().ToList();
             foreach (var edge in allEdges)
             {
                 RemoveElement(edge);
             }
             
-            // Remove all nodes
             var allNodes = allElements.OfType<NodeView>().ToList();
             foreach (var node in allNodes)
             {
                 RemoveElement(node);
             }
             
-            // Remove comment nodes
             var allComments = allElements.OfType<CommentNodeView>().ToList();
             foreach (var comment in allComments)
             {
                 RemoveElement(comment);
             }
             
-            // Clear any remaining elements
             DeleteElements(graphElements.ToList());
             
             graphViewChanged = OnGraphViewChanged;
+            
+            // Clear execution tracking
+            _executedNodeGuids.Clear();
+            _currentRunningNodeGuid = null;
             
             Debug.Log($"[NodeGraphView] Cleared graph: removed {allNodes.Count} nodes, {allEdges.Count} edges");
         }
@@ -592,7 +819,6 @@ namespace NodeSystem.Editor
         {
             if (data == null) return null;
             
-            // Check if node view already exists for this GUID (prevent duplicates)
             var existingNode = GetNodeByGuid(data.Guid);
             if (existingNode != null)
             {
@@ -605,26 +831,26 @@ namespace NodeSystem.Editor
             {
                 var commentView = new CommentNodeView(commentNode, this);
                 AddElement(commentView);
-                return null; // Comment nodes don't use NodeView
+                return null;
             }
 
-            // Always use regular NodeView with custom inline content
             var view = new NodeView(data);
             view.OnNodeSelected = OnNodeSelected;
             view.OnDataChanged = () => 
             {
                 if (Graph != null)
                 {
-                    // CRITICAL: Re-serialize the graph to JSON so node changes persist
                     Graph.SaveToJson();
                     EditorUtility.SetDirty(Graph);
                 }
             };
+            
+            // Apply current zoom level to new node
+            view.SetZoomDetailLevel(_currentZoom);
+            
             AddElement(view);
             return view;
         }
-
-        // Odin Inspector support removed
 
         /// <summary>
         /// Create a node at position
@@ -694,29 +920,27 @@ namespace NodeSystem.Editor
 
             if (outputPort == null || inputPort == null) return;
 
-            // Check if edge already exists
             var existingEdge = edges.ToList().FirstOrDefault(e =>
                 e.output == outputPort && e.input == inputPort
             );
             
-            if (existingEdge != null)
-            {
-                // Edge already exists, don't create duplicate
-                return;
-            }
+            if (existingEdge != null) return;
 
-            var edge = outputPort.ConnectTo(inputPort);
+            var edge = new DoozyStyleEdge();
+            edge.output = outputPort;
+            edge.input = inputPort;
+            outputPort.Connect(edge);
+            inputPort.Connect(edge);
             AddElement(edge);
         }
 
         /// <summary>
-        /// Refresh all edges connected to a specific node (removes old edges and recreates from graph data)
+        /// Refresh all edges connected to a specific node
         /// </summary>
         private void RefreshEdgesForNode(string nodeGuid)
         {
             if (Graph == null) return;
 
-            // First, remove ALL "addStep" edges from the entire graph (they shouldn't exist)
             var addStepEdgesToRemove = edges.ToList().Where(e =>
             {
                 var outputData = GetNodeData(e.output.node);
@@ -728,7 +952,6 @@ namespace NodeSystem.Editor
                 RemoveElement(edge);
             }
 
-            // Remove all existing edges connected to this node
             var edgesToRemove = edges.ToList().Where(e =>
                 (GetNodeData(e.output.node)?.Guid == nodeGuid) ||
                 (GetNodeData(e.input.node)?.Guid == nodeGuid)
@@ -739,11 +962,9 @@ namespace NodeSystem.Editor
                 RemoveElement(edge);
             }
 
-            // Recreate all edges from graph data that involve this node
-            // Skip "addStep" connections as they are temporary and shouldn't be persisted
             foreach (var conn in Graph.Connections)
             {
-                if (conn.outputPortId == "addStep") continue; // Skip temporary "addStep" connections
+                if (conn.outputPortId == "addStep") continue;
                 
                 if (conn.outputNodeGuid == nodeGuid || conn.inputNodeGuid == nodeGuid)
                 {
@@ -751,13 +972,13 @@ namespace NodeSystem.Editor
                 }
             }
             
-            // Clean up any floating edges that might have been created
             CleanupFloatingEdges();
         }
 
-        /// <summary>
-        /// Handle graph changes (adding/removing elements)
-        /// </summary>
+        // ============================================================
+        //  GRAPH CHANGE HANDLING
+        // ============================================================
+
         private GraphViewChange OnGraphViewChanged(GraphViewChange change)
         {
             if (Graph == null) return change;
@@ -823,10 +1044,8 @@ namespace NodeSystem.Editor
 
                     if (outputData != null && inputData != null)
                     {
-                        // Skip "addStep" connections (legacy from SequenceNode)
                         if (edge.output.name == "addStep")
                         {
-                            // Mark for removal and remove visually
                             edgesToRemove.Add(edge);
                             RemoveElement(edge);
                             continue;
@@ -844,7 +1063,6 @@ namespace NodeSystem.Editor
                     }
                 }
                 
-                // Remove edges that shouldn't be created
                 foreach (var edge in edgesToRemove)
                 {
                     change.edgesToCreate.Remove(edge);
@@ -863,7 +1081,6 @@ namespace NodeSystem.Editor
                         nodeView.Data.Position = nodeView.GetPosition().position;
                     }
                 }
-                // Persist updated positions so they are restored on reopen
                 EditorUtility.SetDirty(Graph);
                 Graph.Save();
             }
@@ -889,9 +1106,7 @@ namespace NodeSystem.Editor
         {
             if (Graph != null)
             {
-                // Force reload graph data from JSON (undo restores the ScriptableObject state)
                 Graph.ForceReload();
-                // Reload the visual graph
                 LoadGraph(Graph);
             }
         }
@@ -905,11 +1120,10 @@ namespace NodeSystem.Editor
             return contentViewContainer.WorldToLocal(worldPos);
         }
 
-        // === Copy/Paste/Duplicate ===
+        // ============================================================
+        //  COPY / PASTE / DUPLICATE
+        // ============================================================
 
-        /// <summary>
-        /// Serialize selected elements for copy
-        /// </summary>
         private string SerializeGraphElementsCallback(IEnumerable<GraphElement> elements)
         {
             _copiedNodes.Clear();
@@ -920,7 +1134,6 @@ namespace NodeSystem.Editor
 
             if (selectedNodes.Count == 0) return "";
 
-            // Calculate center of selection for relative positioning
             _copyCenter = Vector2.zero;
             foreach (var nodeView in selectedNodes)
             {
@@ -928,8 +1141,7 @@ namespace NodeSystem.Editor
             }
             _copyCenter /= selectedNodes.Count;
 
-            // Copy nodes (deep clone)
-            var guidMap = new Dictionary<string, string>(); // old guid -> new guid
+            var guidMap = new Dictionary<string, string>();
             foreach (var nodeView in selectedNodes)
             {
                 var original = nodeView.Data;
@@ -938,7 +1150,6 @@ namespace NodeSystem.Editor
                 _copiedNodes.Add(clone);
             }
 
-            // Copy connections between selected nodes
             foreach (var edge in selectedEdges)
             {
                 var outputView = edge.output?.node as NodeView;
@@ -946,7 +1157,6 @@ namespace NodeSystem.Editor
 
                 if (outputView != null && inputView != null)
                 {
-                    // Only copy if both nodes are in selection
                     if (guidMap.ContainsKey(outputView.Data.Guid) && guidMap.ContainsKey(inputView.Data.Guid))
                     {
                         var conn = new ConnectionData(
@@ -960,67 +1170,46 @@ namespace NodeSystem.Editor
                 }
             }
 
-            // Return a marker string (actual data is stored in fields)
             return $"NodeGraph_Copy:{_copiedNodes.Count}";
         }
 
-        /// <summary>
-        /// Check if paste is possible
-        /// </summary>
         private bool CanPasteSerializedDataCallback(string data)
         {
             return !string.IsNullOrEmpty(data) && data.StartsWith("NodeGraph_Copy:") && _copiedNodes.Count > 0;
         }
 
-        /// <summary>
-        /// Paste copied elements at mouse position
-        /// </summary>
         private void UnserializeAndPasteCallback(string operationName, string data)
         {
             if (Graph == null || _copiedNodes.Count == 0) return;
 
-            // Get paste position (mouse position in graph space)
             var pastePosition = contentViewContainer.WorldToLocal(_lastMousePosition);
-            
             PasteNodesAt(pastePosition);
         }
 
-        /// <summary>
-        /// Paste nodes at a specific position
-        /// </summary>
         private void PasteNodesAt(Vector2 position)
         {
             if (Graph == null || _copiedNodes.Count == 0) return;
 
             Undo.RecordObject(Graph, "Paste Nodes");
-
-            // Clear selection
             ClearSelection();
 
-            // Create new guid mapping for this paste operation
             var guidMap = new Dictionary<string, string>();
             var newNodeViews = new List<NodeView>();
 
             foreach (var copiedNode in _copiedNodes)
             {
-                // Clone again for each paste (so we can paste multiple times)
                 var newNode = CloneNode(copiedNode);
                 var oldGuid = copiedNode.Guid;
                 guidMap[oldGuid] = newNode.Guid;
 
-                // Calculate relative position from copy center
                 var relativePos = copiedNode.Position - _copyCenter;
                 newNode.Position = position + relativePos;
 
-                // Add to graph
                 Graph.AddNode(newNode);
-
-                // Create view
                 var view = CreateNodeView(newNode);
                 newNodeViews.Add(view);
             }
 
-            // Recreate connections with new guids
             foreach (var conn in _copiedConnections)
             {
                 if (guidMap.TryGetValue(conn.outputNodeGuid, out var newOutputGuid) &&
@@ -1039,16 +1228,12 @@ namespace NodeSystem.Editor
 
             Graph.Save();
 
-            // Select pasted nodes
             foreach (var view in newNodeViews)
             {
                 AddToSelection(view);
             }
         }
 
-        /// <summary>
-        /// Duplicate selected nodes
-        /// </summary>
         public void DuplicateSelection()
         {
             var selectedNodes = selection.OfType<NodeView>().ToList();
@@ -1056,41 +1241,29 @@ namespace NodeSystem.Editor
 
             if (selectedNodes.Count == 0) return;
 
-            // Temporarily store current copied data
             var tempNodes = new List<NodeData>(_copiedNodes);
             var tempConnections = new List<ConnectionData>(_copiedConnections);
             var tempCenter = _copyCenter;
 
-            // Copy selected elements
             SerializeGraphElementsCallback(selection.OfType<GraphElement>());
 
-            // Paste with offset
             var offset = new Vector2(50, 50);
             var centerPos = _copyCenter + offset;
             PasteNodesAt(centerPos);
 
-            // Restore previous copied data
             _copiedNodes = tempNodes;
             _copiedConnections = tempConnections;
             _copyCenter = tempCenter;
         }
 
-        /// <summary>
-        /// Clone a node (deep copy)
-        /// </summary>
         private NodeData CloneNode(NodeData original)
         {
-            // Use JSON serialization for deep clone
             var json = JsonUtility.ToJson(original);
             var clone = (NodeData)Activator.CreateInstance(original.GetType());
             JsonUtility.FromJsonOverwrite(json, clone);
-            
-            // Assign new GUID
             clone.Guid = Guid.NewGuid().ToString();
-            
             return clone;
         }
     }
 }
 #endif
-

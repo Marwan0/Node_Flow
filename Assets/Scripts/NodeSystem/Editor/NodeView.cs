@@ -22,9 +22,15 @@ namespace NodeSystem.Editor
         private Color _originalColor;
         private VisualElement _stateIndicator;
         private VisualElement _runtimeDot;
+        private VisualElement _glowElement;
         private NodeState _visualState = NodeState.Idle;
         private VisualElement _inlineContentContainer;
         private TextField _labelField;
+        
+        // Pulse animation state
+        private IVisualElementScheduledItem _pulseSchedule;
+        private float _pulsePhase = 0f;
+        private bool _isPulsing = false;
         
         /// <summary>Called when node data changes (for saving)</summary>
         public Action OnDataChanged;
@@ -57,6 +63,12 @@ namespace NodeSystem.Editor
                 // Add custom label field next to title
                 CreateTitleLabelField(data);
             }
+
+            // Add glow element (behind everything, inspired by Doozy's NodeGlow)
+            _glowElement = new VisualElement();
+            _glowElement.name = "node-glow";
+            _glowElement.pickingMode = PickingMode.Ignore; // Don't intercept clicks
+            Insert(0, _glowElement);
 
             // Add state indicator
             _stateIndicator = new VisualElement();
@@ -307,13 +319,15 @@ namespace NodeSystem.Editor
         private void CreatePorts()
         {
             // Input ports
+            // Use Port.Create<DoozyStyleEdge> so that user-dragged connections
+            // automatically create our custom edge type.
             foreach (var portData in Data.GetInputPorts())
             {
-                var port = InstantiatePort(
+                var port = Port.Create<DoozyStyleEdge>(
                     Orientation.Horizontal,
                     Direction.Input,
                     portData.capacity == PortCapacity.Multi ? Port.Capacity.Multi : Port.Capacity.Single,
-                    typeof(bool) // Port type (for compatibility checking)
+                    typeof(bool)
                 );
 
                 port.portName = portData.name;
@@ -326,7 +340,7 @@ namespace NodeSystem.Editor
             // Output ports
             foreach (var portData in Data.GetOutputPorts())
             {
-                var port = InstantiatePort(
+                var port = Port.Create<DoozyStyleEdge>(
                     Orientation.Horizontal,
                     Direction.Output,
                     portData.capacity == PortCapacity.Multi ? Port.Capacity.Multi : Port.Capacity.Single,
@@ -396,7 +410,8 @@ namespace NodeSystem.Editor
         }
 
         /// <summary>
-        /// Update visual state for runtime visualization
+        /// Update visual state for runtime visualization.
+        /// Uses CSS transitions for smooth color changes (inspired by Doozy AnimBool lerps).
         /// </summary>
         public void SetVisualState(NodeState state)
         {
@@ -409,7 +424,8 @@ namespace NodeSystem.Editor
             RemoveFromClassList("node-completed");
             RemoveFromClassList("node-failed");
 
-            // Update visuals based on state (border color handled by USS, no width change to avoid shift)
+            // CSS transitions in USS handle the smooth color interpolation.
+            // We only need to toggle classes and update the non-USS-driven properties.
             switch (state)
             {
                 case NodeState.Idle:
@@ -419,46 +435,143 @@ namespace NodeSystem.Editor
                         _runtimeDot.style.backgroundColor = Color.clear;
                     if (_titleContainer != null)
                         _titleContainer.style.backgroundColor = _originalColor;
+                    StopPulse();
                     break;
 
                 case NodeState.Running:
                     AddToClassList("node-running");
-                    _stateIndicator.style.backgroundColor = new Color(1f, 0.6f, 0f); // Orange
+                    _stateIndicator.style.backgroundColor = new Color(0.12f, 0.56f, 1f); // Electric blue
                     if (_runtimeDot != null)
-                        _runtimeDot.style.backgroundColor = new Color(0.1f, 0.8f, 1f); // Cyan/blue dot
+                        _runtimeDot.style.backgroundColor = new Color(0.2f, 0.7f, 1f); // Bright blue dot
                     if (_titleContainer != null)
-                        _titleContainer.style.backgroundColor = new Color(0.9f, 0.5f, 0.1f);
+                        _titleContainer.style.backgroundColor = new Color(0.08f, 0.4f, 0.75f); // Deep blue
+                    StartPulse();
                     break;
 
                 case NodeState.Completed:
                     AddToClassList("node-completed");
-                    _stateIndicator.style.backgroundColor = new Color(0.2f, 0.8f, 0.3f); // Green
+                    _stateIndicator.style.backgroundColor = new Color(0.12f, 0.56f, 1f); // Electric blue
                     if (_runtimeDot != null)
-                        _runtimeDot.style.backgroundColor = new Color(0.2f, 0.8f, 0.3f); // Green dot
-                    // Update title background color - use a brighter green for visibility
+                        _runtimeDot.style.backgroundColor = new Color(0.2f, 0.7f, 1f); // Bright blue dot
                     if (_titleContainer != null)
                     {
-                        _titleContainer.style.backgroundColor = new Color(0.2f, 0.6f, 0.3f); // Brighter green
+                        _titleContainer.style.backgroundColor = new Color(0.08f, 0.4f, 0.75f); // Deep blue
                     }
                     else
                     {
-                        // Fallback: try to find title container again
                         _titleContainer = this.Q("title");
                         if (_titleContainer != null)
-                        {
-                            _titleContainer.style.backgroundColor = new Color(0.2f, 0.6f, 0.3f);
-                        }
+                            _titleContainer.style.backgroundColor = new Color(0.08f, 0.4f, 0.75f);
                     }
+                    StopPulse();
                     break;
 
                 case NodeState.Failed:
                     AddToClassList("node-failed");
-                    _stateIndicator.style.backgroundColor = new Color(1f, 0.3f, 0.3f); // Red
+                    _stateIndicator.style.backgroundColor = new Color(0.12f, 0.56f, 1f); // Electric blue
                     if (_runtimeDot != null)
-                        _runtimeDot.style.backgroundColor = new Color(1f, 0.3f, 0.3f); // Red dot
+                        _runtimeDot.style.backgroundColor = new Color(0.2f, 0.7f, 1f); // Bright blue dot
                     if (_titleContainer != null)
-                        _titleContainer.style.backgroundColor = new Color(0.7f, 0.2f, 0.2f);
+                        _titleContainer.style.backgroundColor = new Color(0.08f, 0.4f, 0.75f); // Deep blue
+                    StopPulse();
                     break;
+            }
+        }
+
+        /// <summary>
+        /// Start a pulsing glow animation on the running node (inspired by Doozy's Ping system).
+        /// Electric blue pulse that is large and unmissable.
+        /// </summary>
+        private void StartPulse()
+        {
+            if (_isPulsing) return;
+            _isPulsing = true;
+            _pulsePhase = 0f;
+            
+            // Schedule a repeating callback every 30ms (~33fps for snappy, punchy blinks)
+            _pulseSchedule = schedule.Execute(() =>
+            {
+                if (!_isPulsing || _glowElement == null) return;
+                
+                _pulsePhase += 0.09f; // Faster cycle for a strong blink effect
+                float t = 0.5f + 0.5f * Mathf.Sin(_pulsePhase * Mathf.PI * 2f);
+                
+                // Background: vivid blue, oscillates between 0.20 and 0.65 alpha (big swing)
+                float bgAlpha = Mathf.Lerp(0.20f, 0.65f, t);
+                _glowElement.style.backgroundColor = new Color(0.15f, 0.60f, 1f, bgAlpha);
+                
+                // Border: bright cyan ring, oscillates between 0.4 and 1.0 alpha (full flash)
+                float borderAlpha = Mathf.Lerp(0.4f, 1f, t);
+                var borderColor = new Color(0.3f, 0.78f, 1f, borderAlpha);
+                _glowElement.style.borderTopColor = borderColor;
+                _glowElement.style.borderBottomColor = borderColor;
+                _glowElement.style.borderLeftColor = borderColor;
+                _glowElement.style.borderRightColor = borderColor;
+            }).Every(30);
+        }
+
+        /// <summary>
+        /// Stop the pulse animation and clear inline glow styles so USS takes over.
+        /// </summary>
+        private void StopPulse()
+        {
+            if (!_isPulsing) return;
+            _isPulsing = false;
+            
+            _pulseSchedule?.Pause();
+            _pulseSchedule = null;
+            
+            // IMPORTANT: Clear the inline styles that StartPulse() wrote.
+            // Without this, the last pulse frame's inline colors persist and
+            // override the USS rules (which would set transparent for idle).
+            if (_glowElement != null)
+            {
+                _glowElement.style.backgroundColor = Color.clear;
+                _glowElement.style.borderTopColor = Color.clear;
+                _glowElement.style.borderBottomColor = Color.clear;
+                _glowElement.style.borderLeftColor = Color.clear;
+                _glowElement.style.borderRightColor = Color.clear;
+            }
+        }
+
+        /// <summary>
+        /// Apply or remove the delete-preview styling (red highlight).
+        /// Called by NodeGraphView when Alt key is held and mouse hovers.
+        /// </summary>
+        public void SetDeletePreview(bool show)
+        {
+            if (show)
+                AddToClassList("node-delete-preview");
+            else
+                RemoveFromClassList("node-delete-preview");
+        }
+
+        /// <summary>
+        /// Apply zoom-based detail level.
+        /// Conservative thresholds - title bar and node color are NEVER hidden.
+        /// LOD 1 (below 0.35x): only hide inline content (the heavy property editors)
+        /// LOD 2 (below 0.20x): also hide port labels and small indicators
+        /// </summary>
+        public void SetZoomDetailLevel(float zoomLevel)
+        {
+            // LOD 1: Hide inline content only (< 0.35 zoom)
+            if (zoomLevel < 0.35f && !ClassListContains("zoom-lod-1"))
+            {
+                AddToClassList("zoom-lod-1");
+            }
+            else if (zoomLevel >= 0.35f)
+            {
+                RemoveFromClassList("zoom-lod-1");
+            }
+            
+            // LOD 2: Also hide port labels and minor UI (< 0.20 zoom)
+            if (zoomLevel < 0.20f && !ClassListContains("zoom-lod-2"))
+            {
+                AddToClassList("zoom-lod-2");
+            }
+            else if (zoomLevel >= 0.20f)
+            {
+                RemoveFromClassList("zoom-lod-2");
             }
         }
 
@@ -472,4 +585,3 @@ namespace NodeSystem.Editor
     }
 }
 #endif
-
