@@ -29,6 +29,10 @@ namespace NodeSystem.Editor
     /// </summary>
     public class DoozyStyleEdgeControl : EdgeControl
     {
+        // --- Runtime state (set directly by NodeGraphView) ---
+        public enum EdgeRuntimeState { Normal, Active, Executed }
+        private EdgeRuntimeState _runtimeState = EdgeRuntimeState.Normal;
+
         // --- Dot animation ---
         private float _dotPhase;
         private IVisualElementScheduledItem _dotSchedule;
@@ -66,6 +70,35 @@ namespace NodeSystem.Editor
             style.overflow = Overflow.Visible;
             // Ensure the element participates in picking
             pickingMode = PickingMode.Position;
+        }
+
+        /// <summary>
+        /// Set the runtime state directly (called by NodeGraphView).
+        /// This is more reliable than reading CSS classes from the parent Edge.
+        /// </summary>
+        public void SetRuntimeState(EdgeRuntimeState state)
+        {
+            if (_runtimeState == state) return;
+            _runtimeState = state;
+
+            // Immediately start/stop the dot animation based on new state
+            if (state == EdgeRuntimeState.Active)
+            {
+                EnsureDotAnimating();
+            }
+            else
+            {
+                StopDotAnimation();
+            }
+
+            MarkDirtyRepaint();
+        }
+
+        public void ResetState()
+        {
+            _runtimeState = EdgeRuntimeState.Normal;
+            StopDotAnimation();
+            MarkDirtyRepaint();
         }
 
         // =============================================================
@@ -287,31 +320,32 @@ namespace NodeSystem.Editor
             showDot      = false;
             widthScale   = 1f;
 
-            var edge = parent as Edge;
-            if (edge == null) return;
-
-            // Runtime execution state (set by NodeGraphView)
-            if (edge.ClassListContains("edge-active"))
+            // Runtime state (set directly via SetRuntimeState)
+            switch (_runtimeState)
             {
-                mainColor    = ActiveMain;
-                outlineColor = ActiveOutline;
-                showDot      = true;
-                widthScale   = 1.5f;
-            }
-            else if (edge.ClassListContains("edge-executed"))
-            {
-                mainColor    = ExecutedMain;
-                outlineColor = ExecutedOutline;
-                widthScale   = 1.15f;
+                case EdgeRuntimeState.Active:
+                    mainColor    = ActiveMain;
+                    outlineColor = ActiveOutline;
+                    showDot      = true;
+                    widthScale   = 1.5f;
+                    break;
+                case EdgeRuntimeState.Executed:
+                    mainColor    = ExecutedMain;
+                    outlineColor = ExecutedOutline;
+                    widthScale   = 1.15f;
+                    break;
             }
 
             // Selection state overrides
-            if (edge.selected)
+            var edge = parent as Edge;
+            if (edge != null && edge.selected)
             {
                 mainColor    = SelectedMain;
                 outlineColor = SelectedOutline;
-                showDot      = true;
-                widthScale   = 1.3f;
+                widthScale   = Mathf.Max(widthScale, 1.3f);
+                // Show dot on selection when not in a runtime state (edit-mode feedback)
+                if (_runtimeState == EdgeRuntimeState.Normal)
+                    showDot = true;
             }
         }
 

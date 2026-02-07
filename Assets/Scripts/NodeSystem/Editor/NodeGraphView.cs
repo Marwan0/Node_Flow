@@ -443,18 +443,32 @@ namespace NodeSystem.Editor
         // ============================================================
         
         /// <summary>
-        /// Highlight edges feeding into the currently active (running) node.
-        /// These get a bright "active" style to show the live execution path.
+        /// Highlight OUTGOING edges from the currently running node.
+        /// The traveling dot shows "where execution will go next",
+        /// giving the user a forward-looking view of the execution flow.
+        /// Also converts any previously-active edges into "executed".
         /// </summary>
         private void HighlightEdgesForActiveNode(string nodeGuid)
         {
-            foreach (var edge in edges.ToList())
+            // Find the running node directly (same lookup that node glow uses – proven to work)
+            // then walk its output ports → connected edges to set them active.
+            //
+            // NOTE: We intentionally do NOT convert other active edges to executed here.
+            // That transition is handled by MarkEdgesAsExecuted() when a node completes.
+            // Converting all active edges here would break parallel execution
+            // (a later node start would wipe an earlier running node's active edges).
+            var nodeElement = GetNodeByGuid(nodeGuid);
+            if (nodeElement == null) return;
+
+            var outputPorts = nodeElement.outputContainer.Query<Port>().ToList();
+            foreach (var port in outputPorts)
             {
-                var inputData = GetNodeData(edge.input?.node);
-                if (inputData != null && inputData.Guid == nodeGuid)
+                foreach (var edge in port.connections)
                 {
                     edge.RemoveFromClassList("edge-executed");
                     edge.AddToClassList("edge-active");
+                    (edge.edgeControl as DoozyStyleEdgeControl)?.SetRuntimeState(
+                        DoozyStyleEdgeControl.EdgeRuntimeState.Active);
                 }
             }
         }
@@ -465,22 +479,35 @@ namespace NodeSystem.Editor
         /// </summary>
         private void MarkEdgesAsExecuted(string nodeGuid)
         {
-            foreach (var edge in edges.ToList())
+            var nodeElement = GetNodeByGuid(nodeGuid);
+            if (nodeElement == null) return;
+
+            // Mark all outgoing edges from this node as executed
+            var outputPorts = nodeElement.outputContainer.Query<Port>().ToList();
+            foreach (var port in outputPorts)
             {
-                // Outgoing edges from the completed node
-                var outputData = GetNodeData(edge.output?.node);
-                if (outputData != null && outputData.Guid == nodeGuid)
+                foreach (var edge in port.connections)
                 {
                     edge.RemoveFromClassList("edge-active");
                     edge.AddToClassList("edge-executed");
+                    (edge.edgeControl as DoozyStyleEdgeControl)?.SetRuntimeState(
+                        DoozyStyleEdgeControl.EdgeRuntimeState.Executed);
                 }
-                
-                // Also convert any "active" edges into this node to "executed"
-                var inputData = GetNodeData(edge.input?.node);
-                if (inputData != null && inputData.Guid == nodeGuid && edge.ClassListContains("edge-active"))
+            }
+
+            // Also convert any active incoming edges to executed
+            var inputPorts = nodeElement.inputContainer.Query<Port>().ToList();
+            foreach (var port in inputPorts)
+            {
+                foreach (var edge in port.connections)
                 {
-                    edge.RemoveFromClassList("edge-active");
-                    edge.AddToClassList("edge-executed");
+                    if (edge.ClassListContains("edge-active"))
+                    {
+                        edge.RemoveFromClassList("edge-active");
+                        edge.AddToClassList("edge-executed");
+                        (edge.edgeControl as DoozyStyleEdgeControl)?.SetRuntimeState(
+                            DoozyStyleEdgeControl.EdgeRuntimeState.Executed);
+                    }
                 }
             }
         }
@@ -492,23 +519,49 @@ namespace NodeSystem.Editor
         private void SyncEdgeHighlights()
         {
             ClearEdgeHighlights();
-            
-            foreach (var edge in edges.ToList())
+
+            // Highlight executed edges by walking executed nodes' output ports
+            foreach (var guid in _executedNodeGuids)
             {
-                var outputData = GetNodeData(edge.output?.node);
-                var inputData = GetNodeData(edge.input?.node);
-                if (outputData == null || inputData == null) continue;
-                
-                bool outputExecuted = _executedNodeGuids.Contains(outputData.Guid) || outputData.Guid == _currentRunningNodeGuid;
-                bool inputExecuted = _executedNodeGuids.Contains(inputData.Guid) || inputData.Guid == _currentRunningNodeGuid;
-                
-                if (outputExecuted && inputData.Guid == _currentRunningNodeGuid)
+                var nodeElement = GetNodeByGuid(guid);
+                if (nodeElement == null) continue;
+
+                var outputPorts = nodeElement.outputContainer.Query<Port>().ToList();
+                foreach (var port in outputPorts)
                 {
-                    edge.AddToClassList("edge-active");
+                    foreach (var edge in port.connections)
+                    {
+                        // Only mark as executed if the target was also executed or is the current running node
+                        var targetData = GetNodeData(edge.input?.node);
+                        if (targetData == null) continue;
+                        var targetGuid = targetData.Guid;
+                        if (_executedNodeGuids.Contains(targetGuid) || targetGuid == _currentRunningNodeGuid)
+                        {
+                            edge.AddToClassList("edge-executed");
+                            (edge.edgeControl as DoozyStyleEdgeControl)?.SetRuntimeState(
+                                DoozyStyleEdgeControl.EdgeRuntimeState.Executed);
+                        }
+                    }
                 }
-                else if (outputExecuted && inputExecuted)
+            }
+
+            // Highlight active edges from the currently running node
+            if (!string.IsNullOrEmpty(_currentRunningNodeGuid))
+            {
+                var runningNode = GetNodeByGuid(_currentRunningNodeGuid);
+                if (runningNode != null)
                 {
-                    edge.AddToClassList("edge-executed");
+                    var outputPorts = runningNode.outputContainer.Query<Port>().ToList();
+                    foreach (var port in outputPorts)
+                    {
+                        foreach (var edge in port.connections)
+                        {
+                            edge.RemoveFromClassList("edge-executed");
+                            edge.AddToClassList("edge-active");
+                            (edge.edgeControl as DoozyStyleEdgeControl)?.SetRuntimeState(
+                                DoozyStyleEdgeControl.EdgeRuntimeState.Active);
+                        }
+                    }
                 }
             }
         }
@@ -522,6 +575,7 @@ namespace NodeSystem.Editor
             {
                 edge.RemoveFromClassList("edge-active");
                 edge.RemoveFromClassList("edge-executed");
+                (edge.edgeControl as DoozyStyleEdgeControl)?.ResetState();
             }
         }
 
