@@ -74,7 +74,14 @@ namespace NodeSystem.Editor
                 // Transform to graph space
                 var graphPos = _graphView.contentViewContainer.transform.matrix.inverse.MultiplyPoint(localPos);
 
-                _graphView.CreateNode(nodeType, new Vector2(graphPos.x, graphPos.y));
+                var createdNode = _graphView.CreateNode(nodeType, new Vector2(graphPos.x, graphPos.y));
+
+                // If the search window was opened via drag-from-port, auto-connect
+                if (createdNode != null && _graphView.PendingConnectPort != null)
+                {
+                    _graphView.AutoConnectPendingPort(createdNode);
+                }
+
                 return true;
             }
             return false;

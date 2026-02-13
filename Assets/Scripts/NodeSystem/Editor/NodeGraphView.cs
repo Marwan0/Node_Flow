@@ -18,8 +18,15 @@ namespace NodeSystem.Editor
         public Action<NodeView> OnNodeSelected;
 
         private NodeSearchWindow _searchWindow;
+        private EditorWindow _editorWindow;
         private bool _isSubscribedToRuntime;
         private MinimapView _minimap;
+
+        /// <summary>
+        /// Port that was being dragged when the user dropped on empty space.
+        /// Set by EdgeDropListener, consumed by NodeSearchWindow to auto-connect.
+        /// </summary>
+        internal Port PendingConnectPort { get; set; }
 
         // Copy/paste
         private List<NodeData> _copiedNodes = new List<NodeData>();
@@ -659,13 +666,130 @@ namespace NodeSystem.Editor
         /// </summary>
         public void Initialize(EditorWindow window)
         {
+            _editorWindow = window;
             _searchWindow = ScriptableObject.CreateInstance<NodeSearchWindow>();
             _searchWindow.Initialize(this, window);
             
             nodeCreationRequest = ctx =>
             {
+                PendingConnectPort = null; // normal creation, no auto-connect
                 SearchWindow.Open(new SearchWindowContext(ctx.screenMousePosition), _searchWindow);
             };
+        }
+
+        // ============================================================
+        //  EDGE DROP → CREATE NODE  (drag from port to empty space)
+        // ============================================================
+
+        /// <summary>
+        /// Replaces the default edge connector on every port of a node so that
+        /// dropping an edge on empty space opens the Create Node search window.
+        /// Call this after the node and its ports have been created.
+        /// </summary>
+        internal void InstallEdgeDropHandler(UnityEditor.Experimental.GraphView.Node nodeElement)
+        {
+            var listener = new EdgeDropListener(this);
+
+            foreach (var port in nodeElement.inputContainer.Query<Port>().ToList())
+                ReplaceEdgeConnector(port, listener);
+
+            foreach (var port in nodeElement.outputContainer.Query<Port>().ToList())
+                ReplaceEdgeConnector(port, listener);
+        }
+
+        private static void ReplaceEdgeConnector(Port port, IEdgeConnectorListener listener)
+        {
+            // Remove the default connector that Port.Create added
+            if (port.edgeConnector != null)
+                port.RemoveManipulator(port.edgeConnector);
+
+            // Add our custom connector (still creates DoozyStyleEdge instances)
+            port.AddManipulator(new EdgeConnector<DoozyStyleEdge>(listener));
+        }
+
+        /// <summary>
+        /// Listener that replicates the default OnDrop behaviour and adds
+        /// "drop on empty space → open search window" via OnDropOutsidePort.
+        /// </summary>
+        private class EdgeDropListener : IEdgeConnectorListener
+        {
+            private readonly NodeGraphView _graphView;
+            private readonly GraphViewChange _graphViewChange;
+            private readonly List<Edge> _edgesToCreate;
+            private readonly List<GraphElement> _edgesToDelete;
+
+            public EdgeDropListener(NodeGraphView graphView)
+            {
+                _graphView = graphView;
+                _edgesToCreate = new List<Edge>();
+                _edgesToDelete = new List<GraphElement>();
+                _graphViewChange.edgesToCreate = _edgesToCreate;
+            }
+
+            // --- Standard drop on a valid port (replicates DefaultEdgeConnectorListener) ---
+            public void OnDrop(GraphView graphView, Edge edge)
+            {
+                _edgesToCreate.Clear();
+                _edgesToCreate.Add(edge);
+
+                _edgesToDelete.Clear();
+                if (edge.input.capacity == Port.Capacity.Single)
+                {
+                    foreach (var c in edge.input.connections)
+                        if (c != edge) _edgesToDelete.Add(c);
+                }
+                if (edge.output.capacity == Port.Capacity.Single)
+                {
+                    foreach (var c in edge.output.connections)
+                        if (c != edge) _edgesToDelete.Add(c);
+                }
+                if (_edgesToDelete.Count > 0)
+                    graphView.DeleteElements(_edgesToDelete);
+
+                var edgesToCreate = _edgesToCreate;
+                if (graphView.graphViewChanged != null)
+                    edgesToCreate = graphView.graphViewChanged(_graphViewChange).edgesToCreate;
+
+                foreach (var e in edgesToCreate)
+                {
+                    graphView.AddElement(e);
+                    edge.input.Connect(e);
+                    edge.output.Connect(e);
+                }
+            }
+
+            // --- Drop on empty space → open search window with auto-connect ---
+            public void OnDropOutsidePort(Edge edge, Vector2 position)
+            {
+                // Determine which port the user dragged FROM
+                // (the port that still has a valid node is the source)
+                Port sourcePort = null;
+                if (edge.output?.node != null) sourcePort = edge.output;
+                else if (edge.input?.node != null) sourcePort = edge.input;
+
+                if (sourcePort == null) return;
+                if (_graphView._searchWindow == null) return;
+
+                // Store the port for auto-connect after node creation
+                _graphView.PendingConnectPort = sourcePort;
+
+                // position is in panel (window-local) coordinates;
+                // SearchWindow.Open expects screen coordinates.
+                Vector2 screenPos;
+                if (Event.current != null)
+                {
+                    screenPos = GUIUtility.GUIToScreenPoint(Event.current.mousePosition);
+                }
+                else
+                {
+                    // Fallback: offset from window's screen position
+                    screenPos = _graphView._editorWindow.position.position + position;
+                }
+
+                SearchWindow.Open(
+                    new SearchWindowContext(screenPos),
+                    _graphView._searchWindow);
+            }
         }
 
         /// <summary>
@@ -903,18 +1027,22 @@ namespace NodeSystem.Editor
             view.SetZoomDetailLevel(_currentZoom);
             
             AddElement(view);
+
+            // Replace default edge connectors with our drop-on-empty handler
+            InstallEdgeDropHandler(view);
+
             return view;
         }
 
         /// <summary>
-        /// Create a node at position
+        /// Create a node at position. Returns the created NodeData (or null on failure).
         /// </summary>
-        public void CreateNode(Type nodeType, Vector2 position)
+        public NodeData CreateNode(Type nodeType, Vector2 position)
         {
             if (Graph == null)
             {
                 Debug.LogError("[NodeGraphView] No graph loaded!");
-                return;
+                return null;
             }
 
             var node = (NodeData)Activator.CreateInstance(nodeType);
@@ -925,6 +1053,67 @@ namespace NodeSystem.Editor
             Graph.Save();
 
             CreateNodeView(node);
+            return node;
+        }
+
+        /// <summary>
+        /// Auto-connect a pending port to the first compatible port on a newly created node.
+        /// </summary>
+        internal void AutoConnectPendingPort(NodeData newNodeData)
+        {
+            var sourcePort = PendingConnectPort;
+            PendingConnectPort = null;
+
+            if (sourcePort == null || newNodeData == null) return;
+
+            var newNodeElement = GetNodeByGuid(newNodeData.Guid);
+            if (newNodeElement == null) return;
+
+            // Find the first compatible port on the new node
+            Port targetPort = null;
+
+            if (sourcePort.direction == Direction.Output)
+            {
+                // Dragged from output → connect to new node's first input
+                foreach (var port in newNodeElement.inputContainer.Query<Port>().ToList())
+                {
+                    targetPort = port;
+                    break;
+                }
+            }
+            else
+            {
+                // Dragged from input → connect to new node's first output
+                foreach (var port in newNodeElement.outputContainer.Query<Port>().ToList())
+                {
+                    targetPort = port;
+                    break;
+                }
+            }
+
+            if (targetPort == null) return;
+
+            // Build the connection data
+            Port outputPort = sourcePort.direction == Direction.Output ? sourcePort : targetPort;
+            Port inputPort  = sourcePort.direction == Direction.Input  ? sourcePort : targetPort;
+
+            var outputData = GetNodeData(outputPort.node);
+            var inputData  = GetNodeData(inputPort.node);
+            if (outputData == null || inputData == null) return;
+
+            var conn = new ConnectionData(
+                outputData.Guid,
+                outputPort.name,
+                inputData.Guid,
+                inputPort.name
+            );
+
+            Undo.RecordObject(Graph, "Add Connection");
+            Graph.AddConnection(conn);
+            Graph.Save();
+
+            // Create the visual edge
+            CreateEdge(conn);
         }
 
         /// <summary>
