@@ -23,6 +23,7 @@ namespace NodeSystem.Editor
                 // Skip internal fields
                 if (field.Name.StartsWith("_")) continue;
                 if (field.Name == "Guid" || field.Name == "Position") continue;
+                if (field.Name == "hasBreakpoint" || field.Name == "displayLabel") continue;
                 if (field.GetCustomAttributes(typeof(NonSerializedAttribute), true).Length > 0) continue;
 
                 var value = field.GetValue(Node);
@@ -67,8 +68,9 @@ namespace NodeSystem.Editor
             row.style.marginBottom = 2;
 
             var labelElem = new Label(label);
-            labelElem.style.minWidth = 70;
-            labelElem.style.maxWidth = 70;
+            labelElem.style.minWidth = 120;
+            labelElem.style.maxWidth = 120;
+            labelElem.style.marginRight = 5;
             labelElem.style.color = new Color(0.75f, 0.75f, 0.75f);
             labelElem.style.fontSize = 11;
             row.Add(labelElem);
@@ -94,8 +96,9 @@ namespace NodeSystem.Editor
             row.style.marginBottom = 2;
 
             var labelElem = new Label(label);
-            labelElem.style.minWidth = 70;
-            labelElem.style.maxWidth = 70;
+            labelElem.style.minWidth = 120;
+            labelElem.style.maxWidth = 120;
+            labelElem.style.marginRight = 5;
             labelElem.style.color = new Color(0.75f, 0.75f, 0.75f);
             labelElem.style.fontSize = 11;
             row.Add(labelElem);
@@ -164,8 +167,9 @@ namespace NodeSystem.Editor
             row.style.marginBottom = 2;
 
             var labelElem = new Label(label);
-            labelElem.style.minWidth = 70;
-            labelElem.style.maxWidth = 70;
+            labelElem.style.minWidth = 120;
+            labelElem.style.maxWidth = 120;
+            labelElem.style.marginRight = 5;
             labelElem.style.color = new Color(0.75f, 0.75f, 0.75f);
             labelElem.style.fontSize = 11;
             row.Add(labelElem);
@@ -191,8 +195,9 @@ namespace NodeSystem.Editor
             row.style.marginBottom = 2;
 
             var labelElem = new Label(label);
-            labelElem.style.minWidth = 70;
-            labelElem.style.maxWidth = 70;
+            labelElem.style.minWidth = 120;
+            labelElem.style.maxWidth = 120;
+            labelElem.style.marginRight = 5;
             labelElem.style.color = new Color(0.75f, 0.75f, 0.75f);
             labelElem.style.fontSize = 11;
             row.Add(labelElem);
@@ -217,8 +222,9 @@ namespace NodeSystem.Editor
             row.style.marginBottom = 2;
 
             var labelElem = new Label(label);
-            labelElem.style.minWidth = 70;
-            labelElem.style.maxWidth = 70;
+            labelElem.style.minWidth = 120;
+            labelElem.style.maxWidth = 120;
+            labelElem.style.marginRight = 5;
             labelElem.style.color = new Color(0.75f, 0.75f, 0.75f);
             labelElem.style.fontSize = 11;
             row.Add(labelElem);
