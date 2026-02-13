@@ -87,9 +87,21 @@ namespace NodeSystem
 
         private void OnEnable()
         {
-            _loaded = false;
-            EnsureLoaded();
-            Debug.Log($"[NodeGraph] OnEnable: {graphName} - {_runtimeNodes?.Count ?? 0} nodes, {_runtimeConnections?.Count ?? 0} connections");
+            // Only reload from JSON when _runtimeNodes is null (e.g., after domain reload
+            // or first load). If _runtimeNodes already exists, the editor may have modified
+            // node data in-memory that hasn't been saved to _jsonData yet — recreating
+            // _runtimeNodes would orphan the instances that NodeView.Data points to,
+            // causing all in-memory edits (like weight slider changes) to be silently lost.
+            if (_runtimeNodes == null)
+            {
+                _loaded = false;
+                EnsureLoaded();
+                Debug.Log($"[NodeGraph] OnEnable (reloaded): {graphName} - {_runtimeNodes?.Count ?? 0} nodes, {_runtimeConnections?.Count ?? 0} connections");
+            }
+            else
+            {
+                Debug.Log($"[NodeGraph] OnEnable (kept existing): {graphName} - {_runtimeNodes.Count} nodes already in memory");
+            }
         }
 
         private void EnsureLoaded()
@@ -206,8 +218,6 @@ namespace NodeSystem
             data.variables = new List<GraphVariable>(_runtimeVariables);
 
             _jsonData = JsonUtility.ToJson(data);
-            
-            Debug.Log($"[NodeGraph] SaveToJson: {_runtimeNodes.Count} nodes, {_runtimeConnections.Count} connections, {_runtimeVariables.Count} variables");
         }
 
         // === Public API ===

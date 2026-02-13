@@ -28,6 +28,10 @@ namespace NodeSystem.Editor
         /// </summary>
         internal Port PendingConnectPort { get; set; }
 
+        // Temp storage for nodes affected by edge removal (refreshed after graph data updates)
+        private HashSet<UnityEditor.Experimental.GraphView.Node> _edgeRemovalAffectedNodes 
+            = new HashSet<UnityEditor.Experimental.GraphView.Node>();
+
         // Copy/paste
         private List<NodeData> _copiedNodes = new List<NodeData>();
         private List<ConnectionData> _copiedConnections = new List<ConnectionData>();
@@ -272,6 +276,16 @@ namespace NodeSystem.Editor
         {
             switch (state)
             {
+                // Flush unsaved graph data to disk before domain reload
+                case PlayModeStateChange.ExitingEditMode:
+                    if (Graph != null)
+                    {
+                        Graph.SaveToJson();
+                        EditorUtility.SetDirty(Graph);
+                        AssetDatabase.SaveAssets();
+                    }
+                    break;
+
                 case PlayModeStateChange.EnteredPlayMode:
                     break;
                     
@@ -1117,6 +1131,16 @@ namespace NodeSystem.Editor
         }
 
         /// <summary>
+        /// Refresh the inline content of a node (e.g. after connections change).
+        /// </summary>
+        private void RefreshNodeInlineContent(UnityEditor.Experimental.GraphView.Node node)
+        {
+            if (node is NodeView nv)
+                // Delay to next frame so graph data is fully updated
+                schedule.Execute(() => nv.RefreshInlineContent());
+        }
+
+        /// <summary>
         /// Get NodeData from a node (supports both NodeView and NodeViewOdin)
         /// </summary>
         private NodeData GetNodeData(UnityEditor.Experimental.GraphView.Node node)
@@ -1255,6 +1279,9 @@ namespace NodeSystem.Editor
                     }
                     else if (elem is Edge edge)
                     {
+                        _edgeRemovalAffectedNodes.Add(edge.output?.node);
+                        _edgeRemovalAffectedNodes.Add(edge.input?.node);
+
                         var outputData = GetNodeData(edge.output.node);
                         var inputData = GetNodeData(edge.input.node);
 
@@ -1273,6 +1300,11 @@ namespace NodeSystem.Editor
                     }
                 }
                 Graph.Save();
+
+                // Refresh inline content AFTER connections are removed from graph data
+                foreach (var affectedNode in _edgeRemovalAffectedNodes)
+                    RefreshNodeInlineContent(affectedNode);
+                _edgeRemovalAffectedNodes.Clear();
             }
 
             // Handle created edges
@@ -1312,6 +1344,13 @@ namespace NodeSystem.Editor
                 }
                 
                 Graph.Save();
+
+                // Refresh inline content on nodes affected by new connections
+                foreach (var edge in change.edgesToCreate)
+                {
+                    RefreshNodeInlineContent(edge.output?.node);
+                    RefreshNodeInlineContent(edge.input?.node);
+                }
             }
 
             // Handle moved elements

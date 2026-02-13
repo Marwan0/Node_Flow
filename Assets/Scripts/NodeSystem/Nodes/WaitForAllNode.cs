@@ -1,34 +1,41 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace NodeSystem.Nodes
 {
     /// <summary>
-    /// Waits for all input connections to complete before proceeding
+    /// Synchronization node: waits for ALL upstream nodes connected to its
+    /// single multi-capacity input port to complete before firing output.
+    /// 
+    /// Use this to rejoin parallel branches — connect every branch's last node
+    /// into the "Inputs" port, and the output fires only when all of them are done.
     /// </summary>
     [Serializable]
     public class WaitForAllNode : NodeData
     {
         [NonSerialized]
-        private HashSet<string> _pendingInputs = new HashSet<string>();
-        
+        private HashSet<string> _pendingGuids = new HashSet<string>();
+
         [NonSerialized]
-        private HashSet<string> _completedInputs = new HashSet<string>();
+        private HashSet<string> _completedGuids = new HashSet<string>();
+
+        [NonSerialized]
+        private bool _isListening;
 
         public override string Name => "Wait For All";
-        public override Color Color => new Color(0.3f, 0.7f, 0.5f); // Green
+        public override Color Color => new Color(0.3f, 0.7f, 0.5f);
         public override string Category => "Flow";
+
+        // --- Ports ---
 
         public override List<PortData> GetInputPorts()
         {
             return new List<PortData>
             {
-                new PortData("input1", "Input 1", PortDirection.Input),
-                new PortData("input2", "Input 2", PortDirection.Input),
-                new PortData("input3", "Input 3", PortDirection.Input),
-                new PortData("input4", "Input 4", PortDirection.Input)
+                // Single port that accepts unlimited connections
+                new PortData("input", "Inputs", PortDirection.Input, PortCapacity.Multi)
             };
         }
 
@@ -40,6 +47,8 @@ namespace NodeSystem.Nodes
             };
         }
 
+        // --- Execution ---
+
         protected override void OnExecute()
         {
             if (Runner == null || Runner.Graph == null)
@@ -49,67 +58,97 @@ namespace NodeSystem.Nodes
                 return;
             }
 
-            // Find all nodes connected to our inputs
-            _pendingInputs.Clear();
-            _completedInputs.Clear();
+            // Discover every node whose output connects to our "input" port
+            _pendingGuids.Clear();
+            _completedGuids.Clear();
 
-            var inputPorts = GetInputPorts();
-            foreach (var port in inputPorts)
+            foreach (var conn in Runner.Graph.Connections)
             {
-                var connectedNodes = Runner.Graph.GetConnectedNodes(Guid, port.id);
-                if (connectedNodes.Count > 0)
+                if (conn.inputNodeGuid == Guid && conn.inputPortId == "input")
                 {
-                    _pendingInputs.Add(port.id);
+                    _pendingGuids.Add(conn.outputNodeGuid);
                 }
             }
 
-            if (_pendingInputs.Count == 0)
+            if (_pendingGuids.Count == 0)
             {
-                Debug.Log("[WaitForAllNode] No inputs connected, completing immediately");
+                Debug.Log("[WaitForAllNode] No inputs connected, completing immediately.");
                 Complete();
                 return;
             }
 
-            Debug.Log($"[WaitForAllNode] Waiting for {_pendingInputs.Count} inputs to complete");
-            
-            // Start monitoring
-            Runner.StartCoroutine(WaitForAllInputs());
-        }
-
-        private IEnumerator WaitForAllInputs()
-        {
-            // Wait until all inputs are complete
-            while (_completedInputs.Count < _pendingInputs.Count && Runner.IsRunning)
+            // Check if any are already completed (they may have finished before we started)
+            foreach (var guid in _pendingGuids.ToList())
             {
-                yield return null;
+                if (Runner.ExecutionPath.Contains(guid))
+                {
+                    var node = Runner.Graph.GetNode(guid);
+                    if (node != null && node.State == NodeState.Completed)
+                    {
+                        _completedGuids.Add(guid);
+                    }
+                }
             }
 
-            if (Runner.IsRunning)
+            if (_completedGuids.Count >= _pendingGuids.Count)
             {
-                Debug.Log("[WaitForAllNode] All inputs completed!");
+                Debug.Log("[WaitForAllNode] All inputs already completed!");
                 Complete();
+                return;
+            }
+
+            Debug.Log($"[WaitForAllNode] Waiting for {_pendingGuids.Count - _completedGuids.Count} " +
+                      $"of {_pendingGuids.Count} inputs to complete.");
+
+            // Subscribe to future completions
+            StartListening();
+        }
+
+        // --- Event-driven completion tracking ---
+
+        private void StartListening()
+        {
+            if (_isListening) return;
+            _isListening = true;
+            NodeGraphRunner.OnNodeCompleted += OnUpstreamNodeCompleted;
+        }
+
+        private void StopListening()
+        {
+            if (!_isListening) return;
+            _isListening = false;
+            NodeGraphRunner.OnNodeCompleted -= OnUpstreamNodeCompleted;
+        }
+
+        private void OnUpstreamNodeCompleted(NodeGraphRunner runner, NodeData completedNode)
+        {
+            // Ignore events from a different runner
+            if (runner != Runner) return;
+
+            if (_pendingGuids.Contains(completedNode.Guid))
+            {
+                _completedGuids.Add(completedNode.Guid);
+
+                Debug.Log($"[WaitForAllNode] Input '{completedNode.Name}' completed " +
+                          $"({_completedGuids.Count}/{_pendingGuids.Count})");
+
+                if (_completedGuids.Count >= _pendingGuids.Count)
+                {
+                    StopListening();
+                    Debug.Log("[WaitForAllNode] All inputs completed!");
+                    Complete();
+                }
             }
         }
 
-        /// <summary>
-        /// Called when an input completes (via connection tracking)
-        /// This is a simplified version - in a full implementation, you'd track node completions
-        /// </summary>
-        public void OnInputComplete(string portId)
-        {
-            if (_pendingInputs.Contains(portId))
-            {
-                _completedInputs.Add(portId);
-                Debug.Log($"[WaitForAllNode] Input {portId} completed ({_completedInputs.Count}/{_pendingInputs.Count})");
-            }
-        }
+        // --- Cleanup ---
 
         public override void Reset()
         {
             base.Reset();
-            _pendingInputs.Clear();
-            _completedInputs.Clear();
+            StopListening();
+            _pendingGuids.Clear();
+            _completedGuids.Clear();
         }
     }
 }
-

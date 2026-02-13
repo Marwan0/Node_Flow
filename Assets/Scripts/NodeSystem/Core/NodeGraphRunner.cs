@@ -202,6 +202,12 @@ namespace NodeSystem
             if (!_isRunning) return;
             if (node == null) return;
 
+            // WaitForAllNode is a synchronization point: multiple branches may try
+            // to execute it. Once it's running (waiting) or already completed,
+            // subsequent calls must be ignored — the node handles the rest via events.
+            if (node is Nodes.WaitForAllNode && (node.State == NodeState.Running || node.State == NodeState.Completed))
+                return;
+
             // Reset node state if it was previously completed (allows re-execution in parallel scenarios)
             if (node.State == NodeState.Completed || node.State == NodeState.Failed)
             {
@@ -396,6 +402,21 @@ namespace NodeSystem
 
             // Remove this node from active tracking
             _activeNodeGuids.Remove(completedNode.Guid);
+
+            // RandomBranchNode: execute only the randomly selected node, not all connected nodes
+            if (completedNode is Nodes.RandomBranchNode randomBranch && !string.IsNullOrEmpty(randomBranch.SelectedNodeGuid))
+            {
+                var selectedNode = _graph.GetNode(randomBranch.SelectedNodeGuid);
+                if (selectedNode != null)
+                {
+                    ExecuteNode(selectedNode);
+                }
+                else
+                {
+                    Debug.LogWarning($"[NodeGraphRunner] RandomBranch selected node not found: {randomBranch.SelectedNodeGuid}");
+                }
+                return;
+            }
 
             // Get connected nodes from the appropriate output port
             var nextNodes = _graph.GetConnectedNodes(completedNode.Guid, outputPort);

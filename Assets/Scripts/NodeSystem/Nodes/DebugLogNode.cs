@@ -18,9 +18,9 @@ namespace NodeSystem.Nodes
         [SerializeField]
         public string message = "Debug message";
 
-        public override string Name => "Debug Log";
+        public override string Name => "Log Message";
         public override Color Color => new Color(0.3f, 0.6f, 0.9f); // Blue
-        public override string Category => "Debug";
+        public override string Category => "Utility";
 
         public override List<PortData> GetInputPorts()
         {

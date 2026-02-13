@@ -1,31 +1,43 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace NodeSystem.Nodes
 {
     /// <summary>
-    /// Randomly selects one of multiple output paths and waits for it to complete
+    /// Weight entry mapping a connected node GUID to a probability weight.
+    /// </summary>
+    [Serializable]
+    public class BranchWeight
+    {
+        public string nodeGuid;
+        public float weight = 1f;
+    }
+
+    /// <summary>
+    /// Randomly selects ONE of the nodes connected to its multi-capacity output
+    /// port using configurable weights. Connect as many branches as you want —
+    /// each gets a weight that controls how likely it is to be chosen.
     /// </summary>
     [Serializable]
     public class RandomBranchNode : NodeData
     {
         [SerializeField]
-        public int outputCount = 2;
-        
-        [SerializeField]
-        public bool waitForBranch = true; // If true, waits for branch to complete before completing
+        public List<BranchWeight> weights = new List<BranchWeight>();
 
+        /// <summary>
+        /// After execution, holds the GUID of the randomly chosen next node.
+        /// The runner reads this to know which single node to execute.
+        /// </summary>
         [NonSerialized]
-        private bool _branchCompleted;
-        
-        [NonSerialized]
-        private string _selectedPort;
+        public string SelectedNodeGuid;
 
         public override string Name => "Random Branch";
         public override Color Color => new Color(0.8f, 0.5f, 0.2f); // Orange
         public override string Category => "Flow";
+
+        // --- Ports ---
 
         public override List<PortData> GetInputPorts()
         {
@@ -37,13 +49,49 @@ namespace NodeSystem.Nodes
 
         public override List<PortData> GetOutputPorts()
         {
-            var ports = new List<PortData>();
-            for (int i = 0; i < outputCount; i++)
+            return new List<PortData>
             {
-                ports.Add(new PortData($"output{i}", $"Option {i + 1}", PortDirection.Output));
-            }
-            return ports;
+                new PortData("output", "Random Out", PortDirection.Output, PortCapacity.Multi)
+            };
         }
+
+        // --- Weight helpers ---
+
+        /// <summary>
+        /// Get the weight for a connected node (defaults to 1.0 if not set).
+        /// </summary>
+        public float GetWeight(string nodeGuid)
+        {
+            var entry = weights.FirstOrDefault(w => w.nodeGuid == nodeGuid);
+            return entry?.weight ?? 1f;
+        }
+
+        /// <summary>
+        /// Set the weight for a connected node. Creates the entry if it doesn't exist.
+        /// </summary>
+        public void SetWeight(string nodeGuid, float value)
+        {
+            var entry = weights.FirstOrDefault(w => w.nodeGuid == nodeGuid);
+            if (entry != null)
+            {
+                entry.weight = Mathf.Max(0f, value);
+            }
+            else
+            {
+                weights.Add(new BranchWeight { nodeGuid = nodeGuid, weight = Mathf.Max(0f, value) });
+            }
+        }
+
+        /// <summary>
+        /// Remove weight entries for nodes that are no longer connected.
+        /// </summary>
+        public void CleanupWeights(IEnumerable<string> connectedGuids)
+        {
+            var connectedSet = new HashSet<string>(connectedGuids);
+            weights.RemoveAll(w => !connectedSet.Contains(w.nodeGuid));
+        }
+
+        // --- Execution ---
 
         protected override void OnExecute()
         {
@@ -54,103 +102,61 @@ namespace NodeSystem.Nodes
                 return;
             }
 
-            // Pick random output
-            int randomIndex = UnityEngine.Random.Range(0, outputCount);
-            _selectedPort = $"output{randomIndex}";
-            _branchCompleted = false;
+            var candidates = Runner.Graph.GetConnectedNodes(Guid, "output");
 
-            Debug.Log($"[RandomBranchNode] Selected random branch: Option {randomIndex + 1}");
-
-            // Get connected nodes for selected port
-            var nextNodes = Runner.Graph.GetConnectedNodes(Guid, _selectedPort);
-            if (nextNodes.Count > 0)
+            if (candidates.Count == 0)
             {
-                if (waitForBranch)
-                {
-                    // Wait for branch to complete (needed for Parallel)
-                    Runner.StartCoroutine(ExecuteBranchAndWait(nextNodes[0]));
-                }
-                else
-                {
-                    // Fire and forget - let runner handle continuation
-                    nextNodes[0].Runner = Runner;
-                    nextNodes[0].Execute();
-                    Complete();
-                }
+                Debug.Log("[RandomBranchNode] No outputs connected, completing immediately.");
+                SelectedNodeGuid = null;
+                Complete();
+                return;
+            }
+
+            // Build weighted list
+            float totalWeight = 0f;
+            var weightedCandidates = new List<(NodeData node, float weight)>();
+            foreach (var candidate in candidates)
+            {
+                float w = GetWeight(candidate.Guid);
+                weightedCandidates.Add((candidate, w));
+                totalWeight += w;
+            }
+
+            // Weighted random pick
+            if (totalWeight <= 0f)
+            {
+                // All weights zero — fall back to uniform random
+                int pick = UnityEngine.Random.Range(0, candidates.Count);
+                SelectedNodeGuid = candidates[pick].Guid;
             }
             else
             {
-                Debug.Log($"[RandomBranchNode] No nodes connected to {_selectedPort}");
-                Complete();
-            }
-        }
+                float roll = UnityEngine.Random.Range(0f, totalWeight);
+                float cumulative = 0f;
+                SelectedNodeGuid = weightedCandidates.Last().node.Guid; // fallback
 
-        private IEnumerator ExecuteBranchAndWait(NodeData branchNode)
-        {
-            // Execute the branch node and wait for its entire chain to complete
-            branchNode.Runner = Runner;
-            branchNode.OnComplete = OnBranchNodeComplete;
-            
-            // Broadcast start for visual feedback
-            NodeGraphRunner.BroadcastNodeStarted(Runner, branchNode);
-            
-            branchNode.Execute();
-
-            // Wait for branch chain to complete
-            while (!_branchCompleted && Runner.IsRunning)
-            {
-                yield return null;
+                foreach (var (node, w) in weightedCandidates)
+                {
+                    cumulative += w;
+                    if (roll <= cumulative)
+                    {
+                        SelectedNodeGuid = node.Guid;
+                        break;
+                    }
+                }
             }
 
-            Debug.Log("[RandomBranchNode] Branch completed");
+            var selected = candidates.FirstOrDefault(c => c.Guid == SelectedNodeGuid);
+            float selectedPct = totalWeight > 0 ? (GetWeight(SelectedNodeGuid) / totalWeight * 100f) : (100f / candidates.Count);
+            Debug.Log($"[RandomBranchNode] Picked '{selected?.Name}' ({selectedPct:F0}% chance) from {candidates.Count} branches");
+
             Complete();
-        }
-
-        private void OnBranchNodeComplete(NodeData completedNode)
-        {
-            if (!Runner.IsRunning) return;
-            
-            // Broadcast completion for visual feedback
-            NodeGraphRunner.BroadcastNodeCompleted(Runner, completedNode);
-            
-            // Get output port for this node type
-            string outputPort = GetOutputPortForNode(completedNode);
-            
-            // Get next nodes in branch chain
-            var nextNodes = Runner.Graph.GetConnectedNodes(completedNode.Guid, outputPort);
-            
-            if (nextNodes.Count == 0)
-            {
-                // Branch chain complete
-                _branchCompleted = true;
-                return;
-            }
-            
-            // Continue executing branch chain
-            var nextNode = nextNodes[0];
-            nextNode.Runner = Runner;
-            nextNode.OnComplete = OnBranchNodeComplete;
-            
-            NodeGraphRunner.BroadcastNodeStarted(Runner, nextNode);
-            nextNode.Execute();
-        }
-
-        private string GetOutputPortForNode(NodeData node)
-        {
-            // Handle special node types
-            if (node is ConditionalNode)
-                return node.State == NodeState.Completed ? "true" : "false";
-            if (node is LoopNode)
-                return "done";
-            return "output";
         }
 
         public override void Reset()
         {
             base.Reset();
-            _branchCompleted = false;
-            _selectedPort = null;
+            SelectedNodeGuid = null;
         }
     }
 }
-

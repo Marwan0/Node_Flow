@@ -21,6 +21,27 @@ GridBackground {
     transition-timing-function: ease-in-out, ease-in-out;
 }
 
+/* Override Unity's default selection border with our own subtle style */
+.node #selection-border {
+    border-color: rgba(0, 0, 0, 0);
+    border-radius: 6px;
+}
+
+.node:hover #selection-border {
+    border-width: 4px;
+    border-color: rgba(100, 150, 200, 0.5);
+}
+
+.node:selected #selection-border {
+    border-width: 1px;
+    border-color: #44C0FF;
+}
+
+.node:selected:hover #selection-border {
+    border-width: 4px;
+    border-color: #66D0FF;
+}
+
 .node #title {
     background-color: #3C3C3C;
     height: 30px;
