@@ -55,6 +55,14 @@ namespace NodeSystem.Editor
                 CreateFloatField("", node.maxLiteral, v => node.maxLiteral = v);
                 CreateVariableSelector("Max var (optional)", node.maxVariableName, v => node.maxVariableName = v);
             }
+
+            CreateToggle("Animate fill (lerp)", node.animateFill, v =>
+            {
+                node.animateFill = v;
+                RequestRefresh();
+            });
+            if (node.animateFill)
+                CreateFloatField("Duration (s)", node.animationDuration, v => node.animationDuration = Mathf.Clamp(v, 0.05f, 2f));
         }
 
         private static string GetHierarchyPath(Transform t)

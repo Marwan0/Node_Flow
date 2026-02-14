@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -9,6 +10,7 @@ namespace NodeSystem.Nodes.Quiz
     /// <summary>
     /// Drives a UI Slider or Image (fill amount) from a score value.
     /// Value and min/max can be literals or graph variables for easy setup.
+    /// Progress animates (lerp) by default instead of snapping.
     /// Safe to trigger multiple times: connect from Start Quiz, after each question type,
     /// or from any node that should refresh the bar.
     /// </summary>
@@ -58,6 +60,16 @@ namespace NodeSystem.Nodes.Quiz
         [SerializeField]
         [Tooltip("Variable name for max. If set, overrides Max literal. Int or Float.")]
         public string maxVariableName = "";
+
+        [Header("Animation")]
+        [SerializeField]
+        [Tooltip("Smoothly animate the bar to the new value instead of snapping.")]
+        public bool animateFill = true;
+
+        [SerializeField]
+        [Tooltip("Duration of the lerp animation in seconds.")]
+        [Range(0.05f, 2f)]
+        public float animationDuration = 0.3f;
 
         public override string Name => "Score Progress Bar";
         public override Color Color => new Color(0.85f, 0.65f, 0.25f); // Amber/Gold
@@ -110,21 +122,61 @@ namespace NodeSystem.Nodes.Quiz
             var slider = targetGo.GetComponent<Slider>();
             if (slider != null)
             {
-                slider.value = fill;
-                Complete();
+                if (animateFill && animationDuration > 0f && Runner != null)
+                {
+                    Runner.StartCoroutine(AnimateToFill(
+                        fromValue: slider.value,
+                        toValue: fill,
+                        duration: animationDuration,
+                        onUpdate: v => slider.value = v,
+                        onComplete: Complete));
+                }
+                else
+                {
+                    slider.value = fill;
+                    Complete();
+                }
                 return;
             }
 
             var image = targetGo.GetComponent<Image>();
             if (image != null && image.type == Image.Type.Filled)
             {
-                image.fillAmount = fill;
-                Complete();
+                if (animateFill && animationDuration > 0f && Runner != null)
+                {
+                    Runner.StartCoroutine(AnimateToFill(
+                        fromValue: image.fillAmount,
+                        toValue: fill,
+                        duration: animationDuration,
+                        onUpdate: v => image.fillAmount = v,
+                        onComplete: Complete));
+                }
+                else
+                {
+                    image.fillAmount = fill;
+                    Complete();
+                }
                 return;
             }
 
             Debug.LogWarning($"[ScoreProgressBarNode] No Slider or filled Image on: {targetGo.name}");
             Complete();
+        }
+
+        private IEnumerator AnimateToFill(float fromValue, float toValue, float duration, Action<float> onUpdate, Action onComplete)
+        {
+            float elapsed = 0f;
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsed / duration);
+                t = t * t * (3f - 2f * t);
+                float current = Mathf.Lerp(fromValue, toValue, t);
+                onUpdate(current);
+                yield return null;
+            }
+            onUpdate(toValue);
+            onComplete?.Invoke();
         }
 
         private GameObject ResolveTarget()
