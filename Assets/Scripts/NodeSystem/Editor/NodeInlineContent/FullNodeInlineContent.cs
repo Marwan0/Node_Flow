@@ -39,7 +39,15 @@ namespace NodeSystem.Editor
 
             if (fieldType == typeof(string))
             {
-                DrawStringField(label, field, (string)value);
+                var variableAttr = field.GetCustomAttribute<GraphVariableAttribute>();
+                if (variableAttr != null)
+                {
+                    CreateVariableSelector(label, (string)value, newValue => field.SetValue(Node, newValue), variableAttr.AllowCreation);
+                }
+                else
+                {
+                    DrawStringField(label, field, (string)value);
+                }
             }
             else if (fieldType == typeof(float))
             {
@@ -249,6 +257,8 @@ namespace NodeSystem.Editor
             var result = System.Text.RegularExpressions.Regex.Replace(fieldName, "([a-z])([A-Z])", "$1 $2");
             return char.ToUpper(result[0]) + result.Substring(1);
         }
+
+
     }
 }
 #endif

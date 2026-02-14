@@ -11,6 +11,7 @@ namespace NodeSystem.Nodes
     public class SetVariableNode : NodeData
     {
         [SerializeField]
+        [GraphVariable(true)]
         public string variableName = "";
         
         [SerializeField]

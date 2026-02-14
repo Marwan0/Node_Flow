@@ -409,12 +409,73 @@ Once this is done, your node will appear in the node search window and can be us
 
 ---
 
-## 8. Summary
+## 8. OmniEvent system (Events 2.0)
 
-- **NodeGraph + NodeData** provide the **data model**.
-- **NodeGraphRunner** provides the **execution engine**.
-- **NodeGraphEditorWindow + NodeGraphView + NodeView** provide the **visual editor** and **runtime visualization**.
-- Custom nodes like **RandomBranch**, **WaitForAll**, and **Loop** implement higher‑level flow control on top of this.
+**Location:** `Assets/Scripts/OmniEvent/`  
+**Purpose:** A replacement for Unity’s `UnityEvent` that supports **multiple arguments (0–4)** and **complex types** (Vector3, Color, Lists, enums, etc.) in the Inspector and at runtime.
+
+### 8.1 Core types
+
+- **`OmniEventBase`** (`Core/OmniEventBase.cs`)  
+  Abstract base: `GetPersistentEventCount()`, `RemoveAllListeners()`.
+
+- **`OmniEvent`** (`Core/OmniEvent.cs`)  
+  - `OmniEvent` – no parameters (like `UnityEvent`).  
+  - `OmniEvent<T>` – 1 parameter.  
+  - `OmniEvent<T1, T2>` – 2 parameters.  
+  - `OmniEvent<T1, T2, T3>` – 3 parameters.  
+  - `OmniEvent<T1, T2, T3, T4>` – 4 parameters.  
+
+  Each wraps a `UnityEvent` / `UnityEvent<T...>` and exposes `Invoke(...)`, `AddListener`, `RemoveListener`, plus the base API. All are `[Serializable]` so they work in the Inspector.
+
+- **`OmniEventListener`** (`Core/OmniEventListener.cs`)  
+  MonoBehaviour bridges: generic listeners that expose an `OmniEvent` (or `OmniEvent<T...>`) and a `TriggerResponse(...)` method so other systems can invoke the event (e.g. from UI or node logic).
+
+### 8.2 Supported parameter types
+
+- Primitives: `int`, `float`, `bool`, `string`.  
+- Unity: `Vector2`, `Vector3`, `Vector4`, `Quaternion`, `Color`, `LayerMask`, `Rect`, `Bounds`.  
+- Complex: any `[Serializable]` type, enums, `List<T>`, arrays.  
+- For more than 4 parameters, use a single serializable container type.
+
+### 8.3 UI components (OmniEvent/UI)
+
+Drop-in replacements for standard UI that expose **OmniEvent** fields instead of `UnityEvent`:
+
+| Component | Key events |
+|-----------|------------|
+| **OmniButton** | `onClick`, `onClickWithPosition` (Vector2), `onClickWithNameAndPosition` (string, Vector2) |
+| **OmniSlider** | `onValueChanged` (float), `onValueChangedWithNormalized` (float, float), `onValueChangedWithID` (string, float, float) |
+| **OmniToggle** | `onValueChanged` (bool), `onValueChangedWithPrevious` (bool, bool), `onValueChangedWithID` (string, bool, bool) |
+| **OmniDropdown** | `onValueChanged` (int), `onValueChangedWithText` (int, string), `onValueChangedWithID` (string, int, string) |
+| **OmniInputField** | `onTextChanged` (string), `onTextChangedWithID` (string, string), `onEndEdit` (string), `onEndEditWithID` (string, string) |
+
+Components can have an optional ID field (e.g. `buttonID`, `sliderID`) for multi-instance handling. Add via **Component > OmniEvent > UI > …**.
+
+### 8.4 Usage patterns
+
+- **Inspector:** Add listeners in the Inspector; choose target object and method; for parameters use static values or dynamic property binding.  
+- **Code:** `myEvent.AddListener(MyHandler);` / `myEvent?.Invoke(arg1, arg2);` / remove in `OnDestroy`.  
+- **Bridging:** Use `OmniEventListener<T...>` so non-OmniEvent code can call `TriggerResponse(...)` and fire an OmniEvent.
+
+### 8.5 Folder structure and docs
+
+- `Core/` – OmniEventBase, OmniEvent, OmniEventListener.  
+- `UI/` – OmniButton, OmniSlider, OmniToggle, OmniDropdown, OmniInputField.  
+- `Examples/` – ColorAndListExample, ComplexTypesExample, UIComponentsExample.  
+- `README.md` – full usage, Inspector guide, supported types, and troubleshooting.
+
+OmniEvent is **independent** of the Node Flow system; use it anywhere you need multi-argument, Inspector-friendly events (e.g. UI, game logic, quiz feedback). Node graphs do not depend on it unless you explicitly connect them (e.g. a node that invokes an OmniEvent).
+
+---
+
+## 9. Summary
+
+- **NodeGraph + NodeData** provide the **data model**.  
+- **NodeGraphRunner** provides the **execution engine**.  
+- **NodeGraphEditorWindow + NodeGraphView + NodeView** provide the **visual editor** and **runtime visualization**.  
+- Custom nodes like **RandomBranch**, **WaitForAll**, and **Loop** implement higher‑level flow control on top of this.  
+- **OmniEvent** provides a separate event system (0–4 args, complex types, UI components) for use across the project.
 
 This file is intended as a stable, shareable reference so future conversations or contributors can quickly understand how the system fits together without re‑explaining the whole architecture.
 

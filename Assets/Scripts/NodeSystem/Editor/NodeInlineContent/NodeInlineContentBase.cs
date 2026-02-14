@@ -294,6 +294,94 @@ namespace NodeSystem.Editor
             Container.Add(row);
             return field;
         }
+        protected VisualElement CreateVariableSelector(string label, string currentValue, Action<string> onChanged, bool allowCreation = false)
+        {
+            var row = new VisualElement();
+            row.style.flexDirection = FlexDirection.Row;
+            row.style.alignItems = Align.Center;
+            row.style.marginTop = 2;
+            row.style.marginBottom = 2;
+
+            if (!string.IsNullOrEmpty(label))
+            {
+                var labelElement = new Label(label);
+                labelElement.style.minWidth = 120;
+                labelElement.style.maxWidth = 120;
+                labelElement.style.marginRight = 5;
+                labelElement.style.color = new Color(0.75f, 0.75f, 0.75f);
+                labelElement.style.fontSize = 11;
+                row.Add(labelElement);
+            }
+
+            // Fetch variables from graph
+            var graph = GetGraph();
+            var variableNames = new System.Collections.Generic.List<string>();
+            
+            if (graph != null)
+            {
+                foreach (var v in graph.Variables)
+                {
+                    if (!variableNames.Contains(v.Name))
+                        variableNames.Add(v.Name);
+                }
+            }
+            
+            // Add current value if not in list so it shows up
+            if (!string.IsNullOrEmpty(currentValue) && !variableNames.Contains(currentValue))
+            {
+                variableNames.Add(currentValue);
+            }
+
+            variableNames.Sort();
+
+            // Options for dropdown
+            var options = new System.Collections.Generic.List<string>(variableNames);
+            
+            // User requested to REMOVE creation from nodes. 
+            // So we strictly select from existing (plus current if set).
+            
+            int index = options.IndexOf(currentValue);
+            if (index == -1) index = 0; // Default to first if empty
+
+            if (options.Count == 0)
+            {
+                // No variables -> Show disabled text or label
+                var noVarLabel = new Label("No variables available");
+                noVarLabel.style.color = Color.gray;
+                noVarLabel.style.flexGrow = 1;
+                row.Add(noVarLabel);
+            }
+            else
+            {
+                var dropdown = new PopupField<string>(options, index);
+                dropdown.style.flexGrow = 1;
+                
+                dropdown.RegisterValueChangedCallback(evt =>
+                {
+                    onChanged(evt.newValue);
+                    MarkDirty();
+                });
+                
+                row.Add(dropdown);
+            }
+            
+            Container.Add(row);
+            return row;
+        }
+
+        protected NodeGraph GetGraph()
+        {
+            // Runtime
+            if (Node.Runner != null) return Node.Runner.Graph;
+
+            // Editor: Try to find the window
+            var window = Resources.FindObjectsOfTypeAll<NodeGraphEditorWindow>();
+            if (window != null && window.Length > 0)
+            {
+                return window[0].Graph;
+            }
+            return null;
+        }
     }
 }
 #endif

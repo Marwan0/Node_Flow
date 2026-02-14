@@ -38,6 +38,17 @@ namespace QuizSystem
         [MultiLineProperty(3)]
         public string explanation;
 
+        [BoxGroup("Layout Override")]
+        [ValidateInput(nameof(ValidateCustomUIPrefab), "Custom UI prefab must have a QuestionUI component (e.g. MultipleChoiceUI).")]
+        [Tooltip("If set, this prefab is used instead of QuizManager's default for this question type. Must use the same QuestionUI variant as the type (e.g. MultipleChoiceUI for Multiple Choice).")]
+        public GameObject customUIPrefab;
+
+        private bool ValidateCustomUIPrefab(GameObject prefab)
+        {
+            if (prefab == null) return true;
+            return prefab.GetComponentInChildren<QuestionUI>(true) != null;
+        }
+
         [Button("Validate Question")]
         [BoxGroup("Validation")]
         private void ValidateQuestion()

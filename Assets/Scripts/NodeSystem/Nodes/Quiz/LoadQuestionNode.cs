@@ -19,6 +19,20 @@ namespace NodeSystem.Nodes.Quiz
         [SerializeField]
         public string quizManagerPath = "QuizManager";
 
+        [Header("Question Parent (optional)")]
+        [SerializeField]
+        [Tooltip("Parent to instantiate this question under. Drag from Hierarchy. Overrides QuizManager's container when set.")]
+        public UnityEngine.Object questionContainerRef;
+
+        [Header("Layout Override (optional)")]
+        [SerializeField]
+        [Tooltip("If set, this UI prefab is used for this question instead of the question asset or QuizManager default. Must have the correct QuestionUI for the question type.")]
+        public GameObject layoutOverridePrefab;
+
+        [SerializeField]
+        [Tooltip("Fallback path when reference is null.")]
+        public string questionContainerPath = "";
+
         [SerializeField]
         public bool waitForAnswer = true;
 
@@ -143,6 +157,11 @@ namespace NodeSystem.Nodes.Quiz
                 return;
             }
 
+            // Drive question container from node if set (so parent for instantiate is node-controlled)
+            Transform container = ResolveQuestionContainer();
+            if (container != null)
+                _quizManager.questionContainer = container;
+
             // Load question from path
 #if UNITY_EDITOR
             var question = UnityEditor.AssetDatabase.LoadAssetAtPath<QuestionData>(questionAssetPath);
@@ -165,6 +184,9 @@ namespace NodeSystem.Nodes.Quiz
             }
 
             int questionIndex = _quizManager.questions.IndexOf(question);
+
+            if (layoutOverridePrefab != null)
+                _quizManager.SetUIPrefabOverrideForLoad(questionIndex, layoutOverridePrefab);
 
             // Set animations IMMEDIATELY before loading question (synchronously)
             // This ensures animations are available when QuestionUI.Initialize() -> SetupQuestion() -> AnimateButtonEntrance() is called
@@ -278,6 +300,32 @@ namespace NodeSystem.Nodes.Quiz
                     Runner.ExecuteNode(node);
                 }
             }
+        }
+
+        private Transform ResolveQuestionContainer()
+        {
+            if (questionContainerRef != null)
+            {
+                if (questionContainerRef is Transform t) return t;
+                if (questionContainerRef is GameObject go) return go.transform;
+                if (questionContainerRef is Component c) return c.transform;
+            }
+            if (string.IsNullOrEmpty(questionContainerPath)) return null;
+            var found = GameObject.Find(questionContainerPath);
+            if (found != null) return found.transform;
+            var rootObjects = UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects();
+            var parts = questionContainerPath.Split('/');
+            if (parts.Length > 0)
+            {
+                foreach (var rootGo in rootObjects)
+                {
+                    if (rootGo.name != parts[0]) continue;
+                    if (parts.Length == 1) return rootGo.transform;
+                    var t = rootGo.transform.Find(string.Join("/", parts, 1, parts.Length - 1));
+                    if (t != null) return t;
+                }
+            }
+            return null;
         }
 
         public override void Reset()

@@ -139,63 +139,71 @@ namespace NodeSystem.Editor
         {
             if (_graph == null) return;
 
-            string name = _nameField.value?.Trim();
-            if (string.IsNullOrEmpty(name))
+            try
             {
-                EditorUtility.DisplayDialog("Invalid Name", "Variable name cannot be empty.", "OK");
-                return;
+                string name = _nameField.value?.Trim();
+                if (string.IsNullOrEmpty(name))
+                {
+                    EditorUtility.DisplayDialog("Invalid Name", "Variable name cannot be empty.", "OK");
+                    return;
+                }
+
+                // Check if variable already exists
+                if (_graph.GetVariable(name) != null)
+                {
+                    EditorUtility.DisplayDialog("Duplicate Variable", $"Variable '{name}' already exists.", "OK");
+                    return;
+                }
+
+                var type = (VariableType)_typeField.value;
+                GraphVariable variable = null;
+
+                switch (type)
+                {
+                    case VariableType.Bool:
+                        if (_valueField is DropdownField dropdown)
+                            variable = GraphVariable.CreateBool(name, dropdown.index == 1);
+                        else
+                            variable = GraphVariable.CreateBool(name, false);
+                        break;
+
+                    case VariableType.Int:
+                        if (_valueField is IntegerField intField)
+                            variable = GraphVariable.CreateInt(name, intField.value);
+                        else
+                            variable = GraphVariable.CreateInt(name, 0);
+                        break;
+
+                    case VariableType.Float:
+                        if (_valueField is FloatField floatField)
+                            variable = GraphVariable.CreateFloat(name, floatField.value);
+                        else
+                            variable = GraphVariable.CreateFloat(name, 0f);
+                        break;
+
+                    case VariableType.String:
+                        if (_valueField is TextField stringField)
+                            variable = GraphVariable.CreateString(name, stringField.value);
+                        else
+                            variable = GraphVariable.CreateString(name, "");
+                        break;
+                }
+
+                if (variable != null)
+                {
+                    _graph.AddVariable(variable);
+                    RefreshVariablesList();
+
+                    // Reset form
+                    _nameField.value = "";
+                    _typeField.value = VariableType.Bool;
+                    UpdateValueField();
+                }
             }
-
-            // Check if variable already exists
-            if (_graph.GetVariable(name) != null)
+            catch (System.Exception e)
             {
-                EditorUtility.DisplayDialog("Duplicate Variable", $"Variable '{name}' already exists.", "OK");
-                return;
-            }
-
-            var type = (VariableType)_typeField.value;
-            GraphVariable variable = null;
-
-            switch (type)
-            {
-                case VariableType.Bool:
-                    if (_valueField is DropdownField dropdown)
-                        variable = GraphVariable.CreateBool(name, dropdown.index == 1);
-                    else
-                        variable = GraphVariable.CreateBool(name, false);
-                    break;
-
-                case VariableType.Int:
-                    if (_valueField is IntegerField intField)
-                        variable = GraphVariable.CreateInt(name, intField.value);
-                    else
-                        variable = GraphVariable.CreateInt(name, 0);
-                    break;
-
-                case VariableType.Float:
-                    if (_valueField is FloatField floatField)
-                        variable = GraphVariable.CreateFloat(name, floatField.value);
-                    else
-                        variable = GraphVariable.CreateFloat(name, 0f);
-                    break;
-
-                case VariableType.String:
-                    if (_valueField is TextField stringField)
-                        variable = GraphVariable.CreateString(name, stringField.value);
-                    else
-                        variable = GraphVariable.CreateString(name, "");
-                    break;
-            }
-
-            if (variable != null)
-            {
-                _graph.AddVariable(variable);
-                RefreshVariablesList();
-
-                // Reset form
-                _nameField.value = "";
-                _typeField.value = VariableType.Bool;
-                UpdateValueField();
+                Debug.LogError($"[VariablePanel] AddVariable failed: {e}");
+                EditorUtility.DisplayDialog("Error", $"Failed to add variable: {e.Message}", "OK");
             }
         }
 
@@ -315,24 +323,11 @@ namespace NodeSystem.Editor
 
         private void EditVariable(GraphVariable variable)
         {
-            // Simple edit dialog
-            var dialog = EditorUtility.DisplayDialogComplex(
-                "Edit Variable",
-                $"Edit variable: {variable.Name}\nType: {variable.Type}\nCurrent Value: {GetValueDisplay(variable)}",
-                "OK",
-                "Cancel",
-                "Delete"
-            );
-
-            if (dialog == 0) // OK - could implement inline editing here
+            EditVariableWindow.Show(variable, _graph, () => 
             {
-                // For now, just refresh
+                _graph.Save(); // Ensure changes are saved
                 RefreshVariablesList();
-            }
-            else if (dialog == 2) // Delete
-            {
-                DeleteVariable(variable);
-            }
+            });
         }
 
         private void DeleteVariable(GraphVariable variable)

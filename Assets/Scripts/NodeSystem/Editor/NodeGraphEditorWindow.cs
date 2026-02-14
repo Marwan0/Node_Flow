@@ -21,6 +21,11 @@ namespace NodeSystem.Editor
         private NodeGraphView _graphView;
         private ObjectField _graphField;
         private NodeGraph _currentGraph;
+        public NodeGraph Graph => _currentGraph;
+
+        private NodeGraphRunner _activeRunner;
+        public NodeGraphRunner ActiveRunner => _activeRunner;
+        
         private VisualElement _inspectorPanel;
         private Label _inspectorTitle;
         private VisualElement _inspectorContent;
@@ -75,6 +80,9 @@ namespace NodeSystem.Editor
         {
             CreateUI();
             
+            // Track selection
+            Selection.selectionChanged += OnSelectionChanged;
+            
             // Subscribe to runtime events
             NodeGraphRunner.OnNodeStarted += OnRuntimeNodeStarted;
             NodeGraphRunner.OnNodeCompleted += OnRuntimeNodeCompleted;
@@ -94,6 +102,7 @@ namespace NodeSystem.Editor
             SaveCurrentGraph();
             
             // Unsubscribe from runtime events
+            Selection.selectionChanged -= OnSelectionChanged;
             NodeGraphRunner.OnNodeStarted -= OnRuntimeNodeStarted;
             NodeGraphRunner.OnNodeCompleted -= OnRuntimeNodeCompleted;
             NodeGraphRunner.OnGraphStarted -= OnRuntimeGraphStarted;
@@ -120,6 +129,81 @@ namespace NodeSystem.Editor
                     }
                 }
             };
+
+        }
+
+        private void OnSelectionChanged()
+        {
+            var selectedGO = Selection.activeGameObject;
+            if (selectedGO != null)
+            {
+                var runner = selectedGO.GetComponent<NodeGraphRunner>();
+                if (runner != null && _currentGraph != null && runner.Graph == _currentGraph)
+                {
+                    SetActiveRunner(runner);
+                    return;
+                }
+            }
+            
+            // If selection is unrelated, DO NOT clear active runner if it's still valid (Sticky Context)
+            if (_activeRunner != null && _activeRunner.Graph == _currentGraph)
+            {
+                return;
+            }
+
+            // If we have no active runner, try to find one
+            TryDetectRunner();
+        }
+
+        private void TryDetectRunner()
+        {
+            if (_currentGraph == null) return;
+
+            // If we already have a valid runner, keep it
+            if (_activeRunner != null && _activeRunner.Graph == _currentGraph) return;
+
+            // Search scene
+            var runners = FindObjectsOfType<NodeGraphRunner>();
+            foreach (var runner in runners)
+            {
+                if (runner.Graph == _currentGraph)
+                {
+                    SetActiveRunner(runner);
+                    return;
+                }
+            }
+            
+            // No runner found, clear
+            SetActiveRunner(null);
+        }
+
+        private void SetActiveRunner(NodeGraphRunner runner)
+        {
+            if (_activeRunner == runner) return;
+
+            _activeRunner = runner;
+            
+            // Auto-cleanup orphaned events when runner is set
+            if (_activeRunner != null)
+            {
+                _activeRunner.CleanupSceneEvents();
+            }
+            
+            if (_runtimeStatusLabel != null)
+            {
+                _runtimeStatusLabel.text = _activeRunner != null 
+                    ? $"Context: {_activeRunner.name} (Scene)" 
+                    : "Context: Asset (Read-Only Events)";
+            }
+
+            // Refresh views
+            if (_graphView != null)
+            {
+                 foreach (var element in _graphView.graphElements.ToList())
+                 {
+                     if (element is NodeView nodeView) nodeView.RefreshInlineContent();
+                 }
+            }
         }
 
         /// <summary>
@@ -436,11 +520,12 @@ namespace NodeSystem.Editor
             
             if (_graphField.value != graph)
             {
-                _graphField.SetValueWithoutNotify(graph);
+                _graphField.SetValueWithoutNotify(graph);            
             }
-
-            titleContent = new GUIContent(graph != null ? $"Node Graph - {graph.name}" : "Node Graph");
+            // Force title update
+            titleContent = new GUIContent(_currentGraph != null ? _currentGraph.graphName : "Node Graph");
             
+            TryDetectRunner(); // Check for runner on load
             ClearInspector();
             
             // Update variable panel
@@ -467,7 +552,7 @@ namespace NodeSystem.Editor
             UpdateBreadcrumbs();
         }
 
-        private void OnBreadcrumbClicked(NodeGraph graph)
+        public void OnBreadcrumbClicked(NodeGraph graph)
         {
             // Navigate to clicked graph
             int index = _graphStack.IndexOf(graph);

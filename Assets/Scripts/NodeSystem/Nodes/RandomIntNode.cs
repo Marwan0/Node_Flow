@@ -11,6 +11,7 @@ namespace NodeSystem.Nodes
     public class RandomIntNode : NodeData
     {
         [SerializeField]
+        [GraphVariable(true)]
         public string variableName = "RandomResult";
 
         [SerializeField]

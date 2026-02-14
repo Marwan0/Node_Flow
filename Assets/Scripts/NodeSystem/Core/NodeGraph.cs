@@ -32,6 +32,13 @@ namespace NodeSystem
         public string inPort;
     }
 
+    [Serializable]
+    public class NodeUnityEvent
+    {
+        public string nodeGuid;
+        public UnityEngine.Events.UnityEvent onEvent;
+    }
+
     /// <summary>
     /// ScriptableObject that stores a node graph.
     /// Uses a single JSON string for all data - most reliable serialization approach.
@@ -49,11 +56,16 @@ namespace NodeSystem
         [SerializeField, HideInInspector]
         private string _jsonData = "";
 
+        // Separate storage for UnityEvents (cannot be JSON serialized)
+        [SerializeField]
+        private List<NodeUnityEvent> _nodeEvents = new List<NodeUnityEvent>();
+
         // Runtime cache
         [NonSerialized] private List<NodeData> _runtimeNodes;
         [NonSerialized] private List<ConnectionData> _runtimeConnections;
         [NonSerialized] private List<GraphVariable> _runtimeVariables;
         [NonSerialized] private bool _loaded = false;
+        [NonSerialized] private bool _loadFailed = false;
 
         public IReadOnlyList<NodeData> Nodes
         {
@@ -126,12 +138,14 @@ namespace NodeSystem
                 if (data == null)
                 {
                     Debug.LogError($"[NodeGraph] {graphName}: Failed to deserialize graph data from JSON!");
+                    _loadFailed = true;
                     return;
                 }
                 
                 if (data.nodes == null)
                 {
                     Debug.LogError($"[NodeGraph] {graphName}: Deserialized data has null nodes array!");
+                    _loadFailed = true;
                     return;
                 }
 
@@ -180,6 +194,7 @@ namespace NodeSystem
             catch (Exception e)
             {
                 Debug.LogError($"[NodeGraph] Failed to load: {e.Message}");
+                _loadFailed = true;
             }
         }
 
@@ -189,6 +204,12 @@ namespace NodeSystem
         /// </summary>
         public void SaveToJson()
         {
+            if (_loadFailed)
+            {
+                Debug.LogError($"[NodeGraph] Cannot save graph '{name}' because loading failed previously. Preventing data overwrite.");
+                return;
+            }
+
             var data = new GraphData();
 
             // Save nodes
@@ -217,7 +238,13 @@ namespace NodeSystem
             // Save variables
             data.variables = new List<GraphVariable>(_runtimeVariables);
 
+            // Save variables
+            data.variables = new List<GraphVariable>(_runtimeVariables);
+
             _jsonData = JsonUtility.ToJson(data);
+            
+            // Cleanup orphaned events
+            CleanupUnityEvents();
         }
 
         // === Public API ===
@@ -267,6 +294,10 @@ namespace NodeSystem
             _runtimeConnections.RemoveAll(c => 
                 c.outputNodeGuid == node.Guid || c.inputNodeGuid == node.Guid);
             _runtimeNodes.Remove(node);
+            
+            // Clean up Unity Event for this node
+            _nodeEvents.RemoveAll(e => e.nodeGuid == node.Guid);
+            
             SaveAndMarkDirty();
             Debug.Log($"[NodeGraph] Removed node: {node.Name}");
         }
@@ -428,6 +459,44 @@ namespace NodeSystem
         {
             EnsureLoaded();
             foreach (var node in _runtimeNodes) node?.Reset();
+        }
+
+        // === Unity Event Support ===
+
+        public UnityEngine.Events.UnityEvent GetUnityEvent(string nodeGuid)
+        {
+            var entry = _nodeEvents.FirstOrDefault(e => e.nodeGuid == nodeGuid);
+            if (entry == null)
+            {
+                entry = new NodeUnityEvent { nodeGuid = nodeGuid, onEvent = new UnityEngine.Events.UnityEvent() };
+                _nodeEvents.Add(entry);
+                SaveAndMarkDirty();
+            }
+            return entry.onEvent;
+        }
+
+        public void InvokeUnityEvent(string nodeGuid)
+        {
+            var entry = _nodeEvents.FirstOrDefault(e => e.nodeGuid == nodeGuid);
+            if (entry != null)
+            {
+                entry.onEvent?.Invoke();
+            }
+        }
+
+        /// <summary>
+        /// Call this when saving to clean up events for deleted nodes
+        /// </summary>
+        private void CleanupUnityEvents()
+        {
+            if (_runtimeNodes == null) return;
+            
+            var validGuids = new HashSet<string>(_runtimeNodes.Select(n => n.Guid));
+            int removed = _nodeEvents.RemoveAll(e => !validGuids.Contains(e.nodeGuid));
+            if (removed > 0)
+            {
+                Debug.Log($"[NodeGraph] Cleaned up {removed} orphaned UnityEvents");
+            }
         }
 
         // === Debug ===

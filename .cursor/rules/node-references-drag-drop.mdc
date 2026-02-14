@@ -1,0 +1,25 @@
+---
+description: Node system - always use drag-and-drop for GameObject/script/component references
+globs: Assets/Scripts/NodeSystem/**/*.cs
+alwaysApply: false
+---
+
+# Node references: drag-and-drop only
+
+When creating or editing nodes that need a reference to a **GameObject**, **script**, or **component**:
+
+- **Always** expose that reference in the editor so the user can **drag and drop** from the Inspector (or Hierarchy).
+- Use an **ObjectField** (or equivalent) in the node’s inline content / custom editor, with `allowSceneObjects: true` when the reference can be in the scene.
+- Do **not** rely only on typing a path or name string; support drag-and-drop as the primary way to assign the reference.
+
+## Implementation
+
+- **Runtime node**: store both (1) an optional `UnityEngine.Object` (or concrete type like `Slider`, `GameObject`) for the assigned reference, and (2) a fallback path/name string for when the reference is null (e.g. in builds or after domain reload).
+- **Editor**: use `CreateObjectField<T>` (or `ObjectField`) so the user can assign by drag-and-drop. When the user assigns an object, optionally sync a hierarchy path or name into the fallback string so runtime can resolve it if the direct reference is lost.
+
+## Example
+
+- **Bad**: Only a text field for “Target path” with no way to drag a Slider/Image from the scene.
+- **Good**: An ObjectField for “Target” (accepting GameObject, Slider, or Image) so the user can drag from the Inspector/Hierarchy; persist a path string as fallback for runtime.
+
+Apply this to **all** nodes that take a reference to a GameObject, MonoBehaviour, or component (e.g. Set Text target, Score Progress Bar target, Button, AudioSource, etc.).

@@ -1,4 +1,5 @@
 #if UNITY_EDITOR
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UIElements;
 using UnityEditor;
@@ -97,6 +98,28 @@ namespace NodeSystem.Editor
             // === STEP 3: Node-specific options ===
             AddSeparator("Node Options");
             CreateTextField(node.quizManagerPath, v => node.quizManagerPath = v, "QuizManager path");
+
+            CreateLabel("Question Parent (optional, drag from Hierarchy)");
+            CreateObjectField<UnityEngine.Object>("", node.questionContainerRef, v =>
+            {
+                node.questionContainerRef = v;
+                if (v != null)
+                {
+                    var t = v is GameObject go ? go.transform : (v as Component)?.transform;
+                    if (t != null) node.questionContainerPath = GetHierarchyPath(t);
+                }
+                MarkDirty();
+            });
+
+            CreateLabel("Layout Override (optional, drag prefab from Project)");
+            CreateObjectField<GameObject>("", node.layoutOverridePrefab, v =>
+            {
+                node.layoutOverridePrefab = v;
+                var graph = GetNodeGraph();
+                if (graph != null) { graph.SaveToJson(); EditorUtility.SetDirty(graph); }
+                MarkDirty();
+            });
+
             CreateToggle("Wait for Answer", node.waitForAnswer, v => node.waitForAnswer = v);
             CreateToggle("Track in State", node.trackInQuizState, v => node.trackInQuizState = v);
 
@@ -603,6 +626,19 @@ namespace NodeSystem.Editor
             {
                 // Some custom editors throw on destroy - ignore
             }
+        }
+
+        private static string GetHierarchyPath(Transform t)
+        {
+            if (t == null) return "";
+            var parts = new List<string>();
+            while (t != null)
+            {
+                parts.Add(t.name);
+                t = t.parent;
+            }
+            parts.Reverse();
+            return string.Join("/", parts);
         }
 
         /// <summary>

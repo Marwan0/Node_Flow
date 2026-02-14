@@ -26,9 +26,11 @@ namespace NodeSystem.Nodes
     public class MathOperationNode : NodeData
     {
         [SerializeField]
+        [GraphVariable(true)]
         public string resultVariable = "Result";
 
         [SerializeField]
+        [GraphVariable]
         public string variableA = "VariableA";
 
         [SerializeField]
@@ -38,6 +40,7 @@ namespace NodeSystem.Nodes
         public OperandType operandType = OperandType.Constant;
 
         [SerializeField]
+        [GraphVariable]
         public string variableB = "";
 
         [SerializeField]

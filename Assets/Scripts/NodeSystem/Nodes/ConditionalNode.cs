@@ -40,6 +40,7 @@ namespace NodeSystem.Nodes
         public ConditionType conditionType = ConditionType.BoolVariable;
         
         [SerializeField]
+        [GraphVariable]
         public string variableName = "";
         
         [SerializeField]

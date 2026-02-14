@@ -30,6 +30,10 @@ namespace NodeSystem
         [SerializeField]
         private bool _stepMode = false;
 
+        // Scene-specific events (allows referencing Scene Objects)
+        [SerializeField]
+        private List<NodeUnityEvent> _sceneEvents = new List<NodeUnityEvent>();
+
         private NodeData _currentNode;
         private bool _isRunning;
         private List<string> _executionPath = new List<string>();
@@ -78,6 +82,24 @@ namespace NodeSystem
         {
             OnNodeCompleted?.Invoke(runner, node);
         }
+
+
+#if UNITY_EDITOR
+        private void OnValidate()
+        {
+            // Auto-cleanup orphaned events in editor when component is loaded or modified
+            if (!Application.isPlaying && _graph != null)
+            {
+                UnityEditor.EditorApplication.delayCall += () =>
+                {
+                    if (this != null) // Check if still valid after delay
+                    {
+                        CleanupSceneEvents();
+                    }
+                };
+            }
+        }
+#endif
 
         private void Start()
         {
@@ -249,9 +271,61 @@ namespace NodeSystem
             {
                 _isPaused = true;
                 OnPaused?.Invoke(this);
-                Debug.Log("[NodeGraphRunner] Paused");
             }
         }
+
+        // === Unity Event Support ===
+
+        public UnityEngine.Events.UnityEvent GetUnityEvent(string nodeGuid)
+        {
+            var entry = _sceneEvents.FirstOrDefault(e => e.nodeGuid == nodeGuid);
+            if (entry == null)
+            {
+                entry = new NodeUnityEvent { nodeGuid = nodeGuid, onEvent = new UnityEngine.Events.UnityEvent() };
+                _sceneEvents.Add(entry);
+#if UNITY_EDITOR
+                UnityEditor.EditorUtility.SetDirty(this);
+#endif
+            }
+            return entry.onEvent;
+        }
+
+        public void InvokeUnityEvent(string nodeGuid)
+        {
+            // 1. Try Scene Event first (Scene overrides Asset)
+            var sceneEntry = _sceneEvents.FirstOrDefault(e => e.nodeGuid == nodeGuid);
+            if (sceneEntry != null && sceneEntry.onEvent != null && sceneEntry.onEvent.GetPersistentEventCount() > 0)
+            {
+                sceneEntry.onEvent.Invoke();
+                return;
+            }
+
+            // 2. Fallback to Graph Asset Event
+            if (_graph != null)
+            {
+                _graph.InvokeUnityEvent(nodeGuid);
+            }
+        }
+
+        /// <summary>
+        /// Clean up scene events for nodes that no longer exist in the graph
+        /// </summary>
+        public void CleanupSceneEvents()
+        {
+            if (_graph == null) return;
+            
+            var validGuids = new HashSet<string>(_graph.Nodes.Select(n => n.Guid));
+            int removed = _sceneEvents.RemoveAll(e => !validGuids.Contains(e.nodeGuid));
+            
+            if (removed > 0)
+            {
+#if UNITY_EDITOR
+                UnityEditor.EditorUtility.SetDirty(this);
+#endif
+                Debug.Log($"[NodeGraphRunner] Cleaned up {removed} orphaned scene events");
+            }
+        }
+
 
         /// <summary>
         /// Resume execution

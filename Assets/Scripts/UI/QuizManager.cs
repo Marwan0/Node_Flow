@@ -18,7 +18,7 @@ namespace QuizSystem
 
         [BoxGroup("UI References")]
         [Required]
-        [Tooltip("Container for question UI")]
+        [Tooltip("Parent to instantiate each question under. You can disable this or animate it to remove the current question before the next one.")]
         public Transform questionContainer;
 
         [BoxGroup("UI References")]
@@ -140,20 +140,13 @@ namespace QuizSystem
         private List<QuestionData> shuffledQuestions;
         private QuestionUI currentQuestionUI;
         private IQuestionValidator currentValidator;
-        private CanvasGroup questionContainerCanvasGroup;
+        private Transform currentQuestionWrapper;
         private Sequence currentTransitionSequence;
+        private Dictionary<int, GameObject> _runtimeUIPrefabOverrides;
 
         private void Awake()
         {
-            // Ensure question container has CanvasGroup for fade transitions
-            if (questionContainer != null)
-            {
-                questionContainerCanvasGroup = questionContainer.GetComponent<CanvasGroup>();
-                if (questionContainerCanvasGroup == null)
-                {
-                    questionContainerCanvasGroup = questionContainer.gameObject.AddComponent<CanvasGroup>();
-                }
-            }
+            // No longer add CanvasGroup to questionContainer; each question gets its own wrapper with transition applied
         }
 
         [Button("Start Quiz")]
@@ -182,6 +175,18 @@ namespace QuizSystem
             currentScore = 0;
             currentQuestionIndex = 0;
             LoadQuestion(0);
+        }
+
+        /// <summary>
+        /// Set a UI prefab to use for the next time the question at this index is loaded.
+        /// Used by LoadQuestionNode to pass a layout override per load. Cleared after that load.
+        /// </summary>
+        public void SetUIPrefabOverrideForLoad(int questionIndex, GameObject uiPrefab)
+        {
+            if (uiPrefab == null) return;
+            if (_runtimeUIPrefabOverrides == null)
+                _runtimeUIPrefabOverrides = new Dictionary<int, GameObject>();
+            _runtimeUIPrefabOverrides[questionIndex] = uiPrefab;
         }
 
         [Button("Next Question")]
@@ -232,11 +237,17 @@ namespace QuizSystem
             }
             else
             {
-                // No transition, load immediately
-                if (currentQuestionUI != null)
+                // No transition, remove current question (and its wrapper) then load next
+                if (currentQuestionWrapper != null)
+                {
+                    Destroy(currentQuestionWrapper.gameObject);
+                    currentQuestionWrapper = null;
+                }
+                else if (currentQuestionUI != null)
                 {
                     Destroy(currentQuestionUI.gameObject);
                 }
+                currentQuestionUI = null;
                 LoadNewQuestion(index);
             }
         }
@@ -248,42 +259,48 @@ namespace QuizSystem
                 currentTransitionSequence.Kill();
             }
 
+            Transform target = currentQuestionWrapper != null ? currentQuestionWrapper : questionContainer;
+            if (target == null)
+            {
+                if (currentQuestionUI != null) Destroy(currentQuestionUI.gameObject);
+                onComplete?.Invoke();
+                return;
+            }
+
             currentTransitionSequence = DOTween.Sequence();
 
             switch (transitionStyle)
             {
                 case TransitionStyle.Fade:
-                    if (questionContainerCanvasGroup != null)
-                    {
-                        currentTransitionSequence.Append(questionContainerCanvasGroup.DOFade(0f, transitionDuration));
-                    }
+                    var cgOut = target.GetComponent<CanvasGroup>();
+                    if (cgOut == null) cgOut = target.gameObject.AddComponent<CanvasGroup>();
+                    currentTransitionSequence.Append(cgOut.DOFade(0f, transitionDuration));
                     break;
 
                 case TransitionStyle.Slide:
-                    if (questionContainer != null)
-                    {
-                        RectTransform rectTransform = questionContainer as RectTransform;
-                        if (rectTransform != null)
-                        {
-                            currentTransitionSequence.Append(rectTransform.DOAnchorPosX(rectTransform.anchoredPosition.x - 1000f, transitionDuration));
-                        }
-                    }
+                    RectTransform rtOut = target as RectTransform;
+                    if (rtOut == null) rtOut = target.GetComponent<RectTransform>();
+                    if (rtOut != null)
+                        currentTransitionSequence.Append(rtOut.DOAnchorPosX(rtOut.anchoredPosition.x - 1000f, transitionDuration));
                     break;
 
                 case TransitionStyle.Scale:
-                    if (questionContainer != null)
-                    {
-                        currentTransitionSequence.Append(questionContainer.DOScale(0f, transitionDuration));
-                    }
+                    currentTransitionSequence.Append(target.DOScale(0f, transitionDuration));
                     break;
             }
 
             currentTransitionSequence.OnComplete(() =>
             {
-                if (currentQuestionUI != null)
+                if (currentQuestionWrapper != null)
+                {
+                    Destroy(currentQuestionWrapper.gameObject);
+                    currentQuestionWrapper = null;
+                }
+                else if (currentQuestionUI != null)
                 {
                     Destroy(currentQuestionUI.gameObject);
                 }
+                currentQuestionUI = null;
                 onComplete?.Invoke();
             });
         }
@@ -300,27 +317,36 @@ namespace QuizSystem
                 return;
             }
 
-            // Create appropriate UI
-            GameObject uiPrefab = GetUIPrefabForQuestionType(question.questionType);
+            // Create appropriate UI (node override > question custom prefab > type default)
+            GameObject uiPrefab = null;
+            if (_runtimeUIPrefabOverrides != null && _runtimeUIPrefabOverrides.TryGetValue(index, out var overr))
+            {
+                _runtimeUIPrefabOverrides.Remove(index);
+                uiPrefab = overr;
+            }
+            if (uiPrefab == null)
+                uiPrefab = GetUIPrefabForQuestion(question);
             if (uiPrefab == null)
             {
                 Debug.LogError($"No UI prefab found for question type: {question.questionType}");
                 return;
             }
 
-            GameObject uiInstance = Instantiate(uiPrefab, questionContainer);
+            // Create a wrapper under questionContainer so we can disable or animate just this question
+            currentQuestionWrapper = CreateQuestionWrapper();
+            GameObject uiInstance = Instantiate(uiPrefab, currentQuestionWrapper);
             currentQuestionUI = uiInstance.GetComponent<QuestionUI>();
             if (currentQuestionUI == null)
             {
                 Debug.LogError($"UI prefab doesn't have QuestionUI component!");
-                Destroy(uiInstance);
+                Destroy(currentQuestionWrapper.gameObject);
+                currentQuestionWrapper = null;
                 return;
             }
 
-            // Reset container state for transition in
             if (enableTransitions)
             {
-                ResetContainerForTransitionIn();
+                ResetWrapperForTransitionIn(currentQuestionWrapper);
             }
 
             // Note: Animations should be set in QuizState BEFORE Initialize() is called
@@ -336,34 +362,50 @@ namespace QuizSystem
             }
         }
 
-        private void ResetContainerForTransitionIn()
+        private Transform CreateQuestionWrapper()
         {
+            if (questionContainer == null) return null;
+            var wrapperGo = new GameObject("QuestionWrapper");
+            wrapperGo.transform.SetParent(questionContainer, false);
+            var rt = questionContainer as RectTransform;
+            if (rt != null)
+            {
+                var wrapperRt = wrapperGo.AddComponent<RectTransform>();
+                wrapperRt.anchorMin = Vector2.zero;
+                wrapperRt.anchorMax = Vector2.one;
+                wrapperRt.sizeDelta = Vector2.zero;
+                wrapperRt.anchoredPosition = Vector2.zero;
+            }
+            if (transitionStyle == TransitionStyle.Fade)
+            {
+                var cg = wrapperGo.AddComponent<CanvasGroup>();
+                cg.alpha = 0f;
+            }
+            return wrapperGo.transform;
+        }
+
+        private void ResetWrapperForTransitionIn(Transform wrapper)
+        {
+            if (wrapper == null) return;
             switch (transitionStyle)
             {
                 case TransitionStyle.Fade:
-                    if (questionContainerCanvasGroup != null)
-                    {
-                        questionContainerCanvasGroup.alpha = 0f;
-                    }
+                    var cg = wrapper.GetComponent<CanvasGroup>();
+                    if (cg == null) cg = wrapper.gameObject.AddComponent<CanvasGroup>();
+                    cg.alpha = 0f;
                     break;
 
                 case TransitionStyle.Slide:
-                    if (questionContainer != null)
+                    RectTransform rt = wrapper as RectTransform ?? wrapper.GetComponent<RectTransform>();
+                    if (rt != null)
                     {
-                        RectTransform rectTransform = questionContainer as RectTransform;
-                        if (rectTransform != null)
-                        {
-                            Vector2 pos = rectTransform.anchoredPosition;
-                            rectTransform.anchoredPosition = new Vector2(pos.x + 1000f, pos.y);
-                        }
+                        Vector2 pos = rt.anchoredPosition;
+                        rt.anchoredPosition = new Vector2(pos.x + 1000f, pos.y);
                     }
                     break;
 
                 case TransitionStyle.Scale:
-                    if (questionContainer != null)
-                    {
-                        questionContainer.localScale = Vector3.zero;
-                    }
+                    wrapper.localScale = Vector3.zero;
                     break;
             }
         }
@@ -375,39 +417,42 @@ namespace QuizSystem
                 currentTransitionSequence.Kill();
             }
 
+            Transform target = currentQuestionWrapper != null ? currentQuestionWrapper : questionContainer;
+            if (target == null) return;
+
             currentTransitionSequence = DOTween.Sequence();
 
             switch (transitionStyle)
             {
                 case TransitionStyle.Fade:
-                    if (questionContainerCanvasGroup != null)
-                    {
-                        currentTransitionSequence.Append(questionContainerCanvasGroup.DOFade(1f, transitionDuration));
-                    }
+                    var cgIn = target.GetComponent<CanvasGroup>();
+                    if (cgIn != null)
+                        currentTransitionSequence.Append(cgIn.DOFade(1f, transitionDuration));
                     break;
 
                 case TransitionStyle.Slide:
-                    if (questionContainer != null)
+                    RectTransform rtIn = target as RectTransform ?? target.GetComponent<RectTransform>();
+                    if (rtIn != null)
                     {
-                        RectTransform rectTransform = questionContainer as RectTransform;
-                        if (rectTransform != null)
-                        {
-                            Vector2 targetPos = rectTransform.anchoredPosition;
-                            targetPos.x -= 1000f;
-                            currentTransitionSequence.Append(rectTransform.DOAnchorPos(targetPos, transitionDuration));
-                        }
+                        Vector2 targetPos = rtIn.anchoredPosition;
+                        targetPos.x -= 1000f;
+                        currentTransitionSequence.Append(rtIn.DOAnchorPos(targetPos, transitionDuration));
                     }
                     break;
 
                 case TransitionStyle.Scale:
-                    if (questionContainer != null)
-                    {
-                        currentTransitionSequence.Append(questionContainer.DOScale(1f, transitionDuration));
-                    }
+                    currentTransitionSequence.Append(target.DOScale(1f, transitionDuration));
                     break;
             }
 
             currentTransitionSequence.SetEase(Ease.OutQuad);
+        }
+
+        private GameObject GetUIPrefabForQuestion(QuestionData question)
+        {
+            if (question != null && question.customUIPrefab != null)
+                return question.customUIPrefab;
+            return GetUIPrefabForQuestionType(question != null ? question.questionType : default);
         }
 
         private GameObject GetUIPrefabForQuestionType(QuestionType type)

@@ -25,7 +25,7 @@ namespace NodeSystem.Editor
             }
             else
             {
-                CreateTextField(node.variableName, v => node.variableName = v, "Variable...");
+                CreateVariableSelector("Variable...", node.variableName, v => node.variableName = v, false);
                 
                 if (node.conditionType == ConditionType.BoolVariable)
                 {
