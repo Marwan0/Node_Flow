@@ -20,15 +20,36 @@ namespace QuizSystem
         [SerializeField] private Transform leftColumnContainer;
         [SerializeField] private Transform rightColumnContainer;
         [SerializeField] private GameObject connectItemPrefab;
-        [SerializeField] private LineRenderer lineRendererPrefab;
+        [Tooltip("Prefab with UILineRenderer (renders in Canvas space). Leave empty to use built-in default line.")]
+        [SerializeField] private UILineRenderer uiLinePrefab;
+        [SerializeField] private RectTransform lineContainer;
         [SerializeField] private Canvas canvas;
 
         private ConnectQuestionData connectData;
         private List<ConnectItemUI> leftItemUIs = new List<ConnectItemUI>();
         private List<ConnectItemUI> rightItemUIs = new List<ConnectItemUI>();
-        private List<LineRenderer> connectionLines = new List<LineRenderer>();
+        private List<GameObject> connectionLineObjects = new List<GameObject>();
+        private List<int> connectionLeftIndices = new List<int>();
+        private const float LineThickness = 4f;
+        private static Sprite _whiteSprite;
+
+        private static Sprite GetWhiteSprite()
+        {
+            if (_whiteSprite != null) return _whiteSprite;
+            var tex = new Texture2D(1, 1);
+            tex.SetPixel(0, 0, Color.white);
+            tex.Apply();
+            _whiteSprite = Sprite.Create(tex, new Rect(0, 0, 1, 1), new Vector2(0.5f, 0.5f));
+            return _whiteSprite;
+        }
         private Dictionary<int, int> currentConnections = new Dictionary<int, int>(); // left index -> right index
         private ConnectItemUI selectedLeftItem = null;
+
+        private ConnectItemUI _dragStartItem;
+        private GameObject _previewLine;
+        private RectTransform _dragContainer;
+        private bool _isDragging;
+        private Vector2 _pointerDownPos;
 
         protected override void SetupQuestion()
         {
@@ -43,6 +64,25 @@ namespace QuizSystem
             CreateLeftColumnItems();
             CreateRightColumnItems();
             currentConnections.Clear();
+
+            if (submitButton != null)
+            {
+                submitButton.onClick.RemoveAllListeners();
+                submitButton.onClick.AddListener(OnSubmitClicked);
+                submitButton.interactable = true;
+            }
+
+            if (lineContainer != null)
+            {
+                var graphic = lineContainer.GetComponent<Graphic>();
+                if (graphic != null)
+                    graphic.raycastTarget = false;
+            }
+        }
+
+        private void OnSubmitClicked()
+        {
+            OnAnswerSubmitted();
         }
 
         private void ClearUI()
@@ -61,12 +101,21 @@ namespace QuizSystem
             }
             rightItemUIs.Clear();
 
-            foreach (var line in connectionLines)
+            foreach (var go in connectionLineObjects)
             {
-                if (line != null)
-                    Destroy(line.gameObject);
+                if (go != null)
+                    Destroy(go);
             }
-            connectionLines.Clear();
+            connectionLineObjects.Clear();
+            connectionLeftIndices.Clear();
+
+            if (_previewLine != null)
+            {
+                Destroy(_previewLine);
+                _previewLine = null;
+            }
+            _dragStartItem = null;
+            _isDragging = false;
         }
 
         private void CreateLeftColumnItems()
@@ -87,14 +136,7 @@ namespace QuizSystem
                 if (image != null && connectData.leftColumnItems[i].icon != null)
                     image.sprite = connectData.leftColumnItems[i].icon;
 
-                // Add click handler
-                Button button = itemObj.GetComponent<Button>();
-                if (button == null)
-                    button = itemObj.AddComponent<Button>();
-
-                int index = i; // Capture for closure
-                button.onClick.RemoveAllListeners();
-                button.onClick.AddListener(() => OnLeftItemClicked(itemUI));
+                SetupItemInteraction(itemObj, itemUI);
 
                 leftItemUIs.Add(itemUI);
             }
@@ -118,27 +160,29 @@ namespace QuizSystem
                 if (image != null && connectData.rightColumnItems[i].icon != null)
                     image.sprite = connectData.rightColumnItems[i].icon;
 
-                // Add click handler
-                Button button = itemObj.GetComponent<Button>();
-                if (button == null)
-                    button = itemObj.AddComponent<Button>();
-
-                int index = i; // Capture for closure
-                button.onClick.RemoveAllListeners();
-                button.onClick.AddListener(() => OnRightItemClicked(itemUI));
+                SetupItemInteraction(itemObj, itemUI);
 
                 rightItemUIs.Add(itemUI);
             }
         }
 
+        private void SetupItemInteraction(GameObject itemObj, ConnectItemUI itemUI)
+        {
+            Button button = itemObj.GetComponent<Button>();
+            if (button == null)
+                button = itemObj.AddComponent<Button>();
+            button.onClick.RemoveAllListeners();
+
+            var dragHandler = itemObj.GetComponent<ConnectItemDragHandler>();
+            if (dragHandler == null)
+                dragHandler = itemObj.AddComponent<ConnectItemDragHandler>();
+            dragHandler.Setup(this, itemUI);
+        }
+
         private void OnLeftItemClicked(ConnectItemUI itemUI)
         {
-            // Deselect previous selection
             if (selectedLeftItem != null)
-            {
                 UpdateItemVisual(selectedLeftItem, false);
-            }
-
             selectedLeftItem = itemUI;
             UpdateItemVisual(selectedLeftItem, true);
         }
@@ -146,62 +190,212 @@ namespace QuizSystem
         private void OnRightItemClicked(ConnectItemUI itemUI)
         {
             if (selectedLeftItem == null) return;
-
-            // Remove old connection if exists
             if (currentConnections.ContainsKey(selectedLeftItem.itemIndex))
-            {
                 RemoveConnection(selectedLeftItem.itemIndex);
-            }
-
-            // Create new connection
             currentConnections[selectedLeftItem.itemIndex] = itemUI.itemIndex;
             CreateConnectionLine(selectedLeftItem, itemUI);
-
-            // Deselect
             UpdateItemVisual(selectedLeftItem, false);
             selectedLeftItem = null;
-
             UpdateVisualFeedback();
+        }
+
+        public void StartDrag(ConnectItemUI item, Vector2 screenPos)
+        {
+            _dragStartItem = item;
+            _pointerDownPos = screenPos;
+            _isDragging = false;
+            RectTransform container = lineContainer != null ? lineContainer : GetComponent<RectTransform>();
+            if (container == null && canvas != null)
+                container = canvas.GetComponent<RectTransform>();
+            _dragContainer = container;
+        }
+
+        public void UpdateDrag(Vector2 screenPos)
+        {
+            if (_dragStartItem == null || _dragContainer == null) return;
+            if (!_isDragging)
+            {
+                _isDragging = true;
+                CreatePreviewLine();
+            }
+            UpdatePreviewLine(screenPos);
+        }
+
+        public void EndDrag(Vector2 screenPos)
+        {
+            if (_dragStartItem == null)
+                return;
+
+            if (_isDragging && _previewLine != null)
+            {
+                ConnectItemUI target = GetItemAt(screenPos);
+                if (target != null && target != _dragStartItem &&
+                    ((_dragStartItem.isLeftColumn && !target.isLeftColumn) || (!_dragStartItem.isLeftColumn && target.isLeftColumn)))
+                {
+                    int leftIdx = _dragStartItem.isLeftColumn ? _dragStartItem.itemIndex : target.itemIndex;
+                    int rightIdx = _dragStartItem.isLeftColumn ? target.itemIndex : _dragStartItem.itemIndex;
+                    if (currentConnections.ContainsKey(leftIdx))
+                        RemoveConnection(leftIdx);
+                    currentConnections[leftIdx] = rightIdx;
+                    CreateConnectionLine(
+                        leftItemUIs.Find(x => x.itemIndex == leftIdx),
+                        rightItemUIs.Find(x => x.itemIndex == rightIdx));
+                    UpdateVisualFeedback();
+                }
+                Destroy(_previewLine);
+                _previewLine = null;
+            }
+            else if (!_isDragging)
+            {
+                ConnectItemUI target = GetItemAt(screenPos);
+                if (target != null)
+                {
+                    if (target.isLeftColumn)
+                        OnLeftItemClicked(target);
+                    else if (selectedLeftItem != null)
+                        OnRightItemClicked(target);
+                }
+            }
+
+            _dragStartItem = null;
+            _isDragging = false;
+        }
+
+        private void CreatePreviewLine()
+        {
+            if (_dragContainer == null || _dragStartItem == null) return;
+            Vector2 startLocal = GetItemCenterInContainerLocal(_dragContainer, _dragStartItem.itemObject);
+            _previewLine = CreateLineWithImage(_dragContainer, startLocal, startLocal);
+            var img = _previewLine.GetComponent<Image>();
+            if (img != null)
+                img.color = new Color(1f, 1f, 1f, 0.6f);
+        }
+
+        private void UpdatePreviewLine(Vector2 screenPos)
+        {
+            if (_previewLine == null || _dragContainer == null || _dragStartItem == null) return;
+            Vector2 startLocal = GetItemCenterInContainerLocal(_dragContainer, _dragStartItem.itemObject);
+            Vector2 endLocal = ScreenToContainerLocal(_dragContainer, screenPos);
+            UpdateLineRect(_previewLine.GetComponent<RectTransform>(), startLocal, endLocal);
+        }
+
+        private static void UpdateLineRect(RectTransform rect, Vector2 localStart, Vector2 localEnd)
+        {
+            if (rect == null) return;
+            Vector2 mid = (localStart + localEnd) * 0.5f;
+            Vector2 dir = localEnd - localStart;
+            float length = dir.magnitude;
+            if (length < 1f) length = 1f;
+            float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
+            rect.anchoredPosition = mid;
+            rect.sizeDelta = new Vector2(length, LineThickness);
+            rect.localRotation = Quaternion.Euler(0, 0, angle);
+        }
+
+        private Vector2 ScreenToContainerLocal(RectTransform container, Vector2 screenPos)
+        {
+            Canvas c = container.GetComponentInParent<Canvas>();
+            if (c == null) return Vector2.zero;
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(container, screenPos, c.renderMode == RenderMode.ScreenSpaceOverlay ? null : c.worldCamera, out Vector2 local);
+            return local;
+        }
+
+        private ConnectItemUI GetItemAt(Vector2 screenPos)
+        {
+            var eventData = new PointerEventData(EventSystem.current) { position = screenPos };
+            var results = new System.Collections.Generic.List<RaycastResult>();
+            EventSystem.current.RaycastAll(eventData, results);
+            foreach (var r in results)
+            {
+                var go = r.gameObject;
+                foreach (var item in leftItemUIs)
+                    if (item.itemObject == go) return item;
+                foreach (var item in rightItemUIs)
+                    if (item.itemObject == go) return item;
+            }
+            return null;
         }
 
         private void CreateConnectionLine(ConnectItemUI leftItem, ConnectItemUI rightItem)
         {
-            if (lineRendererPrefab == null || canvas == null) return;
+            // Prefer ConnectUI's RectTransform so the line is in the same coordinate space as the items
+            RectTransform container = lineContainer != null ? lineContainer : GetComponent<RectTransform>();
+            if (container == null && canvas != null)
+                container = canvas.GetComponent<RectTransform>();
+            if (container == null) return;
 
-            LineRenderer line = Instantiate(lineRendererPrefab, canvas.transform);
-            line.positionCount = 2;
+            Vector2 localStart = GetItemCenterInContainerLocal(container, leftItem.itemObject);
+            Vector2 localEnd = GetItemCenterInContainerLocal(container, rightItem.itemObject);
 
-            Vector3 leftPos = leftItem.itemObject.transform.position;
-            Vector3 rightPos = rightItem.itemObject.transform.position;
+            // Always use Image-based line so it reliably renders (no material/vertex issues)
+            GameObject lineGo = CreateLineWithImage(container, localStart, localEnd);
 
-            // Convert to world space if needed
-            if (canvas.renderMode == RenderMode.ScreenSpaceOverlay)
-            {
-                line.SetPosition(0, leftPos);
-                line.SetPosition(1, rightPos);
-            }
-            else
-            {
-                line.SetPosition(0, leftItem.itemObject.transform.position);
-                line.SetPosition(1, rightItem.itemObject.transform.position);
-            }
+            connectionLineObjects.Add(lineGo);
+            connectionLeftIndices.Add(leftItem.itemIndex);
+        }
 
-            connectionLines.Add(line);
+        /// <summary>
+        /// Renders the connection line as a stretched, rotated UI Image (white sprite) between the two points.
+        /// This always renders because it uses Unity's standard Image component, not a custom mesh.
+        /// </summary>
+        private static GameObject CreateLineWithImage(RectTransform container, Vector2 localStart, Vector2 localEnd)
+        {
+            Vector2 mid = (localStart + localEnd) * 0.5f;
+            Vector2 dir = localEnd - localStart;
+            float length = dir.magnitude;
+            if (length < 1f) length = 1f;
+            float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
+
+            var go = new GameObject("ConnectionLine");
+            go.transform.SetParent(container, false);
+            go.SetActive(true);
+
+            RectTransform rect = go.AddComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 0.5f);
+            rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = mid;
+            rect.sizeDelta = new Vector2(length, LineThickness);
+            rect.localRotation = Quaternion.Euler(0, 0, angle);
+            rect.SetAsLastSibling();
+
+            Image img = go.AddComponent<Image>();
+            img.sprite = GetWhiteSprite();
+            img.color = Color.white;
+            img.raycastTarget = false;
+
+            return go;
+        }
+
+        private static Vector2 GetItemCenterInContainerLocal(RectTransform container, GameObject item)
+        {
+            if (container == null || item == null) return Vector2.zero;
+            RectTransform itemRect = item.GetComponent<RectTransform>();
+            Vector3 worldPos = itemRect != null
+                ? itemRect.TransformPoint(itemRect.rect.center)
+                : item.transform.position;
+            return WorldToContainerLocal(container, worldPos);
+        }
+
+        private static Vector2 WorldToContainerLocal(RectTransform container, Vector3 worldOrScreenPos)
+        {
+            Canvas c = container.GetComponentInParent<Canvas>();
+            if (c == null) return Vector2.zero;
+            Vector2 screenPoint = c.renderMode == RenderMode.ScreenSpaceOverlay
+                ? worldOrScreenPos
+                : (Vector2)(c.worldCamera != null ? c.worldCamera.WorldToScreenPoint(worldOrScreenPos) : worldOrScreenPos);
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(container, screenPoint, c.renderMode == RenderMode.ScreenSpaceOverlay ? null : c.worldCamera, out Vector2 local);
+            return local;
         }
 
         private void RemoveConnection(int leftIndex)
         {
-            // Find and remove the line for this connection
-            for (int i = connectionLines.Count - 1; i >= 0; i--)
-            {
-                // This is a simplified check - you might want to store line-to-connection mapping
-                if (currentConnections.ContainsKey(leftIndex))
-                {
-                    Destroy(connectionLines[i].gameObject);
-                    connectionLines.RemoveAt(i);
-                    break;
-                }
-            }
+            int idx = connectionLeftIndices.IndexOf(leftIndex);
+            if (idx < 0) return;
+            if (idx < connectionLineObjects.Count && connectionLineObjects[idx] != null)
+                Destroy(connectionLineObjects[idx]);
+            connectionLineObjects.RemoveAt(idx);
+            connectionLeftIndices.RemoveAt(idx);
         }
 
         private void UpdateItemVisual(ConnectItemUI itemUI, bool selected)
@@ -213,21 +407,24 @@ namespace QuizSystem
             }
         }
 
+        private void SetLineColor(GameObject lineGo, Color c)
+        {
+            if (lineGo == null) return;
+            var ul = lineGo.GetComponent<UILineRenderer>();
+            if (ul != null) { ul.SetColors(c, c); return; }
+            var img = lineGo.GetComponent<Image>();
+            if (img != null) img.color = c;
+        }
+
         private void UpdateVisualFeedback()
         {
-            // Update line colors based on correctness
-            int lineIndex = 0;
-            foreach (var connection in currentConnections)
+            for (int i = 0; i < connectionLineObjects.Count; i++)
             {
-                if (lineIndex < connectionLines.Count)
-                {
-                    bool isCorrect = connectData.correctConnections.ContainsKey(connection.Key) &&
-                                    connectData.correctConnections[connection.Key] == connection.Value;
-
-                    connectionLines[lineIndex].startColor = isCorrect ? Color.green : Color.red;
-                    connectionLines[lineIndex].endColor = isCorrect ? Color.green : Color.red;
-                }
-                lineIndex++;
+                if (connectionLineObjects[i] == null) continue;
+                int leftIdx = connectionLeftIndices[i];
+                bool isCorrect = connectData.correctConnections.TryGetValue(leftIdx, out int rightIdx) &&
+                                 currentConnections.TryGetValue(leftIdx, out int userRight) && userRight == rightIdx;
+                SetLineColor(connectionLineObjects[i], isCorrect ? Color.green : Color.red);
             }
         }
 
@@ -243,15 +440,8 @@ namespace QuizSystem
         protected override void OnWrongAnswer()
         {
             base.OnWrongAnswer();
-            // Reset line colors
-            foreach (var line in connectionLines)
-            {
-                if (line != null)
-                {
-                    line.startColor = Color.white;
-                    line.endColor = Color.white;
-                }
-            }
+            foreach (var go in connectionLineObjects)
+                SetLineColor(go, Color.white);
 
             if (submitButton != null)
                 submitButton.interactable = true;
@@ -260,26 +450,22 @@ namespace QuizSystem
         protected override void OnAutoCorrect()
         {
             base.OnAutoCorrect();
-            // Show correct connections
             currentConnections.Clear();
-            foreach (var line in connectionLines)
+            foreach (var go in connectionLineObjects)
             {
-                if (line != null)
-                    Destroy(line.gameObject);
+                if (go != null)
+                    Destroy(go);
             }
-            connectionLines.Clear();
+            connectionLineObjects.Clear();
+            connectionLeftIndices.Clear();
 
             foreach (var correctConnection in connectData.correctConnections)
             {
                 currentConnections[correctConnection.Key] = correctConnection.Value;
-
                 ConnectItemUI leftItem = leftItemUIs.Find(x => x.itemIndex == correctConnection.Key);
                 ConnectItemUI rightItem = rightItemUIs.Find(x => x.itemIndex == correctConnection.Value);
-
                 if (leftItem != null && rightItem != null)
-                {
                     CreateConnectionLine(leftItem, rightItem);
-                }
             }
             UpdateVisualFeedback();
         }
@@ -295,6 +481,36 @@ namespace QuizSystem
                 }
             }
             return sb.ToString();
+        }
+    }
+
+    public class ConnectItemDragHandler : MonoBehaviour, IPointerDownHandler, IDragHandler, IPointerUpHandler
+    {
+        private ConnectUI _connectUI;
+        private ConnectUI.ConnectItemUI _itemUI;
+
+        public void Setup(ConnectUI connectUI, ConnectUI.ConnectItemUI itemUI)
+        {
+            _connectUI = connectUI;
+            _itemUI = itemUI;
+        }
+
+        public void OnPointerDown(PointerEventData eventData)
+        {
+            if (_connectUI != null)
+                _connectUI.StartDrag(_itemUI, eventData.position);
+        }
+
+        public void OnDrag(PointerEventData eventData)
+        {
+            if (_connectUI != null)
+                _connectUI.UpdateDrag(eventData.position);
+        }
+
+        public void OnPointerUp(PointerEventData eventData)
+        {
+            if (_connectUI != null)
+                _connectUI.EndDrag(eventData.position);
         }
     }
 }

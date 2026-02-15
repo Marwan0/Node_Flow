@@ -158,22 +158,7 @@ namespace QuizSystem
                 Debug.LogError("No questions assigned to quiz!");
                 return;
             }
-
-            shuffledQuestions = new List<QuestionData>(questions);
-            if (shuffleQuestions)
-            {
-                // Shuffle
-                for (int i = 0; i < shuffledQuestions.Count; i++)
-                {
-                    QuestionData temp = shuffledQuestions[i];
-                    int randomIndex = Random.Range(i, shuffledQuestions.Count);
-                    shuffledQuestions[i] = shuffledQuestions[randomIndex];
-                    shuffledQuestions[randomIndex] = temp;
-                }
-            }
-
-            currentScore = 0;
-            currentQuestionIndex = 0;
+            EnsureQuizStarted();
             LoadQuestion(0);
         }
 
@@ -189,10 +174,51 @@ namespace QuizSystem
             _runtimeUIPrefabOverrides[questionIndex] = uiPrefab;
         }
 
+        /// <summary>
+        /// Ensures shuffledQuestions and current state are initialized (e.g. when using node graph without StartQuiz).
+        /// Does not load or show a question; use LoadQuestion(0) or StartQuiz() for that.
+        /// </summary>
+        public void EnsureQuizStarted()
+        {
+            if (shuffledQuestions != null) return;
+            if (questions == null || questions.Count == 0) return;
+            shuffledQuestions = new List<QuestionData>(questions);
+            if (shuffleQuestions)
+            {
+                for (int i = 0; i < shuffledQuestions.Count; i++)
+                {
+                    QuestionData temp = shuffledQuestions[i];
+                    int randomIndex = Random.Range(i, shuffledQuestions.Count);
+                    shuffledQuestions[i] = shuffledQuestions[randomIndex];
+                    shuffledQuestions[randomIndex] = temp;
+                }
+            }
+            currentScore = 0;
+            currentQuestionIndex = 0;
+        }
+
+        /// <summary>
+        /// Show the question at the given index immediately. Used by LoadQuestionNode so the correct
+        /// question is shown when the node runs (avoids wrong order when multiple nodes run in parallel).
+        /// </summary>
+        public void ShowQuestionByIndex(int index)
+        {
+            EnsureQuizStarted();
+            if (shuffledQuestions == null || index < 0 || index >= shuffledQuestions.Count) return;
+            currentQuestionIndex = index;
+            LoadQuestion(index);
+        }
+
         [Button("Next Question")]
         [BoxGroup("Quiz Controls")]
         public void NextQuestion()
         {
+            EnsureQuizStarted();
+            if (shuffledQuestions == null || shuffledQuestions.Count == 0)
+            {
+                Debug.LogWarning("NextQuestion: no questions loaded.");
+                return;
+            }
             if (currentQuestionIndex < shuffledQuestions.Count - 1)
             {
                 currentQuestionIndex++;
@@ -208,6 +234,8 @@ namespace QuizSystem
         [BoxGroup("Quiz Controls")]
         public void PreviousQuestion()
         {
+            EnsureQuizStarted();
+            if (shuffledQuestions == null || shuffledQuestions.Count == 0) return;
             if (currentQuestionIndex > 0)
             {
                 currentQuestionIndex--;
@@ -217,7 +245,8 @@ namespace QuizSystem
 
         private void LoadQuestion(int index)
         {
-            if (index < 0 || index >= shuffledQuestions.Count)
+            EnsureQuizStarted();
+            if (shuffledQuestions == null || index < 0 || index >= shuffledQuestions.Count)
             {
                 Debug.LogError($"Invalid question index: {index}");
                 return;

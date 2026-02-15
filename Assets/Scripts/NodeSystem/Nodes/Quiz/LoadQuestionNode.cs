@@ -189,80 +189,42 @@ namespace NodeSystem.Nodes.Quiz
                 _quizManager.SetUIPrefabOverrideForLoad(questionIndex, layoutOverridePrefab);
 
             // Set animations IMMEDIATELY before loading question (synchronously)
-            // This ensures animations are available when QuestionUI.Initialize() -> SetupQuestion() -> AnimateButtonEntrance() is called
             if (QuizState.Instance != null)
             {
                 QuizState.Instance.SetAnswerAnimations(_answerAnimations);
             }
 
+            // Show THIS question immediately when this node runs (avoids wrong order when
+            // multiple LoadQuestion nodes are connected to the same output, e.g. from StartQuiz).
+            _quizManager.ShowQuestionByIndex(questionIndex);
+
             if (waitForAnswer)
             {
-                // Subscribe to answer events
                 QuizState.OnLastAnswerResult += OnAnswerReceived;
                 QuizState.OnWrongAttempt += OnWrongAttemptReceived;
                 Runner?.StartCoroutine(LoadAndWaitForAnswer(questionIndex));
             }
             else
             {
-                // Just load the question and continue
                 Runner?.StartCoroutine(LoadQuestionOnly(questionIndex));
             }
         }
 
         private IEnumerator LoadQuestionOnly(int questionIndex)
         {
-            // Animations are already set synchronously in OnExecute() before this coroutine starts
-            
-            // Navigate to the question
-            if (_quizManager.currentQuestionIndex == 0 && questionIndex == 0)
-            {
-                _quizManager.StartQuiz();
-            }
-            else
-            {
-                while (_quizManager.currentQuestionIndex < questionIndex)
-                {
-                    _quizManager.NextQuestion();
-                    yield return new WaitForSeconds(0.1f);
-                }
-            }
-
-            yield return new WaitForSeconds(0.1f);
-            
-            // Safety check: Re-set animations in case they were cleared during navigation
+            // Question was already shown in OnExecute via ShowQuestionByIndex
+            yield return null;
             if (QuizState.Instance != null && _answerAnimations != null)
-            {
                 QuizState.Instance.SetAnswerAnimations(_answerAnimations);
-            }
-            
             Complete();
         }
 
         private IEnumerator LoadAndWaitForAnswer(int questionIndex)
         {
-            // Animations are already set synchronously in OnExecute() before this coroutine starts
-            
-            // Navigate to the question
-            if (_quizManager.currentQuestionIndex == 0 && questionIndex == 0)
-            {
-                _quizManager.StartQuiz();
-            }
-            else
-            {
-                while (_quizManager.currentQuestionIndex < questionIndex)
-                {
-                    _quizManager.NextQuestion();
-                    yield return new WaitForSeconds(0.1f);
-                }
-            }
-
-            yield return new WaitForSeconds(0.1f);
-            
-            // Safety check: Re-set animations in case they were cleared during navigation
+            // Question was already shown in OnExecute via ShowQuestionByIndex
+            yield return null;
             if (QuizState.Instance != null && _answerAnimations != null)
-            {
                 QuizState.Instance.SetAnswerAnimations(_answerAnimations);
-            }
 
             // Wait for answer
             while (!_questionAnswered && Runner != null && Runner.IsRunning)
