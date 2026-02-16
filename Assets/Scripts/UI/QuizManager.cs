@@ -198,6 +198,16 @@ namespace QuizSystem
         }
 
         /// <summary>
+        /// Force (re)build and shuffle the question order. Call from ShuffleQuestionsNode so node-based flow can randomize order.
+        /// </summary>
+        public void ShuffleQuestionsNow()
+        {
+            shuffledQuestions = null;
+            shuffleQuestions = true;
+            EnsureQuizStarted();
+        }
+
+        /// <summary>
         /// Show the question at the given index immediately. Used by LoadQuestionNode so the correct
         /// question is shown when the node runs (avoids wrong order when multiple nodes run in parallel).
         /// </summary>

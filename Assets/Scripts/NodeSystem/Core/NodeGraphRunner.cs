@@ -417,6 +417,33 @@ namespace NodeSystem
                 // Reset state for next execution
                 completedNode.State = NodeState.Completed;
             }
+            else if (completedNode is Nodes.CompareVariableNode)
+            {
+                outputPort = completedNode.State == NodeState.Completed ? "true" : "false";
+                completedNode.State = NodeState.Completed;
+            }
+            else if (completedNode is Nodes.CooldownNode)
+            {
+                // Completed = forwarded (Next), Failed = throttled
+                outputPort = completedNode.State == NodeState.Completed ? "output" : "throttled";
+                completedNode.State = NodeState.Completed;
+            }
+            else if (completedNode is Nodes.RetryNode)
+            {
+                // Failed = exhausted (max retries), Completed = jumped (no output port)
+                outputPort = completedNode.State == NodeState.Failed ? "exhausted" : "output";
+                completedNode.State = NodeState.Completed;
+            }
+            else if (completedNode is Nodes.Quiz.StreakNode)
+            {
+                outputPort = completedNode.State == NodeState.Completed ? "above" : "below";
+                completedNode.State = NodeState.Completed;
+            }
+            else if (completedNode is Nodes.GateNode)
+            {
+                outputPort = completedNode.State == NodeState.Completed ? "through" : "blocked";
+                completedNode.State = NodeState.Completed;
+            }
             else if (completedNode is Nodes.LoopNode)
             {
                 // LoopNode uses "done" port when loop completes

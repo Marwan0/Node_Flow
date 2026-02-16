@@ -40,6 +40,7 @@ namespace NodeSystem.Editor
             Register<Nodes.DelayNode, DelayNodeInlineContent>();
             Register<Nodes.LoopNode, LoopNodeInlineContent>();
             Register<Nodes.RandomBranchNode, RandomBranchNodeInlineContent>();
+            Register<Nodes.RetryNode, RetryNodeInlineContent>();
             Register<Nodes.SubGraphNode, SubGraphNodeInlineContent>();
             
             // Animation/Tween nodes
