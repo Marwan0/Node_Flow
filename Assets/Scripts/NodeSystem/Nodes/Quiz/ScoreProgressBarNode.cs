@@ -181,17 +181,28 @@ namespace NodeSystem.Nodes.Quiz
 
         private GameObject ResolveTarget()
         {
+            // First, try the direct reference
             if (targetRef != null)
             {
-                if (targetRef is GameObject go)
+                if (targetRef is GameObject go && go != null)
                     return go;
-                if (targetRef is Component c)
+                if (targetRef is Component c && c != null)
                     return c.gameObject;
             }
+            
+            // Reference is null or invalid - try to restore from path
             if (!string.IsNullOrEmpty(targetPath))
             {
+                // Try GameObject.Find first (works if object is active)
                 var found = GameObject.Find(targetPath);
-                if (found != null) return found;
+                if (found != null)
+                {
+                    // Restore the reference for next time
+                    targetRef = found;
+                    return found;
+                }
+                
+                // Try hierarchical search (works even if object is inactive)
                 var parts = targetPath.Split('/');
                 if (parts.Length > 0)
                 {
@@ -199,9 +210,17 @@ namespace NodeSystem.Nodes.Quiz
                     foreach (var rootGo in rootObjects)
                     {
                         if (rootGo.name != parts[0]) continue;
-                        if (parts.Length == 1) return rootGo;
+                        if (parts.Length == 1)
+                        {
+                            targetRef = rootGo; // Restore reference
+                            return rootGo;
+                        }
                         var t = rootGo.transform.Find(string.Join("/", parts, 1, parts.Length - 1));
-                        if (t != null) return t.gameObject;
+                        if (t != null)
+                        {
+                            targetRef = t.gameObject; // Restore reference
+                            return t.gameObject;
+                        }
                     }
                 }
             }

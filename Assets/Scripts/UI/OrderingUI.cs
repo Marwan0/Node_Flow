@@ -11,7 +11,7 @@ namespace QuizSystem
         [Header("Ordering UI")]
         [SerializeField] private Transform itemsContainer;
         [SerializeField] private GameObject itemPrefab;
-        [SerializeField] private Button submitButton;
+        // submitButton is inherited from QuestionUI base class
         [SerializeField] private Button resetButton;
 
         private List<OrderingItem> orderingItems = new List<OrderingItem>();

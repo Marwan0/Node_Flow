@@ -10,7 +10,7 @@ namespace QuizSystem
         [Header("Multi-Select UI")]
         [SerializeField] private Transform optionsContainer;
         [SerializeField] private GameObject optionPrefab;
-        [SerializeField] private Button submitButton;
+        // submitButton is inherited from QuestionUI base class
 
         private List<Toggle> optionToggles = new List<Toggle>();
         private MultiSelectQuestionData multiSelectData;

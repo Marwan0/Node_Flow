@@ -11,7 +11,7 @@ namespace QuizSystem
         [SerializeField] private TextMeshProUGUI valueDisplay;
         [SerializeField] private TextMeshProUGUI minLabel;
         [SerializeField] private TextMeshProUGUI maxLabel;
-        [SerializeField] private Button submitButton;
+        // submitButton is inherited from QuestionUI base class
 
         private SliderQuestionData sliderData;
         private float currentValue;

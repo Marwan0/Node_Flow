@@ -40,8 +40,9 @@ namespace NodeSystem.Editor
             // === STEP 1: Object Field to select the QuestionData ===
             CreateLabel("Question Asset:");
             
-            QuestionData currentQuestion = null;
-            if (!string.IsNullOrEmpty(node.questionAssetPath))
+            // Prefer direct reference, fallback to loading from path
+            QuestionData currentQuestion = node.questionRef;
+            if (currentQuestion == null && !string.IsNullOrEmpty(node.questionAssetPath))
             {
                 currentQuestion = AssetDatabase.LoadAssetAtPath<QuestionData>(node.questionAssetPath);
             }
@@ -49,7 +50,19 @@ namespace NodeSystem.Editor
             // Object picker field
             CreateObjectField<QuestionData>("", currentQuestion, q =>
             {
+                // Set both direct reference and path for compatibility
+                node.questionRef = q;
                 node.questionAssetPath = q != null ? AssetDatabase.GetAssetPath(q) : "";
+                
+                // Save the graph to persist the direct reference (stored separately for WebGL)
+                var graph = GetNodeGraph();
+                if (graph != null)
+                {
+                    // Store reference separately (works in WebGL builds)
+                    graph.SetNodeAssetReference(node.Guid, q);
+                    graph.SaveToJson();
+                    EditorUtility.SetDirty(graph);
+                }
                 
                 // Clear cache when selection changes
                 _cachedQuestion = null;
@@ -106,8 +119,19 @@ namespace NodeSystem.Editor
                 if (v != null)
                 {
                     var t = v is GameObject go ? go.transform : (v as Component)?.transform;
-                    if (t != null) node.questionContainerPath = GetHierarchyPath(t);
+                    if (t != null)
+                    {
+                        node.questionContainerPath = GetHierarchyPath(t);
+                        // Save the graph to persist the path
+                        var graph = GetNodeGraph();
+                        if (graph != null)
+                        {
+                            graph.SaveToJson();
+                            EditorUtility.SetDirty(graph);
+                        }
+                    }
                 }
+                // Don't clear questionContainerPath when v is null - keep it for restoration
                 MarkDirty();
             });
 

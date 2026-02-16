@@ -28,8 +28,9 @@ MonoBehaviour:
   - It starts with the letter P
   - It's in the north of France
   maxAttempts: 3
-  points: 10
+  points: 50
   explanation: Paris is the capital and largest city of France.
+  customUIPrefab: {fileID: 0}
   answers:
   - London
   - Berlin

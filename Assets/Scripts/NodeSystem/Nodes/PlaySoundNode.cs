@@ -19,8 +19,13 @@ namespace NodeSystem.Nodes
     [Serializable]
     public class PlaySoundNode : NodeData
     {
-        // Audio clip - stored as asset path for serialization
+        [Header("Audio Clip")]
         [SerializeField]
+        [Tooltip("Direct reference to the AudioClip asset. Drag from Project window. This works in WebGL builds without needing Resources folder.")]
+        public AudioClip audioClipRef;
+
+        [SerializeField]
+        [Tooltip("Asset path (auto-synced from reference, used as fallback)")]
         public string audioClipPath = "";
 
         // Playback mode
@@ -120,22 +125,65 @@ namespace NodeSystem.Nodes
             // Return cached clip if already loaded
             if (_runtimeClip != null) return _runtimeClip;
 
-            if (string.IsNullOrEmpty(audioClipPath)) return null;
-
 #if UNITY_EDITOR
-            // In editor, load directly from asset path
-            _runtimeClip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>(audioClipPath);
-#else
-            // At runtime, try Resources
-            // Extract filename from path for Resources.Load
-            string resourcePath = System.IO.Path.GetFileNameWithoutExtension(audioClipPath);
-            _runtimeClip = Resources.Load<AudioClip>(resourcePath);
-            
-            if (_runtimeClip == null)
+            // In editor, prefer direct reference, fallback to path
+            _runtimeClip = audioClipRef;
+            if (_runtimeClip == null && !string.IsNullOrEmpty(audioClipPath))
             {
-                // Try the full path without extension
-                resourcePath = audioClipPath.Replace("Assets/Resources/", "").Replace(".wav", "").Replace(".mp3", "").Replace(".ogg", "");
+                _runtimeClip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>(audioClipPath);
+            }
+#else
+            // At runtime, try multiple sources in order:
+            // 1. Direct reference (might be null in WebGL)
+            _runtimeClip = audioClipRef;
+            
+            // 2. Try NodeGraph's separate storage (works in WebGL)
+            if (_runtimeClip == null && Runner != null && Runner.Graph != null)
+            {
+                var storedRef = Runner.Graph.GetNodeAssetReference(Guid);
+                if (storedRef is AudioClip storedClip)
+                {
+                    _runtimeClip = storedClip;
+                    audioClipRef = storedClip; // Cache it for next time
+                    Debug.Log($"[PlaySoundNode] Restored audio clip from NodeGraph storage: {storedClip.name}");
+                }
+            }
+            
+            // 3. If still null, try Resources as fallback
+            if (_runtimeClip == null && !string.IsNullOrEmpty(audioClipPath))
+            {
+                // Convert path to Resources path
+                string resourcePath = audioClipPath
+                    .Replace("Assets/", "")
+                    .Replace("Resources/", "")
+                    .Replace(".wav", "")
+                    .Replace(".mp3", "")
+                    .Replace(".ogg", "");
+                
                 _runtimeClip = Resources.Load<AudioClip>(resourcePath);
+                
+                // Try filename only
+                if (_runtimeClip == null)
+                {
+                    string fileName = System.IO.Path.GetFileNameWithoutExtension(audioClipPath);
+                    _runtimeClip = Resources.Load<AudioClip>(fileName);
+                }
+                
+                // Try common Resources subfolders
+                if (_runtimeClip == null)
+                {
+                    string fileName = System.IO.Path.GetFileNameWithoutExtension(audioClipPath);
+                    _runtimeClip = Resources.Load<AudioClip>($"Audio/{fileName}");
+                    if (_runtimeClip == null)
+                    {
+                        _runtimeClip = Resources.Load<AudioClip>($"Sounds/{fileName}");
+                    }
+                }
+                
+                if (_runtimeClip != null)
+                {
+                    Debug.Log($"[PlaySoundNode] Loaded audio clip from Resources: {_runtimeClip.name}");
+                }
             }
 #endif
             return _runtimeClip;

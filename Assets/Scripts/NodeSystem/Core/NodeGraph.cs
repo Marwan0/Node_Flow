@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using QuizSystem;
 
 namespace NodeSystem
 {
@@ -40,6 +41,16 @@ namespace NodeSystem
     }
 
     /// <summary>
+    /// Stores asset references separately from JSON (for WebGL compatibility)
+    /// </summary>
+    [Serializable]
+    public class NodeAssetReference
+    {
+        public string nodeGuid;
+        public UnityEngine.Object assetReference;
+    }
+
+    /// <summary>
     /// ScriptableObject that stores a node graph.
     /// Uses a single JSON string for all data - most reliable serialization approach.
     /// </summary>
@@ -60,12 +71,23 @@ namespace NodeSystem
         [SerializeField]
         private List<NodeUnityEvent> _nodeEvents = new List<NodeUnityEvent>();
 
+        // Separate storage for asset references (cannot be JSON serialized - for WebGL)
+        [SerializeField, HideInInspector]
+        private List<NodeAssetReference> _nodeAssetReferences = new List<NodeAssetReference>();
+
         // Runtime cache
         [NonSerialized] private List<NodeData> _runtimeNodes;
         [NonSerialized] private List<ConnectionData> _runtimeConnections;
         [NonSerialized] private List<GraphVariable> _runtimeVariables;
         [NonSerialized] private bool _loaded = false;
         [NonSerialized] private bool _loadFailed = false;
+
+        // Performance optimization: Dictionary caches for O(1) lookups
+        [NonSerialized] private Dictionary<string, NodeData> _nodeLookup;
+        [NonSerialized] private Dictionary<string, List<ConnectionData>> _connectionIndex;
+        [NonSerialized] private Dictionary<string, GraphVariable> _variableLookup;
+        [NonSerialized] private Dictionary<string, NodeUnityEvent> _eventLookup;
+        [NonSerialized] private bool _indicesBuilt = false;
 
         public IReadOnlyList<NodeData> Nodes
         {
@@ -124,6 +146,14 @@ namespace NodeSystem
             _runtimeNodes = new List<NodeData>();
             _runtimeConnections = new List<ConnectionData>();
             _runtimeVariables = new List<GraphVariable>();
+            
+            // Initialize asset references list if null (don't clear it - preserve existing references)
+            if (_nodeAssetReferences == null)
+            {
+                _nodeAssetReferences = new List<NodeAssetReference>();
+            }
+            
+            InvalidateIndices(); // Clear indices when reloading
             _loaded = true;
 
             if (string.IsNullOrEmpty(_jsonData))
@@ -190,12 +220,270 @@ namespace NodeSystem
                     _runtimeVariables.AddRange(data.variables);
                 }
 
+                // Validate and restore references after loading
+#if UNITY_EDITOR
+                ValidateAndRestoreReferences();
+#endif
+
+                // Restore asset references from separate storage (works in WebGL)
+                RestoreAssetReferences();
+
+                // Build performance indices after loading
+                BuildIndices();
+
             }
             catch (Exception e)
             {
                 Debug.LogError($"[NodeGraph] Failed to load: {e.Message}");
                 _loadFailed = true;
             }
+        }
+
+        /// <summary>
+        /// Build dictionary indices for O(1) lookups. Called after loading nodes.
+        /// </summary>
+        private void BuildIndices()
+        {
+            if (_indicesBuilt) return;
+
+            // Build node lookup dictionary
+            _nodeLookup = new Dictionary<string, NodeData>();
+            foreach (var node in _runtimeNodes)
+            {
+                if (node != null && !string.IsNullOrEmpty(node.Guid))
+                {
+                    _nodeLookup[node.Guid] = node;
+                }
+            }
+
+            // Build connection index by output node+port
+            _connectionIndex = new Dictionary<string, List<ConnectionData>>();
+            foreach (var conn in _runtimeConnections)
+            {
+                string key = $"{conn.outputNodeGuid}:{conn.outputPortId}";
+                if (!_connectionIndex.ContainsKey(key))
+                {
+                    _connectionIndex[key] = new List<ConnectionData>();
+                }
+                _connectionIndex[key].Add(conn);
+            }
+
+            // Build variable lookup dictionary
+            _variableLookup = new Dictionary<string, GraphVariable>();
+            foreach (var variable in _runtimeVariables)
+            {
+                if (variable != null && !string.IsNullOrEmpty(variable.Name))
+                {
+                    _variableLookup[variable.Name] = variable;
+                }
+            }
+
+            // Build event lookup dictionary
+            _eventLookup = new Dictionary<string, NodeUnityEvent>();
+            foreach (var evt in _nodeEvents)
+            {
+                if (evt != null && !string.IsNullOrEmpty(evt.nodeGuid))
+                {
+                    _eventLookup[evt.nodeGuid] = evt;
+                }
+            }
+
+            _indicesBuilt = true;
+        }
+
+        /// <summary>
+        /// Invalidate indices (call when nodes/connections/variables change)
+        /// </summary>
+        private void InvalidateIndices()
+        {
+            _indicesBuilt = false;
+            _nodeLookup = null;
+            _connectionIndex = null;
+            _variableLookup = null;
+            _eventLookup = null;
+        }
+
+#if UNITY_EDITOR
+        /// <summary>
+        /// Validates and restores GameObject/Component references from paths when they're lost.
+        /// Called after graph loads to fix references that were lost due to instanceID changes.
+        /// </summary>
+        private void ValidateAndRestoreReferences()
+        {
+            if (_runtimeNodes == null) return;
+
+            bool anyRestored = false;
+            foreach (var node in _runtimeNodes)
+            {
+                if (node == null) continue;
+
+                // Check LoadQuestionNode
+                if (node is Nodes.Quiz.LoadQuestionNode loadNode)
+                {
+                    if (loadNode.questionContainerRef == null && !string.IsNullOrEmpty(loadNode.questionContainerPath))
+                    {
+                        var restored = RestoreGameObjectFromPath(loadNode.questionContainerPath);
+                        if (restored != null)
+                        {
+                            loadNode.questionContainerRef = restored;
+                            anyRestored = true;
+                        }
+                    }
+                }
+
+                // Check ScoreProgressBarNode
+                if (node is Nodes.Quiz.ScoreProgressBarNode progressNode)
+                {
+                    if (progressNode.targetRef == null && !string.IsNullOrEmpty(progressNode.targetPath))
+                    {
+                        var restored = RestoreGameObjectFromPath(progressNode.targetPath);
+                        if (restored != null)
+                        {
+                            progressNode.targetRef = restored;
+                            anyRestored = true;
+                        }
+                    }
+                }
+            }
+
+            if (anyRestored)
+            {
+                // Save the graph with restored references
+                SaveToJson();
+                UnityEditor.EditorUtility.SetDirty(this);
+            }
+        }
+
+        private UnityEngine.Object RestoreGameObjectFromPath(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return null;
+
+            // Try GameObject.Find first (works if object is active)
+            var found = GameObject.Find(path);
+            if (found != null) return found;
+
+            // Try hierarchical search (works even if object is inactive)
+            var parts = path.Split('/');
+            if (parts.Length > 0)
+            {
+                var rootObjects = UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects();
+                foreach (var rootGo in rootObjects)
+                {
+                    if (rootGo.name != parts[0]) continue;
+                    if (parts.Length == 1) return rootGo;
+                    var t = rootGo.transform.Find(string.Join("/", parts, 1, parts.Length - 1));
+                    if (t != null) return t.gameObject;
+                }
+            }
+
+            return null;
+        }
+#endif
+
+        /// <summary>
+        /// Restore asset references from separate storage (called after loading nodes)
+        /// This ensures Unity Object references work in WebGL builds
+        /// </summary>
+        private void RestoreAssetReferences()
+        {
+            if (_runtimeNodes == null || _nodeAssetReferences == null) return;
+
+            int restoredCount = 0;
+            foreach (var node in _runtimeNodes)
+            {
+                if (node == null) continue;
+
+                // Find asset reference for this node
+                var assetRef = _nodeAssetReferences.Find(r => r.nodeGuid == node.Guid);
+                if (assetRef == null || assetRef.assetReference == null) continue;
+
+                // Restore LoadQuestionNode question reference
+                if (node is Nodes.Quiz.LoadQuestionNode loadNode)
+                {
+                    if (assetRef.assetReference is QuizSystem.QuestionData questionData)
+                    {
+                        loadNode.questionRef = questionData;
+                        restoredCount++;
+                        Debug.Log($"[NodeGraph] Restored QuestionData reference for node {node.Name} ({node.Guid})");
+                    }
+                    else
+                    {
+                        Debug.LogWarning($"[NodeGraph] Asset reference for {node.Name} is not QuestionData type: {assetRef.assetReference?.GetType()}");
+                    }
+                }
+
+                // Restore PlaySoundNode audio clip reference
+                if (node is Nodes.PlaySoundNode soundNode)
+                {
+                    if (assetRef.assetReference is AudioClip audioClip)
+                    {
+                        soundNode.audioClipRef = audioClip;
+                        restoredCount++;
+                        Debug.Log($"[NodeGraph] Restored AudioClip reference for node {node.Name} ({node.Guid})");
+                    }
+                    else
+                    {
+                        Debug.LogWarning($"[NodeGraph] Asset reference for {node.Name} is not AudioClip type: {assetRef.assetReference?.GetType()}");
+                    }
+                }
+            }
+
+            if (restoredCount > 0)
+            {
+                Debug.Log($"[NodeGraph] Restored {restoredCount} asset references from separate storage");
+            }
+            else if (_nodeAssetReferences.Count > 0)
+            {
+                Debug.LogWarning($"[NodeGraph] Found {_nodeAssetReferences.Count} asset references in storage, but none matched node types or were null");
+            }
+        }
+
+        /// <summary>
+        /// Save asset reference for a node (called when reference is set in editor)
+        /// </summary>
+        public void SetNodeAssetReference(string nodeGuid, UnityEngine.Object asset)
+        {
+            if (string.IsNullOrEmpty(nodeGuid))
+            {
+                Debug.LogWarning("[NodeGraph] SetNodeAssetReference called with empty nodeGuid");
+                return;
+            }
+
+            // Initialize list if null
+            if (_nodeAssetReferences == null)
+            {
+                _nodeAssetReferences = new List<NodeAssetReference>();
+            }
+
+            var existing = _nodeAssetReferences.Find(r => r.nodeGuid == nodeGuid);
+            if (existing != null)
+            {
+                existing.assetReference = asset;
+                Debug.Log($"[NodeGraph] Updated asset reference for node {nodeGuid}: {(asset != null ? asset.name : "null")}");
+            }
+            else
+            {
+                _nodeAssetReferences.Add(new NodeAssetReference
+                {
+                    nodeGuid = nodeGuid,
+                    assetReference = asset
+                });
+                Debug.Log($"[NodeGraph] Added asset reference for node {nodeGuid}: {(asset != null ? asset.name : "null")}");
+            }
+
+#if UNITY_EDITOR
+            UnityEditor.EditorUtility.SetDirty(this);
+#endif
+        }
+
+        /// <summary>
+        /// Get asset reference for a node
+        /// </summary>
+        public UnityEngine.Object GetNodeAssetReference(string nodeGuid)
+        {
+            if (string.IsNullOrEmpty(nodeGuid)) return null;
+            var refEntry = _nodeAssetReferences.Find(r => r.nodeGuid == nodeGuid);
+            return refEntry?.assetReference;
         }
 
         /// <summary>
@@ -238,13 +526,11 @@ namespace NodeSystem
             // Save variables
             data.variables = new List<GraphVariable>(_runtimeVariables);
 
-            // Save variables
-            data.variables = new List<GraphVariable>(_runtimeVariables);
-
             _jsonData = JsonUtility.ToJson(data);
             
-            // Cleanup orphaned events
+            // Cleanup orphaned events and asset references
             CleanupUnityEvents();
+            CleanupAssetReferences();
         }
 
         // === Public API ===
@@ -252,23 +538,42 @@ namespace NodeSystem
         public NodeData GetNode(string guid)
         {
             EnsureLoaded();
-            return _runtimeNodes.FirstOrDefault(n => n.Guid == guid);
+            if (!_indicesBuilt) BuildIndices();
+            
+            // O(1) lookup instead of O(n)
+            if (_nodeLookup != null && _nodeLookup.TryGetValue(guid, out var node))
+            {
+                return node;
+            }
+            return null;
         }
 
         public NodeData GetEntryNode()
         {
             EnsureLoaded();
-            return _runtimeNodes.FirstOrDefault(n => n is Nodes.StartNode);
+            // Optimized: iterate once instead of using LINQ
+            foreach (var node in _runtimeNodes)
+            {
+                if (node is Nodes.StartNode)
+                {
+                    return node;
+                }
+            }
+            return null;
         }
 
         public List<NodeData> GetConnectedNodes(string nodeGuid, string outputPortId)
         {
             EnsureLoaded();
+            if (!_indicesBuilt) BuildIndices();
+            
             var result = new List<NodeData>();
+            string key = $"{nodeGuid}:{outputPortId}";
 
-            foreach (var conn in _runtimeConnections)
+            // O(1) lookup instead of O(n) iteration
+            if (_connectionIndex != null && _connectionIndex.TryGetValue(key, out var connections))
             {
-                if (conn.outputNodeGuid == nodeGuid && conn.outputPortId == outputPortId)
+                foreach (var conn in connections)
                 {
                     var targetNode = GetNode(conn.inputNodeGuid);
                     if (targetNode != null) result.Add(targetNode);
@@ -281,9 +586,14 @@ namespace NodeSystem
         public void AddNode(NodeData node)
         {
             EnsureLoaded();
-            if (_runtimeNodes.Any(n => n.Guid == node.Guid)) return;
+            if (node == null || string.IsNullOrEmpty(node.Guid)) return;
+            
+            // O(1) duplicate check instead of O(n)
+            if (!_indicesBuilt) BuildIndices();
+            if (_nodeLookup != null && _nodeLookup.ContainsKey(node.Guid)) return;
             
             _runtimeNodes.Add(node);
+            if (_nodeLookup != null) _nodeLookup[node.Guid] = node;
             SaveAndMarkDirty();
             Debug.Log($"[NodeGraph] Added node: {node.Name}");
         }
@@ -291,12 +601,18 @@ namespace NodeSystem
         public void RemoveNode(NodeData node)
         {
             EnsureLoaded();
+            if (node == null) return;
+            
+            // Remove connections (need to rebuild index after)
             _runtimeConnections.RemoveAll(c => 
                 c.outputNodeGuid == node.Guid || c.inputNodeGuid == node.Guid);
             _runtimeNodes.Remove(node);
             
             // Clean up Unity Event for this node
             _nodeEvents.RemoveAll(e => e.nodeGuid == node.Guid);
+            
+            // Invalidate indices to force rebuild
+            InvalidateIndices();
             
             SaveAndMarkDirty();
             Debug.Log($"[NodeGraph] Removed node: {node.Name}");
@@ -305,17 +621,33 @@ namespace NodeSystem
         public void AddConnection(ConnectionData connection)
         {
             EnsureLoaded();
+            if (connection == null) return;
             
-            // Check duplicate
-            bool exists = _runtimeConnections.Any(c =>
-                c.outputNodeGuid == connection.outputNodeGuid &&
-                c.outputPortId == connection.outputPortId &&
-                c.inputNodeGuid == connection.inputNodeGuid &&
-                c.inputPortId == connection.inputPortId);
-                
-            if (exists) return;
+            // O(1) duplicate check using index
+            if (!_indicesBuilt) BuildIndices();
+            string key = $"{connection.outputNodeGuid}:{connection.outputPortId}";
+            
+            if (_connectionIndex != null && _connectionIndex.TryGetValue(key, out var existing))
+            {
+                if (existing.Any(c => c.inputNodeGuid == connection.inputNodeGuid && 
+                                     c.inputPortId == connection.inputPortId))
+                {
+                    return; // Duplicate
+                }
+            }
             
             _runtimeConnections.Add(connection);
+            
+            // Update index
+            if (_connectionIndex != null)
+            {
+                if (!_connectionIndex.ContainsKey(key))
+                {
+                    _connectionIndex[key] = new List<ConnectionData>();
+                }
+                _connectionIndex[key].Add(connection);
+            }
+            
             SaveAndMarkDirty();
             Debug.Log($"[NodeGraph] Added connection: {connection.outputPortId} -> {connection.inputPortId}");
         }
@@ -323,11 +655,20 @@ namespace NodeSystem
         public void RemoveConnection(ConnectionData connection)
         {
             EnsureLoaded();
-            _runtimeConnections.RemoveAll(c =>
+            if (connection == null) return;
+            
+            int removed = _runtimeConnections.RemoveAll(c =>
                 c.outputNodeGuid == connection.outputNodeGuid &&
                 c.outputPortId == connection.outputPortId &&
                 c.inputNodeGuid == connection.inputNodeGuid &&
                 c.inputPortId == connection.inputPortId);
+            
+            // Invalidate index if connection was removed
+            if (removed > 0)
+            {
+                InvalidateIndices();
+            }
+            
             SaveAndMarkDirty();
         }
 
@@ -347,17 +688,143 @@ namespace NodeSystem
         public void ForceReload()
         {
             _loaded = false;
+            InvalidateIndices();
             EnsureLoaded();
         }
 
         public void Save()
         {
+            // Sync asset references from nodes to separate storage before saving
+            SyncAssetReferencesFromNodes();
+            
             SaveAndMarkDirty();
 #if UNITY_EDITOR
             // Explicit save should write to disk immediately
             UnityEditor.AssetDatabase.SaveAssets();
 #endif
-            Debug.Log($"[NodeGraph] Saved: {NodeCount} nodes, {ConnectionCount} connections, {VariableCount} variables");
+            Debug.Log($"[NodeGraph] Saved: {NodeCount} nodes, {ConnectionCount} connections, {VariableCount} variables, {_nodeAssetReferences?.Count ?? 0} asset references");
+        }
+
+        /// <summary>
+        /// Sync asset references from nodes to separate storage.
+        /// This ensures references are saved even if SetNodeAssetReference wasn't called.
+        /// </summary>
+        private void SyncAssetReferencesFromNodes()
+        {
+            EnsureLoaded();
+            if (_runtimeNodes == null) return;
+
+            // Initialize list if null
+            if (_nodeAssetReferences == null)
+            {
+                _nodeAssetReferences = new List<NodeAssetReference>();
+            }
+
+            int syncedCount = 0;
+            int checkedCount = 0;
+            
+#if UNITY_EDITOR
+            foreach (var node in _runtimeNodes)
+            {
+                if (node == null) continue;
+
+                // Sync LoadQuestionNode question reference
+                if (node is Nodes.Quiz.LoadQuestionNode loadNode)
+                {
+                    checkedCount++;
+                    UnityEngine.Object assetToSave = null;
+                    
+                    // Try direct reference first
+                    if (loadNode.questionRef != null)
+                    {
+                        assetToSave = loadNode.questionRef;
+                    }
+                    // If null, try loading from path (works in editor)
+                    else if (!string.IsNullOrEmpty(loadNode.questionAssetPath))
+                    {
+                        assetToSave = UnityEditor.AssetDatabase.LoadAssetAtPath<QuestionData>(loadNode.questionAssetPath);
+                        if (assetToSave != null)
+                        {
+                            // Also set the direct reference for next time
+                            loadNode.questionRef = assetToSave as QuestionData;
+                        }
+                    }
+                    
+                    if (assetToSave != null)
+                    {
+                        SetNodeAssetReference(node.Guid, assetToSave);
+                        syncedCount++;
+                        Debug.Log($"[NodeGraph] Synced QuestionData reference for {node.Name}: {assetToSave.name}");
+                    }
+                    else if (!string.IsNullOrEmpty(loadNode.questionAssetPath))
+                    {
+                        Debug.LogWarning($"[NodeGraph] LoadQuestionNode {node.Name} has path but asset not found: {loadNode.questionAssetPath}");
+                    }
+                }
+
+                // Sync PlaySoundNode audio clip reference
+                if (node is Nodes.PlaySoundNode soundNode)
+                {
+                    checkedCount++;
+                    UnityEngine.Object assetToSave = null;
+                    
+                    // Try direct reference first
+                    if (soundNode.audioClipRef != null)
+                    {
+                        assetToSave = soundNode.audioClipRef;
+                    }
+                    // If null, try loading from path (works in editor)
+                    else if (!string.IsNullOrEmpty(soundNode.audioClipPath))
+                    {
+                        assetToSave = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>(soundNode.audioClipPath);
+                        if (assetToSave != null)
+                        {
+                            // Also set the direct reference for next time
+                            soundNode.audioClipRef = assetToSave as AudioClip;
+                        }
+                    }
+                    
+                    if (assetToSave != null)
+                    {
+                        SetNodeAssetReference(node.Guid, assetToSave);
+                        syncedCount++;
+                        Debug.Log($"[NodeGraph] Synced AudioClip reference for {node.Name}: {assetToSave.name}");
+                    }
+                    else if (!string.IsNullOrEmpty(soundNode.audioClipPath))
+                    {
+                        Debug.LogWarning($"[NodeGraph] PlaySoundNode {node.Name} has path but asset not found: {soundNode.audioClipPath}");
+                    }
+                }
+            }
+#else
+            // At runtime, can only sync from direct references (paths won't work)
+            foreach (var node in _runtimeNodes)
+            {
+                if (node == null) continue;
+
+                if (node is Nodes.Quiz.LoadQuestionNode loadNode && loadNode.questionRef != null)
+                {
+                    checkedCount++;
+                    SetNodeAssetReference(node.Guid, loadNode.questionRef);
+                    syncedCount++;
+                }
+                else if (node is Nodes.PlaySoundNode soundNode && soundNode.audioClipRef != null)
+                {
+                    checkedCount++;
+                    SetNodeAssetReference(node.Guid, soundNode.audioClipRef);
+                    syncedCount++;
+                }
+            }
+#endif
+
+            if (syncedCount > 0)
+            {
+                Debug.Log($"[NodeGraph] Synced {syncedCount} asset references from nodes to storage (checked {checkedCount} nodes)");
+            }
+            else if (checkedCount > 0)
+            {
+                Debug.LogWarning($"[NodeGraph] Checked {checkedCount} nodes with asset fields, but found 0 references. Make sure you've assigned assets in the editor.");
+            }
         }
 
         // === Variable Management ===
@@ -365,7 +832,15 @@ namespace NodeSystem
         public GraphVariable GetVariable(string name)
         {
             EnsureLoaded();
-            return _runtimeVariables.FirstOrDefault(v => v.Name == name);
+            if (string.IsNullOrEmpty(name)) return null;
+            if (!_indicesBuilt) BuildIndices();
+            
+            // O(1) lookup instead of O(n)
+            if (_variableLookup != null && _variableLookup.TryGetValue(name, out var variable))
+            {
+                return variable;
+            }
+            return null;
         }
 
         public GraphVariable GetOrCreateVariable(string name, VariableType type, string defaultValue = "")
@@ -398,12 +873,18 @@ namespace NodeSystem
         public void AddVariable(GraphVariable variable)
         {
             EnsureLoaded();
-            if (_runtimeVariables.Any(v => v.Name == variable.Name))
+            if (variable == null || string.IsNullOrEmpty(variable.Name)) return;
+            if (!_indicesBuilt) BuildIndices();
+            
+            // O(1) duplicate check instead of O(n)
+            if (_variableLookup != null && _variableLookup.ContainsKey(variable.Name))
             {
                 Debug.LogWarning($"[NodeGraph] Variable '{variable.Name}' already exists");
                 return;
             }
+            
             _runtimeVariables.Add(variable);
+            if (_variableLookup != null) _variableLookup[variable.Name] = variable;
             SaveAndMarkDirty();
             Debug.Log($"[NodeGraph] Added variable: {variable.Name}");
         }
@@ -411,9 +892,12 @@ namespace NodeSystem
         public void RemoveVariable(string name)
         {
             EnsureLoaded();
+            if (string.IsNullOrEmpty(name)) return;
+            
             int removed = _runtimeVariables.RemoveAll(v => v.Name == name);
             if (removed > 0)
             {
+                if (_variableLookup != null) _variableLookup.Remove(name);
                 SaveAndMarkDirty();
                 Debug.Log($"[NodeGraph] Removed variable: {name}");
             }
@@ -422,8 +906,14 @@ namespace NodeSystem
         public void RemoveVariable(GraphVariable variable)
         {
             EnsureLoaded();
+            if (variable == null) return;
+            
             if (_runtimeVariables.Remove(variable))
             {
+                if (_variableLookup != null && !string.IsNullOrEmpty(variable.Name))
+                {
+                    _variableLookup.Remove(variable.Name);
+                }
                 SaveAndMarkDirty();
                 Debug.Log($"[NodeGraph] Removed variable: {variable.Name}");
             }
@@ -465,20 +955,32 @@ namespace NodeSystem
 
         public UnityEngine.Events.UnityEvent GetUnityEvent(string nodeGuid)
         {
-            var entry = _nodeEvents.FirstOrDefault(e => e.nodeGuid == nodeGuid);
-            if (entry == null)
+            EnsureLoaded();
+            if (string.IsNullOrEmpty(nodeGuid)) return null;
+            if (!_indicesBuilt) BuildIndices();
+            
+            // O(1) lookup instead of O(n)
+            if (_eventLookup != null && _eventLookup.TryGetValue(nodeGuid, out var entry))
             {
-                entry = new NodeUnityEvent { nodeGuid = nodeGuid, onEvent = new UnityEngine.Events.UnityEvent() };
-                _nodeEvents.Add(entry);
-                SaveAndMarkDirty();
+                return entry.onEvent;
             }
+            
+            // Create new event
+            entry = new NodeUnityEvent { nodeGuid = nodeGuid, onEvent = new UnityEngine.Events.UnityEvent() };
+            _nodeEvents.Add(entry);
+            if (_eventLookup != null) _eventLookup[nodeGuid] = entry;
+            SaveAndMarkDirty();
             return entry.onEvent;
         }
 
         public void InvokeUnityEvent(string nodeGuid)
         {
-            var entry = _nodeEvents.FirstOrDefault(e => e.nodeGuid == nodeGuid);
-            if (entry != null)
+            EnsureLoaded();
+            if (string.IsNullOrEmpty(nodeGuid)) return;
+            if (!_indicesBuilt) BuildIndices();
+            
+            // O(1) lookup instead of O(n)
+            if (_eventLookup != null && _eventLookup.TryGetValue(nodeGuid, out var entry))
             {
                 entry.onEvent?.Invoke();
             }
@@ -496,6 +998,21 @@ namespace NodeSystem
             if (removed > 0)
             {
                 Debug.Log($"[NodeGraph] Cleaned up {removed} orphaned UnityEvents");
+            }
+        }
+
+        /// <summary>
+        /// Clean up asset references for deleted nodes
+        /// </summary>
+        private void CleanupAssetReferences()
+        {
+            if (_runtimeNodes == null) return;
+            
+            var validGuids = new HashSet<string>(_runtimeNodes.Select(n => n.Guid));
+            int removed = _nodeAssetReferences.RemoveAll(r => !validGuids.Contains(r.nodeGuid));
+            if (removed > 0)
+            {
+                Debug.Log($"[NodeGraph] Cleaned up {removed} orphaned asset references");
             }
         }
 
@@ -543,6 +1060,113 @@ namespace NodeSystem
                 SaveAndMarkDirty();
                 Debug.Log($"[NodeGraph] Cleaned {removed} orphaned connections");
             }
+        }
+
+        [ContextMenu("Debug: Check Asset References")]
+        private void DebugCheckAssetReferences()
+        {
+            EnsureLoaded();
+            Debug.Log($"=== Asset References Check: {graphName} ===");
+            Debug.Log($"Total asset references stored: {_nodeAssetReferences?.Count ?? 0}");
+            
+            // Check nodes that should have asset references
+            int loadQuestionNodes = 0;
+            int playSoundNodes = 0;
+            foreach (var node in _runtimeNodes)
+            {
+                if (node is Nodes.Quiz.LoadQuestionNode loadNode)
+                {
+                    loadQuestionNodes++;
+                    bool hasStoredRef = _nodeAssetReferences?.Any(r => r.nodeGuid == node.Guid && r.assetReference != null) ?? false;
+                    Debug.Log($"[NodeGraph] LoadQuestionNode: {node.Name} - Path: {loadNode.questionAssetPath}, Has Stored Ref: {hasStoredRef}");
+                }
+                else if (node is Nodes.PlaySoundNode soundNode)
+                {
+                    playSoundNodes++;
+                    bool hasStoredRef = _nodeAssetReferences?.Any(r => r.nodeGuid == node.Guid && r.assetReference != null) ?? false;
+                    Debug.Log($"[NodeGraph] PlaySoundNode: {node.Name} - Path: {soundNode.audioClipPath}, Has Stored Ref: {hasStoredRef}");
+                }
+            }
+            
+            Debug.Log($"[NodeGraph] Found {loadQuestionNodes} LoadQuestionNodes and {playSoundNodes} PlaySoundNodes");
+            
+            if (_nodeAssetReferences == null || _nodeAssetReferences.Count == 0)
+            {
+                Debug.LogWarning("[NodeGraph] No asset references found in storage! Make sure you've assigned assets to nodes and saved the graph.");
+                Debug.LogWarning("[NodeGraph] Try: 1) Drag assets into nodes, 2) Press Save button, 3) Check again");
+                return;
+            }
+
+            foreach (var refEntry in _nodeAssetReferences)
+            {
+                var node = GetNode(refEntry.nodeGuid);
+                if (node == null)
+                {
+                    Debug.LogWarning($"[NodeGraph] Asset reference for missing node GUID: {refEntry.nodeGuid}");
+                    continue;
+                }
+
+                string assetInfo = refEntry.assetReference != null 
+                    ? $"{refEntry.assetReference.name} ({refEntry.assetReference.GetType().Name})"
+                    : "NULL";
+
+                Debug.Log($"[NodeGraph] Node: {node.Name} ({refEntry.nodeGuid}) -> Asset: {assetInfo}");
+
+                // Check if node has the reference set
+                if (node is Nodes.Quiz.LoadQuestionNode loadNode)
+                {
+                    bool hasRef = loadNode.questionRef != null;
+                    Debug.Log($"  LoadQuestionNode.questionRef: {(hasRef ? loadNode.questionRef.name : "NULL")}");
+                }
+                else if (node is Nodes.PlaySoundNode soundNode)
+                {
+                    bool hasRef = soundNode.audioClipRef != null;
+                    Debug.Log($"  PlaySoundNode.audioClipRef: {(hasRef ? soundNode.audioClipRef.name : "NULL")}");
+                }
+            }
+        }
+
+        [ContextMenu("Debug: Sync Asset References from Paths")]
+        private void DebugSyncAssetReferencesFromPaths()
+        {
+#if UNITY_EDITOR
+            EnsureLoaded();
+            int synced = 0;
+            
+            foreach (var node in _runtimeNodes)
+            {
+                if (node is Nodes.Quiz.LoadQuestionNode loadNode && !string.IsNullOrEmpty(loadNode.questionAssetPath))
+                {
+                    var asset = UnityEditor.AssetDatabase.LoadAssetAtPath<QuestionData>(loadNode.questionAssetPath);
+                    if (asset != null)
+                    {
+                        SetNodeAssetReference(node.Guid, asset);
+                        synced++;
+                        Debug.Log($"[NodeGraph] Synced from path: {node.Name} -> {asset.name}");
+                    }
+                }
+                else if (node is Nodes.PlaySoundNode soundNode && !string.IsNullOrEmpty(soundNode.audioClipPath))
+                {
+                    var asset = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>(soundNode.audioClipPath);
+                    if (asset != null)
+                    {
+                        SetNodeAssetReference(node.Guid, asset);
+                        synced++;
+                        Debug.Log($"[NodeGraph] Synced from path: {node.Name} -> {asset.name}");
+                    }
+                }
+            }
+            
+            if (synced > 0)
+            {
+                UnityEditor.EditorUtility.SetDirty(this);
+                Debug.Log($"[NodeGraph] Synced {synced} asset references from paths. Now save the graph!");
+            }
+            else
+            {
+                Debug.LogWarning("[NodeGraph] No assets found to sync. Make sure nodes have valid asset paths.");
+            }
+#endif
         }
     }
 }

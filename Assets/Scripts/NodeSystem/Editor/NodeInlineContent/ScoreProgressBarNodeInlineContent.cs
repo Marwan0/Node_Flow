@@ -1,6 +1,7 @@
 #if UNITY_EDITOR
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEditor;
 using NodeSystem.Nodes.Quiz;
 
 namespace NodeSystem.Editor
@@ -20,8 +21,18 @@ namespace NodeSystem.Editor
                 {
                     Transform t = v is GameObject go ? go.transform : (v as Component)?.transform;
                     if (t != null)
+                    {
                         node.targetPath = GetHierarchyPath(t);
+                        // Save the graph to persist the path
+                        var graph = GetNodeGraph();
+                        if (graph != null)
+                        {
+                            graph.SaveToJson();
+                            UnityEditor.EditorUtility.SetDirty(graph);
+                        }
+                    }
                 }
+                // Don't clear targetPath when v is null - keep it for restoration
                 MarkDirty();
             });
 
@@ -76,6 +87,30 @@ namespace NodeSystem.Editor
             }
             parts.Reverse();
             return string.Join("/", parts);
+        }
+
+        private NodeGraph GetNodeGraph()
+        {
+            if (Node == null) return null;
+            
+            // Search all NodeGraph assets to find which one contains this node
+            string[] guids = UnityEditor.AssetDatabase.FindAssets("t:NodeGraph");
+            foreach (string guid in guids)
+            {
+                string path = UnityEditor.AssetDatabase.GUIDToAssetPath(guid);
+                var graph = UnityEditor.AssetDatabase.LoadAssetAtPath<NodeGraph>(path);
+                if (graph != null && graph.Nodes != null)
+                {
+                    foreach (var node in graph.Nodes)
+                    {
+                        if (node != null && node.Guid == Node.Guid)
+                        {
+                            return graph;
+                        }
+                    }
+                }
+            }
+            return null;
         }
     }
 }

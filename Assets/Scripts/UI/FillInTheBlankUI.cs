@@ -8,7 +8,7 @@ namespace QuizSystem
     {
         [Header("Fill in the Blank UI")]
         [SerializeField] private TMP_InputField answerInput;
-        [SerializeField] private Button submitButton;
+        // submitButton is inherited from QuestionUI base class
 
         protected override void SetupQuestion()
         {

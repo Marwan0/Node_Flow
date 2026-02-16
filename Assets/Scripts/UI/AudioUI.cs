@@ -16,7 +16,7 @@ namespace QuizSystem
         [SerializeField] private Transform answerContainer;
         [SerializeField] private GameObject multipleChoiceOptionPrefab;
         [SerializeField] private TMP_InputField fillBlankInput;
-        [SerializeField] private Button submitButton;
+        // submitButton is inherited from QuestionUI base class
 
         private AudioQuestionData audioData;
         private int playCount = 0;

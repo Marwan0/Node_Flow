@@ -9,7 +9,7 @@ namespace QuizSystem
         [Header("Hotspot UI")]
         [SerializeField] private Image imageDisplay;
         [SerializeField] private RectTransform imageRectTransform;
-        [SerializeField] private Button submitButton;
+        // submitButton is inherited from QuestionUI base class
 
         private HotspotQuestionData hotspotData;
         private int? selectedHotspotIndex = null;

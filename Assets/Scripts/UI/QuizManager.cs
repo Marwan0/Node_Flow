@@ -357,7 +357,10 @@ namespace QuizSystem
                 uiPrefab = GetUIPrefabForQuestion(question);
             if (uiPrefab == null)
             {
-                Debug.LogError($"No UI prefab found for question type: {question.questionType}");
+                string prefabFieldName = GetUIPrefabFieldName(question.questionType);
+                Debug.LogError($"No UI prefab found for question type: {question.questionType}. " +
+                    $"Please assign the {prefabFieldName} field in the QuizManager component in the scene. " +
+                    $"Expected prefab: Prefabs/Connect_Q/ConnectChoiceUI.prefab");
                 return;
             }
 
@@ -486,30 +489,97 @@ namespace QuizSystem
 
         private GameObject GetUIPrefabForQuestionType(QuestionType type)
         {
+            GameObject prefab = null;
+            
             switch (type)
             {
                 case QuestionType.TrueFalse:
-                    return trueFalseUIPrefab;
+                    prefab = trueFalseUIPrefab;
+                    break;
                 case QuestionType.FillInTheBlank:
-                    return fillInTheBlankUIPrefab;
+                    prefab = fillInTheBlankUIPrefab;
+                    break;
                 case QuestionType.MultiSelect:
-                    return multiSelectUIPrefab;
+                    prefab = multiSelectUIPrefab;
+                    break;
                 case QuestionType.Ordering:
-                    return orderingUIPrefab;
+                    prefab = orderingUIPrefab;
+                    break;
                 case QuestionType.Hotspot:
-                    return hotspotUIPrefab;
+                    prefab = hotspotUIPrefab;
+                    break;
                 case QuestionType.Slider:
-                    return sliderUIPrefab;
+                    prefab = sliderUIPrefab;
+                    break;
                 case QuestionType.Audio:
-                    return audioUIPrefab;
+                    prefab = audioUIPrefab;
+                    break;
                 case QuestionType.MultipleChoice:
-                    return multipleChoiceUIPrefab;
+                    prefab = multipleChoiceUIPrefab;
+                    break;
                 case QuestionType.DragDrop:
-                    return dragDropUIPrefab;
+                    prefab = dragDropUIPrefab;
+                    break;
                 case QuestionType.Connect:
-                    return connectUIPrefab;
+                    prefab = connectUIPrefab;
+                    break;
                 default:
                     return null;
+            }
+
+            // If prefab is null, try loading from Resources as fallback
+            if (prefab == null)
+            {
+                prefab = TryLoadUIPrefabFromResources(type);
+            }
+
+            return prefab;
+        }
+
+        /// <summary>
+        /// Try to load UI prefab from Resources folder as fallback
+        /// </summary>
+        private GameObject TryLoadUIPrefabFromResources(QuestionType type)
+        {
+            string[] resourcePaths = {
+                $"UI/{type}UI",
+                $"Prefabs/{type}UI",
+                $"UI/{type}",
+                $"{type}UI",
+                $"ConnectChoiceUI", // Specific fallback for Connect type
+            };
+
+            foreach (var path in resourcePaths)
+            {
+                var loaded = Resources.Load<GameObject>(path);
+                if (loaded != null)
+                {
+                    Debug.Log($"[QuizManager] Loaded UI prefab from Resources: {path} for {type}");
+                    return loaded;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Get the field name for a question type's UI prefab (for error messages)
+        /// </summary>
+        private string GetUIPrefabFieldName(QuestionType type)
+        {
+            switch (type)
+            {
+                case QuestionType.TrueFalse: return "trueFalseUIPrefab";
+                case QuestionType.FillInTheBlank: return "fillInTheBlankUIPrefab";
+                case QuestionType.MultiSelect: return "multiSelectUIPrefab";
+                case QuestionType.Ordering: return "orderingUIPrefab";
+                case QuestionType.Hotspot: return "hotspotUIPrefab";
+                case QuestionType.Slider: return "sliderUIPrefab";
+                case QuestionType.Audio: return "audioUIPrefab";
+                case QuestionType.MultipleChoice: return "multipleChoiceUIPrefab";
+                case QuestionType.DragDrop: return "dragDropUIPrefab";
+                case QuestionType.Connect: return "connectUIPrefab";
+                default: return "UI prefab";
             }
         }
 

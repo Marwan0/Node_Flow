@@ -248,7 +248,10 @@ namespace NodeSystem
             
             _executionPath.Add(node.Guid);
 
-            Debug.Log($"[NodeGraphRunner] Executing: {node.Name} (State before: {node.State}, Active nodes: {_activeNodeGuids.Count})");
+            if (_debugMode)
+            {
+                Debug.Log($"[NodeGraphRunner] Executing: {node.Name} (State before: {node.State}, Active nodes: {_activeNodeGuids.Count})");
+            }
 
             // Fire event
             OnNodeStarted?.Invoke(this, node);
@@ -259,7 +262,23 @@ namespace NodeSystem
             // Execute
             node.Execute();
             
-            Debug.Log($"[NodeGraphRunner] After Execute call: {node.Name} (State after: {node.State})");
+            if (_debugMode)
+            {
+                Debug.Log($"[NodeGraphRunner] After Execute call: {node.Name} (State after: {node.State})");
+            }
+        }
+
+        /// <summary>
+        /// Broadcast a signal by id. All ReceiveSignalNode instances in the graph with matching signalId will execute (wireless / antenna-style).
+        /// </summary>
+        public void BroadcastSignal(string signalId)
+        {
+            if (!_isRunning || _graph == null || string.IsNullOrEmpty(signalId)) return;
+            foreach (var node in _graph.Nodes)
+            {
+                if (node is Nodes.ReceiveSignalNode recv && recv.signalId == signalId)
+                    ExecuteNode(node);
+            }
         }
 
         /// <summary>
@@ -477,6 +496,9 @@ namespace NodeSystem
             // Remove this node from active tracking
             _activeNodeGuids.Remove(completedNode.Guid);
 
+            // Clear callback to prevent memory leaks
+            completedNode.OnComplete = null;
+
             // RandomBranchNode: execute only the randomly selected node, not all connected nodes
             if (completedNode is Nodes.RandomBranchNode randomBranch && !string.IsNullOrEmpty(randomBranch.SelectedNodeGuid))
             {
@@ -546,7 +568,10 @@ namespace NodeSystem
             // This enables parallel execution through one-to-many connections
             if (nextNodes.Count > 1)
             {
-                Debug.Log($"[NodeGraphRunner] Executing {nextNodes.Count} nodes in parallel from {completedNode.Name}: {string.Join(", ", nextNodes.Select(n => n.Name))}");
+                if (_debugMode)
+                {
+                    Debug.Log($"[NodeGraphRunner] Executing {nextNodes.Count} nodes in parallel from {completedNode.Name}: {string.Join(", ", nextNodes.Select(n => n.Name))}");
+                }
                 
                 // IMPORTANT: Pre-register ALL next nodes as active BEFORE executing any.
                 // This prevents a synchronous node from completing and seeing an empty
@@ -560,7 +585,10 @@ namespace NodeSystem
             
             foreach (var nextNode in nextNodes)
             {
-                Debug.Log($"[NodeGraphRunner] Executing node: {nextNode.Name} (Current State: {nextNode.State})");
+                if (_debugMode)
+                {
+                    Debug.Log($"[NodeGraphRunner] Executing node: {nextNode.Name} (Current State: {nextNode.State})");
+                }
                 ExecuteNode(nextNode);
             }
         }

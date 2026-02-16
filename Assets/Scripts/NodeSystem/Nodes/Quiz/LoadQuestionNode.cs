@@ -13,7 +13,13 @@ namespace NodeSystem.Nodes.Quiz
     [Serializable]
     public class LoadQuestionNode : NodeData
     {
+        [Header("Question Asset")]
         [SerializeField]
+        [Tooltip("Direct reference to the QuestionData asset. Drag from Project window. This works in WebGL builds without needing Resources folder.")]
+        public QuestionData questionRef;
+
+        [SerializeField]
+        [Tooltip("Asset path (auto-synced from reference, used as fallback)")]
         public string questionAssetPath = "";
 
         [SerializeField]
@@ -162,17 +168,61 @@ namespace NodeSystem.Nodes.Quiz
             if (container != null)
                 _quizManager.questionContainer = container;
 
-            // Load question from path
-#if UNITY_EDITOR
-            var question = UnityEditor.AssetDatabase.LoadAssetAtPath<QuestionData>(questionAssetPath);
-#else
+            // Load question - try direct reference first, then path, then NodeGraph storage
             QuestionData question = null;
-            Debug.LogWarning("[LoadQuestionNode] Runtime question loading requires Resources folder or Addressables");
+
+#if UNITY_EDITOR
+            // In editor, prefer direct reference, fallback to path
+            question = questionRef;
+            if (question == null && !string.IsNullOrEmpty(questionAssetPath))
+            {
+                question = UnityEditor.AssetDatabase.LoadAssetAtPath<QuestionData>(questionAssetPath);
+            }
+#else
+            // At runtime, try multiple sources in order:
+            // 1. Direct reference (might be null in WebGL)
+            question = questionRef;
+            
+            // 2. Try NodeGraph's separate storage (works in WebGL)
+            if (question == null && Runner != null && Runner.Graph != null)
+            {
+                var storedRef = Runner.Graph.GetNodeAssetReference(Guid);
+                if (storedRef is QuestionData storedQuestion)
+                {
+                    question = storedQuestion;
+                    questionRef = question; // Cache it for next time
+                    Debug.Log($"[LoadQuestionNode] Restored question from NodeGraph storage: {question.name}");
+                }
+            }
+            
+            // 3. If still null, try Resources as fallback
+            if (question == null && !string.IsNullOrEmpty(questionAssetPath))
+            {
+                // Convert path to Resources path
+                string resourcePath = questionAssetPath
+                    .Replace("Assets/", "")
+                    .Replace("Resources/", "")
+                    .Replace(".asset", "");
+                
+                question = Resources.Load<QuestionData>(resourcePath);
+                
+                // Try filename only
+                if (question == null)
+                {
+                    string fileName = System.IO.Path.GetFileNameWithoutExtension(questionAssetPath);
+                    question = Resources.Load<QuestionData>(fileName);
+                }
+                
+                if (question != null)
+                {
+                    Debug.Log($"[LoadQuestionNode] Loaded question from Resources: {question.name}");
+                }
+            }
 #endif
 
             if (question == null)
             {
-                Debug.LogWarning($"[LoadQuestionNode] Question not found: {questionAssetPath}");
+                Debug.LogWarning($"[LoadQuestionNode] Question not found. Reference: {(questionRef != null ? questionRef.name : "null")}, Path: {questionAssetPath}");
                 Complete();
                 return;
             }
@@ -266,15 +316,27 @@ namespace NodeSystem.Nodes.Quiz
 
         private Transform ResolveQuestionContainer()
         {
+            // First, try the direct reference
             if (questionContainerRef != null)
             {
-                if (questionContainerRef is Transform t) return t;
-                if (questionContainerRef is GameObject go) return go.transform;
-                if (questionContainerRef is Component c) return c.transform;
+                if (questionContainerRef is Transform t && t != null) return t;
+                if (questionContainerRef is GameObject go && go != null) return go.transform;
+                if (questionContainerRef is Component c && c != null) return c.transform;
             }
+            
+            // Reference is null or invalid - try to restore from path
             if (string.IsNullOrEmpty(questionContainerPath)) return null;
+            
+            // Try GameObject.Find first (works if object is active)
             var found = GameObject.Find(questionContainerPath);
-            if (found != null) return found.transform;
+            if (found != null)
+            {
+                // Restore the reference for next time
+                questionContainerRef = found;
+                return found.transform;
+            }
+            
+            // Try hierarchical search (works even if object is inactive)
             var rootObjects = UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects();
             var parts = questionContainerPath.Split('/');
             if (parts.Length > 0)
@@ -282,9 +344,17 @@ namespace NodeSystem.Nodes.Quiz
                 foreach (var rootGo in rootObjects)
                 {
                     if (rootGo.name != parts[0]) continue;
-                    if (parts.Length == 1) return rootGo.transform;
+                    if (parts.Length == 1)
+                    {
+                        questionContainerRef = rootGo; // Restore reference
+                        return rootGo.transform;
+                    }
                     var t = rootGo.transform.Find(string.Join("/", parts, 1, parts.Length - 1));
-                    if (t != null) return t;
+                    if (t != null)
+                    {
+                        questionContainerRef = t.gameObject; // Restore reference
+                        return t;
+                    }
                 }
             }
             return null;

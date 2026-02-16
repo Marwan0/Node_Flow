@@ -28,9 +28,9 @@ namespace NodeSystem.Editor
             if (node == null) return;
 
             // === Audio Clip Field ===
-            // Load current clip from path for display
-            AudioClip currentClip = null;
-            if (!string.IsNullOrEmpty(node.audioClipPath))
+            // Prefer direct reference, fallback to loading from path
+            AudioClip currentClip = node.audioClipRef;
+            if (currentClip == null && !string.IsNullOrEmpty(node.audioClipPath))
             {
                 currentClip = AssetDatabase.LoadAssetAtPath<AudioClip>(node.audioClipPath);
             }
@@ -40,8 +40,20 @@ namespace NodeSystem.Editor
             // Create ObjectField for AudioClip
             CreateObjectField<AudioClip>("", currentClip, clip =>
             {
-                // When user selects a clip, store its path
+                // Set both direct reference and path for compatibility
+                node.audioClipRef = clip;
                 node.audioClipPath = clip != null ? AssetDatabase.GetAssetPath(clip) : "";
+                
+                // Save the graph to persist the direct reference (stored separately for WebGL)
+                var graph = GetNodeGraph();
+                if (graph != null)
+                {
+                    // Store reference separately (works in WebGL builds)
+                    graph.SetNodeAssetReference(node.Guid, clip);
+                    graph.SaveToJson();
+                    EditorUtility.SetDirty(graph);
+                }
+                
                 MarkDirty();
             });
 
@@ -167,6 +179,33 @@ namespace NodeSystem.Editor
                 
                 method?.Invoke(null, null);
             }
+        }
+
+        /// <summary>
+        /// Get the NodeGraph that contains this node
+        /// </summary>
+        private NodeGraph GetNodeGraph()
+        {
+            if (Node == null) return null;
+            
+            // Search all NodeGraph assets to find which one contains this node
+            string[] guids = AssetDatabase.FindAssets("t:NodeGraph");
+            foreach (string guid in guids)
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guid);
+                var graph = AssetDatabase.LoadAssetAtPath<NodeGraph>(path);
+                if (graph != null && graph.Nodes != null)
+                {
+                    foreach (var node in graph.Nodes)
+                    {
+                        if (node != null && node.Guid == Node.Guid)
+                        {
+                            return graph;
+                        }
+                    }
+                }
+            }
+            return null;
         }
     }
 }
