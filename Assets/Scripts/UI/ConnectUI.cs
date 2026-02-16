@@ -25,6 +25,17 @@ namespace QuizSystem
         [SerializeField] private RectTransform lineContainer;
         [SerializeField] private Canvas canvas;
 
+        [Header("Connect Audio (optional)")]
+        [SerializeField] private AudioSource audioSource;
+        [SerializeField] private AudioClip correctClip;
+        [SerializeField] private AudioClip wrongClip;
+        [Tooltip("Played when user scores a point (correct connection). Leave empty to use correctClip.")]
+        [SerializeField] private AudioClip pointClip;
+
+        [Header("Progress (optional)")]
+        [SerializeField] private TextMeshProUGUI connectionProgressText;
+        [SerializeField] private TextMeshProUGUI attemptProgressText;
+
         private ConnectQuestionData connectData;
         private List<ConnectItemUI> leftItemUIs = new List<ConnectItemUI>();
         private List<ConnectItemUI> rightItemUIs = new List<ConnectItemUI>();
@@ -32,6 +43,11 @@ namespace QuizSystem
         private List<int> connectionLeftIndices = new List<int>();
         private const float LineThickness = 4f;
         private static Sprite _whiteSprite;
+
+        private int currentConnectionIndex;
+        private int attemptsForCurrentConnection;
+        private int starsCollected;
+        private int totalConnections;
 
         private static Sprite GetWhiteSprite()
         {
@@ -65,11 +81,17 @@ namespace QuizSystem
             CreateRightColumnItems();
             currentConnections.Clear();
 
+            currentConnectionIndex = 0;
+            attemptsForCurrentConnection = 0;
+            starsCollected = 0;
+            totalConnections = connectData.correctConnections.Count;
+            if (totalConnections <= 0)
+                totalConnections = connectData.leftColumnItems.Count;
+
             if (submitButton != null)
             {
                 submitButton.onClick.RemoveAllListeners();
-                submitButton.onClick.AddListener(OnSubmitClicked);
-                submitButton.interactable = true;
+                submitButton.gameObject.SetActive(false);
             }
 
             if (lineContainer != null)
@@ -78,11 +100,9 @@ namespace QuizSystem
                 if (graphic != null)
                     graphic.raycastTarget = false;
             }
-        }
 
-        private void OnSubmitClicked()
-        {
-            OnAnswerSubmitted();
+            RefreshItemInteractability();
+            UpdateProgressText();
         }
 
         private void ClearUI()
@@ -116,6 +136,65 @@ namespace QuizSystem
             }
             _dragStartItem = null;
             _isDragging = false;
+        }
+
+        private void RefreshItemInteractability()
+        {
+            for (int i = 0; i < leftItemUIs.Count; i++)
+            {
+                var item = leftItemUIs[i];
+                bool isCurrent = (i == currentConnectionIndex);
+                SetItemInteractable(item, isCurrent);
+                UpdateItemVisual(item, false);
+                if (!isCurrent)
+                    SetItemLockedAppearance(item, i < currentConnectionIndex);
+            }
+        }
+
+        private void SetItemInteractable(ConnectItemUI itemUI, bool interactable)
+        {
+            if (itemUI?.itemObject == null) return;
+            var button = itemUI.itemObject.GetComponent<Button>();
+            if (button != null) button.interactable = interactable;
+            var dragHandler = itemUI.itemObject.GetComponent<ConnectItemDragHandler>();
+            if (dragHandler != null) dragHandler.enabled = interactable;
+        }
+
+        private void SetItemLockedAppearance(ConnectItemUI itemUI, bool locked)
+        {
+            if (itemUI?.itemObject == null) return;
+            var img = itemUI.itemObject.GetComponent<Image>();
+            if (img != null)
+                img.color = locked ? new Color(0.7f, 0.9f, 0.7f) : new Color(0.6f, 0.6f, 0.6f);
+        }
+
+        private void UpdateProgressText()
+        {
+            if (connectionProgressText != null)
+                connectionProgressText.text = $"Connection {currentConnectionIndex + 1} / {totalConnections}";
+            if (attemptProgressText != null)
+                attemptProgressText.text = $"Try {attemptsForCurrentConnection + 1} / {connectData.maxAttemptsPerConnection}";
+            if (attemptCounterText != null)
+                attemptCounterText.text = $"Stars: {starsCollected} / {totalConnections}";
+        }
+
+        private void PlayCorrectAudio()
+        {
+            if (audioSource != null && correctClip != null)
+                audioSource.PlayOneShot(correctClip);
+        }
+
+        private void PlayWrongAudio()
+        {
+            if (audioSource != null && wrongClip != null)
+                audioSource.PlayOneShot(wrongClip);
+        }
+
+        private void PlayPointAudio()
+        {
+            AudioClip clip = pointClip != null ? pointClip : correctClip;
+            if (audioSource != null && clip != null)
+                audioSource.PlayOneShot(clip);
         }
 
         private void CreateLeftColumnItems()
@@ -181,26 +260,89 @@ namespace QuizSystem
 
         private void OnLeftItemClicked(ConnectItemUI itemUI)
         {
+            if (itemUI.itemIndex != currentConnectionIndex) return;
             if (selectedLeftItem != null)
                 UpdateItemVisual(selectedLeftItem, false);
             selectedLeftItem = itemUI;
             UpdateItemVisual(selectedLeftItem, true);
         }
 
-        private void OnRightItemClicked(ConnectItemUI itemUI)
+        private void OnRightItemClicked(ConnectItemUI rightItemUI)
         {
-            if (selectedLeftItem == null) return;
-            if (currentConnections.ContainsKey(selectedLeftItem.itemIndex))
-                RemoveConnection(selectedLeftItem.itemIndex);
-            currentConnections[selectedLeftItem.itemIndex] = itemUI.itemIndex;
-            CreateConnectionLine(selectedLeftItem, itemUI);
+            if (selectedLeftItem == null || selectedLeftItem.itemIndex != currentConnectionIndex) return;
+            int leftIdx = selectedLeftItem.itemIndex;
+            int rightIdx = rightItemUI.itemIndex;
+            ValidateAndApplyConnection(leftIdx, rightIdx);
             UpdateItemVisual(selectedLeftItem, false);
             selectedLeftItem = null;
-            UpdateVisualFeedback();
+        }
+
+        private void ValidateAndApplyConnection(int leftIdx, int rightIdx)
+        {
+            var connectValidator = validator as ConnectValidator;
+            if (connectValidator == null) return;
+
+            if (connectValidator.IsConnectionCorrect(leftIdx, rightIdx))
+            {
+                currentConnections[leftIdx] = rightIdx;
+                ConnectItemUI leftItem = leftItemUIs.Find(x => x.itemIndex == leftIdx);
+                ConnectItemUI rightItem = rightItemUIs.Find(x => x.itemIndex == rightIdx);
+                if (leftItem != null && rightItem != null)
+                {
+                    CreateConnectionLine(leftItem, rightItem);
+                    SetLineColor(connectionLineObjects[connectionLineObjects.Count - 1], Color.green);
+                }
+                starsCollected++;
+                PlayPointAudio();
+                PlayCorrectAudio();
+                currentConnectionIndex++;
+                attemptsForCurrentConnection = 0;
+                RefreshItemInteractability();
+                UpdateProgressText();
+                if (currentConnectionIndex >= totalConnections)
+                    CompleteQuestion(true, starsCollected);
+            }
+            else
+            {
+                attemptsForCurrentConnection++;
+                PlayWrongAudio();
+                QuizState.Instance?.NotifyWrongAttempt();
+                UpdateProgressText();
+
+                if (attemptsForCurrentConnection >= connectData.maxAttemptsPerConnection)
+                {
+                    if (connectData.correctConnections.TryGetValue(leftIdx, out int correctRight))
+                    {
+                        currentConnections[leftIdx] = correctRight;
+                        ConnectItemUI leftItem = leftItemUIs.Find(x => x.itemIndex == leftIdx);
+                        ConnectItemUI rightItem = rightItemUIs.Find(x => x.itemIndex == correctRight);
+                        if (leftItem != null && rightItem != null)
+                        {
+                            CreateConnectionLine(leftItem, rightItem);
+                            SetLineColor(connectionLineObjects[connectionLineObjects.Count - 1], Color.green);
+                        }
+                    }
+                    currentConnectionIndex++;
+                    attemptsForCurrentConnection = 0;
+                    RefreshItemInteractability();
+                    UpdateProgressText();
+                    if (currentConnectionIndex >= totalConnections)
+                        CompleteQuestion(false, starsCollected);
+                }
+            }
+        }
+
+        private void CompleteQuestion(bool allCorrect, int points)
+        {
+            if (submitButton != null)
+                submitButton.gameObject.SetActive(false);
+            quizManager?.OnQuestionAnswered(allCorrect, points);
         }
 
         public void StartDrag(ConnectItemUI item, Vector2 screenPos)
         {
+            if (item.isLeftColumn && item.itemIndex != currentConnectionIndex)
+                return;
             _dragStartItem = item;
             _pointerDownPos = screenPos;
             _isDragging = false;
@@ -230,17 +372,12 @@ namespace QuizSystem
             {
                 ConnectItemUI target = GetItemAt(screenPos);
                 if (target != null && target != _dragStartItem &&
-                    ((_dragStartItem.isLeftColumn && !target.isLeftColumn) || (!_dragStartItem.isLeftColumn && target.isLeftColumn)))
+                    _dragStartItem.isLeftColumn && !target.isLeftColumn &&
+                    _dragStartItem.itemIndex == currentConnectionIndex)
                 {
-                    int leftIdx = _dragStartItem.isLeftColumn ? _dragStartItem.itemIndex : target.itemIndex;
-                    int rightIdx = _dragStartItem.isLeftColumn ? target.itemIndex : _dragStartItem.itemIndex;
-                    if (currentConnections.ContainsKey(leftIdx))
-                        RemoveConnection(leftIdx);
-                    currentConnections[leftIdx] = rightIdx;
-                    CreateConnectionLine(
-                        leftItemUIs.Find(x => x.itemIndex == leftIdx),
-                        rightItemUIs.Find(x => x.itemIndex == rightIdx));
-                    UpdateVisualFeedback();
+                    int leftIdx = _dragStartItem.itemIndex;
+                    int rightIdx = target.itemIndex;
+                    ValidateAndApplyConnection(leftIdx, rightIdx);
                 }
                 Destroy(_previewLine);
                 _previewLine = null;
@@ -430,44 +567,7 @@ namespace QuizSystem
 
         public override void OnAnswerSubmitted()
         {
-            if (submitButton != null)
-                submitButton.interactable = false;
-
-            var result = validator.ValidateAnswer(currentConnections);
-            HandleValidationResult(result);
-        }
-
-        protected override void OnWrongAnswer()
-        {
-            base.OnWrongAnswer();
-            foreach (var go in connectionLineObjects)
-                SetLineColor(go, Color.white);
-
-            if (submitButton != null)
-                submitButton.interactable = true;
-        }
-
-        protected override void OnAutoCorrect()
-        {
-            base.OnAutoCorrect();
-            currentConnections.Clear();
-            foreach (var go in connectionLineObjects)
-            {
-                if (go != null)
-                    Destroy(go);
-            }
-            connectionLineObjects.Clear();
-            connectionLeftIndices.Clear();
-
-            foreach (var correctConnection in connectData.correctConnections)
-            {
-                currentConnections[correctConnection.Key] = correctConnection.Value;
-                ConnectItemUI leftItem = leftItemUIs.Find(x => x.itemIndex == correctConnection.Key);
-                ConnectItemUI rightItem = rightItemUIs.Find(x => x.itemIndex == correctConnection.Value);
-                if (leftItem != null && rightItem != null)
-                    CreateConnectionLine(leftItem, rightItem);
-            }
-            UpdateVisualFeedback();
+            // Sequential connect validates on each connection; no full-question submit.
         }
 
         protected override string GetCorrectAnswerDisplay()

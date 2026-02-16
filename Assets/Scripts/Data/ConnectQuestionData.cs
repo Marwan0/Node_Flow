@@ -31,10 +31,15 @@ namespace QuizSystem
         public List<ConnectItem> rightColumnItems = new List<ConnectItem>();
 
         [BoxGroup("Correct Connections")]
-        [InfoBox("Maps left column index to correct right column index. Key = left index, Value = right index")]
+        [InfoBox("Maps left column index to correct right column index. Key = left index, Value = right index. Connections are completed in order: left 0, then left 1, then left 2, etc.")]
         [DictionaryDrawerSettings(KeyLabel = "Left Item", ValueLabel = "Right Item")]
         [Tooltip("Dictionary mapping left column indices to their correct right column indices")]
         public Dictionary<int, int> correctConnections = new Dictionary<int, int>();
+
+        [BoxGroup("Connect Rules")]
+        [Tooltip("Max attempts per connection before the correct answer is revealed (e.g. 3 = 2 tries then 3rd reveals). Resets for each new connection.")]
+        [PropertyRange(2, 10)]
+        public int maxAttemptsPerConnection = 3;
 
         private void OnEnable()
         {

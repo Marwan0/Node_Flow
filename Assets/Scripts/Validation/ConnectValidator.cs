@@ -11,6 +11,16 @@ namespace QuizSystem
             connectData = data as ConnectQuestionData;
         }
 
+        /// <summary>
+        /// Validates a single connection (left index to right index). Used for sequential connect flow.
+        /// Does not modify attempt count; ConnectUI handles per-connection attempts.
+        /// </summary>
+        public bool IsConnectionCorrect(int leftIndex, int rightIndex)
+        {
+            if (connectData?.correctConnections == null) return false;
+            return connectData.correctConnections.TryGetValue(leftIndex, out int correctRight) && correctRight == rightIndex;
+        }
+
         public override ValidationResult ValidateAnswer(object answer)
         {
             if (answer is Dictionary<int, int> userConnections)
