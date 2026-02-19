@@ -39,6 +39,7 @@ namespace NodeSystem.Editor
         {
             Data = data;
             viewDataKey = data.Guid;
+            capabilities |= Capabilities.Groupable | Capabilities.Ascendable;
 
             // Set title and style
             title = data.Name;
@@ -261,4 +262,3 @@ namespace NodeSystem.Editor
     }
 }
 #endif
-

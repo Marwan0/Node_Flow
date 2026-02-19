@@ -618,6 +618,7 @@ namespace NodeSystem.Editor
         {
             if (_currentGraph != null)
             {
+                _graphView?.SyncGroupsBeforeSave();
                 _currentGraph.Save();
             }
         }
@@ -714,4 +715,3 @@ namespace NodeSystem.Editor
     }
 }
 #endif
-

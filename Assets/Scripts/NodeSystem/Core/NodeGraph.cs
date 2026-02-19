@@ -9,12 +9,28 @@ namespace NodeSystem
     /// <summary>
     /// Internal class to hold all graph data for JSON serialization
     /// </summary>
+    /// <summary>
+    /// Serialized group (editor-only). Position/size and contained node GUIDs.
+    /// </summary>
+    [Serializable]
+    public class GroupEntry
+    {
+        public string id = "";
+        public string title = "New Group";
+        public float x;
+        public float y;
+        public float width;
+        public float height;
+        public List<string> nodeGuids = new List<string>();
+    }
+
     [Serializable]
     internal class GraphData
     {
         public List<NodeEntry> nodes = new List<NodeEntry>();
         public List<ConnectionEntry> connections = new List<ConnectionEntry>();
         public List<GraphVariable> variables = new List<GraphVariable>();
+        public List<GroupEntry> groups = new List<GroupEntry>();
     }
 
     [Serializable]
@@ -79,6 +95,8 @@ namespace NodeSystem
         [NonSerialized] private List<NodeData> _runtimeNodes;
         [NonSerialized] private List<ConnectionData> _runtimeConnections;
         [NonSerialized] private List<GraphVariable> _runtimeVariables;
+        [NonSerialized] private List<GroupEntry> _runtimeGroups;
+        [NonSerialized] private List<GroupEntry> _editorGroups;
         [NonSerialized] private bool _loaded = false;
         [NonSerialized] private bool _loadFailed = false;
 
@@ -119,6 +137,22 @@ namespace NodeSystem
             get { EnsureLoaded(); return _runtimeVariables.Count; }
         }
 
+        /// <summary>
+        /// Saved group data (editor-only). Populated when loading from JSON; editor pushes current groups before save.
+        /// </summary>
+        public IReadOnlyList<GroupEntry> Groups
+        {
+            get { EnsureLoaded(); return _runtimeGroups ?? new List<GroupEntry>(); }
+        }
+
+        /// <summary>
+        /// Editor calls this before save to persist current group layout. Only used when building JSON.
+        /// </summary>
+        public void SetEditorGroups(IReadOnlyList<GroupEntry> groups)
+        {
+            _editorGroups = groups != null ? new List<GroupEntry>(groups) : new List<GroupEntry>();
+        }
+
         private void OnEnable()
         {
             // Only reload from JSON when _runtimeNodes is null (e.g., after domain reload
@@ -146,6 +180,7 @@ namespace NodeSystem
             _runtimeNodes = new List<NodeData>();
             _runtimeConnections = new List<ConnectionData>();
             _runtimeVariables = new List<GraphVariable>();
+            _runtimeGroups = new List<GroupEntry>();
             
             // Initialize asset references list if null (don't clear it - preserve existing references)
             if (_nodeAssetReferences == null)
@@ -220,6 +255,27 @@ namespace NodeSystem
                     _runtimeVariables.AddRange(data.variables);
                 }
 
+                // Load groups (editor-only layout)
+                if (data.groups != null)
+                {
+                    foreach (var g in data.groups)
+                    {
+                        _runtimeGroups.Add(new GroupEntry
+                        {
+                            id = string.IsNullOrEmpty(g.id) ? System.Guid.NewGuid().ToString() : g.id,
+                            title = g.title ?? "New Group",
+                            x = g.x,
+                            y = g.y,
+                            width = g.width,
+                            height = g.height,
+                            nodeGuids = g.nodeGuids != null ? new List<string>(g.nodeGuids) : new List<string>()
+                        });
+                    }
+                }
+
+                // Keep node-level group links in sync with serialized group membership.
+                SyncNodeGroupIdsFromGroups();
+
                 // Validate and restore references after loading
 #if UNITY_EDITOR
                 ValidateAndRestoreReferences();
@@ -289,6 +345,32 @@ namespace NodeSystem
             }
 
             _indicesBuilt = true;
+        }
+
+        private void SyncNodeGroupIdsFromGroups()
+        {
+            if (_runtimeNodes == null || _runtimeGroups == null) return;
+
+            var byGuid = new Dictionary<string, NodeData>();
+            foreach (var node in _runtimeNodes)
+            {
+                if (node == null || string.IsNullOrEmpty(node.Guid)) continue;
+                byGuid[node.Guid] = node;
+                node.GroupId = ""; // Reset first; groups are source of truth here.
+            }
+
+            foreach (var group in _runtimeGroups)
+            {
+                if (group == null || string.IsNullOrEmpty(group.id) || group.nodeGuids == null) continue;
+                foreach (var guid in group.nodeGuids)
+                {
+                    if (string.IsNullOrEmpty(guid)) continue;
+                    if (byGuid.TryGetValue(guid, out var node))
+                    {
+                        node.GroupId = group.id;
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -526,6 +608,39 @@ namespace NodeSystem
             // Save variables
             data.variables = new List<GraphVariable>(_runtimeVariables);
 
+            // Save groups (editor pushes current state). If editor cache is not initialized,
+            // preserve already-loaded runtime groups to avoid wiping group data on plain Save().
+            var groupsSource = _editorGroups ?? _runtimeGroups ?? new List<GroupEntry>();
+            data.groups = new List<GroupEntry>();
+            foreach (var g in groupsSource)
+            {
+                if (g == null) continue;
+                data.groups.Add(new GroupEntry
+                {
+                    id = g.id ?? "",
+                    title = g.title ?? "New Group",
+                    x = g.x,
+                    y = g.y,
+                    width = g.width,
+                    height = g.height,
+                    nodeGuids = g.nodeGuids != null ? new List<string>(g.nodeGuids) : new List<string>()
+                });
+            }
+
+            // Keep runtime cache aligned with what was just serialized.
+            _runtimeGroups = data.groups
+                .Select(g => new GroupEntry
+                {
+                    id = g.id,
+                    title = g.title,
+                    x = g.x,
+                    y = g.y,
+                    width = g.width,
+                    height = g.height,
+                    nodeGuids = g.nodeGuids != null ? new List<string>(g.nodeGuids) : new List<string>()
+                })
+                .ToList();
+
             _jsonData = JsonUtility.ToJson(data);
             
             // Cleanup orphaned events and asset references
@@ -702,7 +817,10 @@ namespace NodeSystem
             // Explicit save should write to disk immediately
             UnityEditor.AssetDatabase.SaveAssets();
 #endif
-            Debug.Log($"[NodeGraph] Saved: {NodeCount} nodes, {ConnectionCount} connections, {VariableCount} variables, {_nodeAssetReferences?.Count ?? 0} asset references");
+            int groupCount = _runtimeGroups?.Count ?? 0;
+            int groupedNodeCount = _runtimeGroups?.Sum(g => g?.nodeGuids?.Count ?? 0) ?? 0;
+            int groupedNodeLinks = _runtimeNodes?.Count(n => n != null && !string.IsNullOrEmpty(n.GroupId)) ?? 0;
+            Debug.Log($"[NodeGraph] Saved: {NodeCount} nodes, {ConnectionCount} connections, {VariableCount} variables, {groupCount} groups, {groupedNodeCount} grouped nodes, {groupedNodeLinks} node-group links, {_nodeAssetReferences?.Count ?? 0} asset references");
         }
 
         /// <summary>

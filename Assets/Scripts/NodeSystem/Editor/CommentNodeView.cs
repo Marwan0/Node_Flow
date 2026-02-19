@@ -21,6 +21,7 @@ namespace NodeSystem.Editor
             Data = data;
             _graphView = graphView;
             viewDataKey = data.Guid;
+            capabilities |= Capabilities.Groupable | Capabilities.Ascendable;
 
             // Sticky note style
             title = "";
@@ -160,4 +161,3 @@ namespace NodeSystem.Editor
     }
 }
 #endif
-

@@ -90,6 +90,15 @@ namespace NodeSystem
             set => _position = value; 
         }
 
+        /// <summary>Editor-only persistent group link</summary>
+        [SerializeField]
+        private string _groupId = "";
+        public string GroupId
+        {
+            get => _groupId;
+            set => _groupId = value;
+        }
+
         /// <summary>Display name in editor</summary>
         public abstract string Name { get; }
 
@@ -176,5 +185,4 @@ namespace NodeSystem
         }
     }
 }
-
 

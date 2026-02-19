@@ -51,6 +51,12 @@ namespace NodeSystem.Editor
         // Delete preview (Alt+Hover)
         private bool _isAltHeld = false;
         private NodeView _deletePreviewNode;
+        
+        // Prevent save callbacks from running while rebuilding visuals from serialized data.
+        private bool _isLoadingGraph = false;
+        
+        // Authoritative editor-side group state. Avoids GraphView timing related membership loss.
+        private readonly Dictionary<Group, NodeSystem.GroupEntry> _groupModels = new Dictionary<Group, NodeSystem.GroupEntry>();
 
         public NodeGraphView()
         {
@@ -107,8 +113,200 @@ namespace NodeSystem.Editor
             // Add group creation to context menu
             RegisterCallback<ContextualMenuPopulateEvent>(OnGraphContextMenu);
             
+            // Persist groups when membership or title changes
+            elementsAddedToGroup += OnElementsAddedToGroup;
+            elementsRemovedFromGroup += OnElementsRemovedFromGroup;
+            groupTitleChanged += OnGroupTitleChanged;
+            
             // --- Zoom LOD: listen for viewTransform changes ---
             viewTransformChanged += OnViewTransformChanged;
+        }
+        
+        private void OnElementsAddedToGroup(Group group, IEnumerable<GraphElement> elements)
+        {
+            if (_isLoadingGraph) return;
+            var model = EnsureGroupModel(group);
+            foreach (var element in elements)
+            {
+                if (element is Node node)
+                {
+                    var data = GetNodeData(node);
+                    if (data != null && !string.IsNullOrEmpty(data.Guid) && !model.nodeGuids.Contains(data.Guid))
+                    {
+                        data.GroupId = model.id;
+                        model.nodeGuids.Add(data.Guid);
+                    }
+                }
+            }
+            SyncGroupsToGraph();
+            if (Graph != null) { Graph.SaveToJson(); EditorUtility.SetDirty(Graph); }
+        }
+        
+        private void OnElementsRemovedFromGroup(Group group, IEnumerable<GraphElement> elements)
+        {
+            if (_isLoadingGraph) return;
+            if (_groupModels.TryGetValue(group, out var model))
+            {
+                foreach (var element in elements)
+                {
+                    if (element is Node node)
+                    {
+                        var data = GetNodeData(node);
+                        if (data != null)
+                        {
+                            data.GroupId = "";
+                            model.nodeGuids.Remove(data.Guid);
+                        }
+                    }
+                }
+            }
+            SyncGroupsToGraph();
+            if (Graph != null) { Graph.SaveToJson(); EditorUtility.SetDirty(Graph); }
+        }
+        
+        private void OnGroupTitleChanged(Group group, string newTitle)
+        {
+            if (_isLoadingGraph) return;
+            var model = EnsureGroupModel(group);
+            model.title = newTitle ?? "New Group";
+            SyncGroupsToGraph();
+            if (Graph != null) { Graph.SaveToJson(); EditorUtility.SetDirty(Graph); }
+        }
+        
+        /// <summary>
+        /// Collect current Group elements and push to graph for serialization.
+        /// </summary>
+        private void SyncGroupsToGraph()
+        {
+            if (Graph == null) return;
+            var groupsInView = graphElements.OfType<Group>().ToList();
+            var staleGroups = _groupModels.Keys.Where(g => !groupsInView.Contains(g)).ToList();
+            foreach (var stale in staleGroups)
+            {
+                _groupModels.Remove(stale);
+            }
+
+            var entries = new List<NodeSystem.GroupEntry>();
+            foreach (var group in groupsInView)
+            {
+                var model = EnsureGroupModel(group);
+                var pos = group.GetPosition();
+                model.title = group.title ?? "New Group";
+                model.x = pos.x;
+                model.y = pos.y;
+                model.width = pos.width;
+                model.height = pos.height;
+
+                if (string.IsNullOrEmpty(model.id))
+                {
+                    model.id = Guid.NewGuid().ToString();
+                }
+
+                // Primary membership source: persistent node GroupId links.
+                var detected = new HashSet<string>();
+                foreach (var node in nodes.ToList())
+                {
+                    if (node == null) continue;
+                    var nodeData = GetNodeData(node);
+                    if (nodeData != null && !string.IsNullOrEmpty(nodeData.Guid) && nodeData.GroupId == model.id)
+                    {
+                        detected.Add(nodeData.Guid);
+                    }
+                }
+
+                // Secondary source: GraphView containment (for immediate UI actions before save).
+                foreach (var contained in group.containedElements)
+                {
+                    var nodeData = contained is Node n ? GetNodeData(n) : null;
+                    if (nodeData != null && !string.IsNullOrEmpty(nodeData.Guid))
+                    {
+                        nodeData.GroupId = model.id;
+                        detected.Add(nodeData.Guid);
+                    }
+                }
+
+                // Never overwrite with empty; this prevents membership loss on timing edge cases.
+                if (detected.Count > 0)
+                {
+                    model.nodeGuids = detected.ToList();
+                }
+
+                entries.Add(CloneGroupEntry(model));
+            }
+            Graph.SetEditorGroups(entries);
+        }
+
+        private NodeSystem.GroupEntry EnsureGroupModel(Group group)
+        {
+            if (!_groupModels.TryGetValue(group, out var model) || model == null)
+            {
+                model = new NodeSystem.GroupEntry
+                {
+                    id = Guid.NewGuid().ToString(),
+                    title = group?.title ?? "New Group",
+                    nodeGuids = new List<string>()
+                };
+                if (group != null)
+                {
+                    var pos = group.GetPosition();
+                    model.x = pos.x;
+                    model.y = pos.y;
+                    model.width = pos.width;
+                    model.height = pos.height;
+                }
+                _groupModels[group] = model;
+            }
+            return model;
+        }
+
+        private void RemoveNodeGuidFromAllGroupModels(string nodeGuid)
+        {
+            if (string.IsNullOrEmpty(nodeGuid)) return;
+            foreach (var model in _groupModels.Values)
+            {
+                model?.nodeGuids?.Remove(nodeGuid);
+            }
+        }
+
+        private static NodeSystem.GroupEntry CloneGroupEntry(NodeSystem.GroupEntry source)
+        {
+            if (source == null)
+            {
+                return new NodeSystem.GroupEntry();
+            }
+
+            return new NodeSystem.GroupEntry
+            {
+                id = source.id ?? "",
+                title = source.title ?? "New Group",
+                x = source.x,
+                y = source.y,
+                width = source.width,
+                height = source.height,
+                nodeGuids = source.nodeGuids != null ? new List<string>(source.nodeGuids) : new List<string>()
+            };
+        }
+
+        private void PersistGroupsNextTick()
+        {
+            if (Graph == null) return;
+            var targetGraph = Graph;
+            schedule.Execute(() =>
+            {
+                if (Graph == null || Graph != targetGraph) return;
+                SyncGroupsToGraph();
+                Graph.SaveToJson();
+                EditorUtility.SetDirty(Graph);
+            }).ExecuteLater(1);
+        }
+
+        /// <summary>
+        /// Called by editor window before explicit graph save, to ensure group state is current.
+        /// </summary>
+        public void SyncGroupsBeforeSave()
+        {
+            if (Graph == null) return;
+            SyncGroupsToGraph();
         }
 
         private void OnGraphContextMenu(ContextualMenuPopulateEvent evt)
@@ -116,20 +314,223 @@ namespace NodeSystem.Editor
             // Only show if clicking on empty space (not on a node)
             if (evt.target == this || evt.target is GridBackground)
             {
-                // Group functionality removed due to persistent issues
+                evt.menu.AppendAction("Create Group", _ => CreateGroupAtContextMenuPosition(evt), DropdownMenuAction.AlwaysEnabled);
             }
+        }
+
+        /// <summary>
+        /// Creates an empty Group at the cursor position using Unity's GraphView Group (Scope).
+        /// </summary>
+        private void CreateGroupAtContextMenuPosition(ContextualMenuPopulateEvent evt)
+        {
+            if (Graph == null) return;
+            // Convert cursor position to content (graph) space so the group appears under the cursor
+            Vector2 localPos = evt.target is VisualElement ve
+                ? contentViewContainer.WorldToLocal(ve.LocalToWorld(evt.localMousePosition))
+                : contentViewContainer.WorldToLocal(evt.originalMousePosition);
+            const float defaultWidth = 200f;
+            const float defaultHeight = 150f;
+            var rect = new Rect(localPos.x - defaultWidth * 0.5f, localPos.y - defaultHeight * 0.5f, defaultWidth, defaultHeight);
+            var group = new Group { title = "New Group" };
+            group.SetPosition(rect);
+            AddElement(group);
+            _groupModels[group] = new NodeSystem.GroupEntry
+            {
+                id = Guid.NewGuid().ToString(),
+                title = group.title,
+                x = rect.x,
+                y = rect.y,
+                width = rect.width,
+                height = rect.height,
+                nodeGuids = new List<string>()
+            };
+            SyncGroupsToGraph();
+            Graph.SaveToJson();
+            EditorUtility.SetDirty(Graph);
+        }
+
+        /// <summary>
+        /// Creates a Group containing the currently selected nodes (Unity GraphView Group implementation).
+        /// </summary>
+        private void CreateGroupFromSelection()
+        {
+            if (Graph == null) return;
+            var nodesToGroup = selection.OfType<Node>().Where(n => n.GetType() != typeof(Group)).ToList();
+            if (nodesToGroup.Count == 0) return;
+            var selectedNodeGuids = new HashSet<string>();
+            foreach (var node in nodesToGroup)
+            {
+                var nodeData = GetNodeData(node);
+                if (nodeData != null && !string.IsNullOrEmpty(nodeData.Guid))
+                {
+                    selectedNodeGuids.Add(nodeData.Guid);
+                }
+            }
+
+            // Compute bounding rect of selected nodes with padding
+            const float padding = 20f;
+            float minX = float.MaxValue, minY = float.MaxValue, maxX = float.MinValue, maxY = float.MinValue;
+            foreach (var node in nodesToGroup)
+            {
+                var pos = node.GetPosition();
+                minX = Mathf.Min(minX, pos.xMin);
+                minY = Mathf.Min(minY, pos.yMin);
+                maxX = Mathf.Max(maxX, pos.xMax);
+                maxY = Mathf.Max(maxY, pos.yMax);
+            }
+            var groupRect = new Rect(minX - padding, minY - padding, maxX - minX + padding * 2f, maxY - minY + padding * 2f);
+
+            var group = new Group { title = "New Group" };
+            group.SetPosition(groupRect);
+            AddElement(group);
+            _groupModels[group] = new NodeSystem.GroupEntry
+            {
+                id = Guid.NewGuid().ToString(),
+                title = group.title,
+                x = groupRect.x,
+                y = groupRect.y,
+                width = groupRect.width,
+                height = groupRect.height,
+                nodeGuids = selectedNodeGuids.ToList()
+            };
+            var createdModel = _groupModels[group];
+            foreach (var node in nodesToGroup)
+            {
+                var data = GetNodeData(node);
+                if (data != null) data.GroupId = createdModel.id;
+            }
+            group.AddElements(nodesToGroup);
+            if (!group.containedElements.OfType<Node>().Any())
+            {
+                foreach (var node in nodesToGroup)
+                {
+                    group.AddElement(node);
+                }
+                if (!group.containedElements.OfType<Node>().Any())
+                {
+                    Debug.LogWarning("[NodeGraphView] Group creation did not attach selected nodes. Persisting explicit GUID membership anyway.");
+                }
+            }
+            group.UpdateGeometryFromContent();
+
+            // Save now and again next tick so membership survives both immediate and delayed GraphView updates.
+            SyncGroupsToGraph();
+            Graph.SaveToJson();
+            EditorUtility.SetDirty(Graph);
+            PersistGroupsNextTick();
+        }
+
+        /// <summary>
+        /// Removes selected Groups and returns their contained nodes to the graph (Unity Group/Scope API).
+        /// </summary>
+        private void UngroupSelection()
+        {
+            if (Graph == null) return;
+            var groups = selection.OfType<Group>().ToList();
+            if (groups.Count == 0) return;
+
+            foreach (var group in groups)
+            {
+                if (_groupModels.TryGetValue(group, out var model))
+                {
+                    foreach (var guid in model.nodeGuids)
+                    {
+                        var nodeEl = GetNodeByGuid(guid);
+                        if (nodeEl != null)
+                        {
+                            var data = GetNodeData(nodeEl);
+                            if (data != null) data.GroupId = "";
+                            AddElement(nodeEl);
+                        }
+                    }
+                }
+                var contained = group.containedElements.ToList();
+                group.RemoveElements(contained);
+                foreach (var el in contained)
+                {
+                    if (el is Node node)
+                    {
+                        var data = GetNodeData(node);
+                        if (data != null) data.GroupId = "";
+                    }
+                    AddElement(el);
+                }
+                _groupModels.Remove(group);
+            }
+            DeleteElements(groups);
+
+            // Persist group removals/membership changes.
+            SyncGroupsToGraph();
+            Graph.SaveToJson();
+            EditorUtility.SetDirty(Graph);
+        }
+
+        /// <summary>
+        /// Removes selected nodes from their parent group(s), returning them to the graph.
+        /// </summary>
+        private void RemoveSelectedNodesFromGroup()
+        {
+            if (Graph == null) return;
+            var nodesToUngroup = selection.OfType<Node>()
+                .Where(n => n.GetType() != typeof(Group))
+                .ToList();
+            if (nodesToUngroup.Count == 0) return;
+
+            foreach (var node in nodesToUngroup)
+            {
+                var nodeData = GetNodeData(node);
+                if (nodeData == null) continue;
+
+                var group = node.GetFirstAncestorOfType<Group>();
+                if (group == null)
+                {
+                    group = _groupModels.FirstOrDefault(kvp => kvp.Value.nodeGuids.Contains(nodeData.Guid)).Key;
+                }
+
+                if (group != null)
+                {
+                    group.RemoveElements(new[] { node });
+                    AddElement(node);
+                    nodeData.GroupId = "";
+                    if (_groupModels.TryGetValue(group, out var model))
+                    {
+                        model.nodeGuids.Remove(nodeData.Guid);
+                    }
+                }
+            }
+
+            // Persist membership changes.
+            SyncGroupsToGraph();
+            Graph.SaveToJson();
+            EditorUtility.SetDirty(Graph);
         }
 
         private void OnContextMenu(ContextualMenuPopulateEvent evt)
         {
-            var hasSelection = selection.OfType<NodeView>().Any();
+            var selectedNodes = selection.OfType<Node>().ToList();
+            var selectedGroups = selection.OfType<Group>().ToList();
+            var hasNodeSelection = selectedNodes.Count > 0;
+            var hasGroupSelection = selectedGroups.Count > 0;
+            var hasNodesInGroup = selectedNodes.Any(n =>
+            {
+                if (n.GetType() == typeof(Group)) return false;
+                if (n.GetFirstAncestorOfType<Group>() != null) return true;
+                var data = GetNodeData(n);
+                return data != null && _groupModels.Any(kvp => kvp.Value.nodeGuids.Contains(data.Guid));
+            });
             var hasCopied = _copiedNodes.Count > 0;
 
-            if (hasSelection)
+            if (hasNodeSelection || hasGroupSelection)
             {
                 evt.menu.AppendAction("Copy", _ => CopySelection(), DropdownMenuAction.AlwaysEnabled);
                 evt.menu.AppendAction("Duplicate", _ => DuplicateSelection(), DropdownMenuAction.AlwaysEnabled);
                 evt.menu.AppendAction("Delete", _ => DeleteSelection(), DropdownMenuAction.AlwaysEnabled);
+                if (hasNodeSelection)
+                    evt.menu.AppendAction("Create Group", _ => CreateGroupFromSelection(), DropdownMenuAction.AlwaysEnabled);
+                if (hasGroupSelection)
+                    evt.menu.AppendAction("Ungroup", _ => UngroupSelection(), DropdownMenuAction.AlwaysEnabled);
+                if (hasNodesInGroup)
+                    evt.menu.AppendAction("Remove from Group", _ => RemoveSelectedNodesFromGroup(), DropdownMenuAction.AlwaysEnabled);
                 evt.menu.AppendSeparator();
             }
 
@@ -193,6 +594,18 @@ namespace NodeSystem.Editor
             {
                 DuplicateSelection();
                 evt.StopPropagation();
+                return;
+            }
+            
+            // Ctrl+G (Cmd+G on Mac) create group from selected nodes
+            if ((evt.ctrlKey || evt.commandKey) && evt.keyCode == KeyCode.G && !evt.shiftKey)
+            {
+                var nodesToGroup = selection.OfType<Node>().Where(n => n.GetType() != typeof(Group)).ToList();
+                if (nodesToGroup.Count > 0)
+                {
+                    CreateGroupFromSelection();
+                    evt.StopPropagation();
+                }
                 return;
             }
             
@@ -280,6 +693,7 @@ namespace NodeSystem.Editor
                 case PlayModeStateChange.ExitingEditMode:
                     if (Graph != null)
                     {
+                        SyncGroupsToGraph();
                         Graph.SaveToJson();
                         EditorUtility.SetDirty(Graph);
                         AssetDatabase.SaveAssets();
@@ -817,80 +1231,239 @@ namespace NodeSystem.Editor
             Graph = graph;
 
             if (graph == null) return;
-
-            // Ensure graph is fully loaded
-            var nodes = graph.Nodes;
-            var connections = graph.Connections;
             
-            Debug.Log($"[NodeGraphView] Loading: {graph.graphName} - {nodes.Count} nodes, {connections.Count} connections");
-            
-            if (nodes.Count == 0 && connections.Count == 0)
+            _isLoadingGraph = true;
+            try
             {
-                Debug.LogWarning($"[NodeGraphView] Graph {graph.graphName} appears to be empty! Check if _jsonData is populated.");
-            }
-
-            // Create node views - track GUIDs to prevent duplicates
-            var createdGuids = new HashSet<string>();
-            foreach (var node in nodes)
-            {
-                if (node == null) continue;
+                // Ensure graph is fully loaded
+                var nodes = graph.Nodes;
+                var connections = graph.Connections;
                 
-                if (createdGuids.Contains(node.Guid))
+                Debug.Log($"[NodeGraphView] Loading: {graph.graphName} - {nodes.Count} nodes, {connections.Count} connections");
+                
+                if (nodes.Count == 0 && connections.Count == 0)
                 {
-                    Debug.LogWarning($"[NodeGraphView] Duplicate node GUID in graph data: {node.Guid} ({node.Name}). Skipping.");
-                    continue;
+                    Debug.LogWarning($"[NodeGraphView] Graph {graph.graphName} appears to be empty! Check if _jsonData is populated.");
+                }
+
+                // Create node views - track GUIDs to prevent duplicates
+                var createdGuids = new HashSet<string>();
+                var nodeElementsByGuid = new Dictionary<string, Node>();
+                foreach (var node in nodes)
+                {
+                    if (node == null) continue;
+                    
+                    if (createdGuids.Contains(node.Guid))
+                    {
+                        Debug.LogWarning($"[NodeGraphView] Duplicate node GUID in graph data: {node.Guid} ({node.Name}). Skipping.");
+                        continue;
+                    }
+                    
+                    var view = CreateNodeView(node);
+                    if (view != null || node is Nodes.CommentNode)
+                    {
+                        createdGuids.Add(node.Guid);
+                    }
+                    
+                    // Keep a direct map from serialized node GUID -> visual node element.
+                    Node nodeElement = view;
+                    if (nodeElement == null)
+                    {
+                        nodeElement = graphElements
+                            .OfType<Node>()
+                            .FirstOrDefault(n =>
+                            {
+                                var data = GetNodeData(n);
+                                return data != null && data.Guid == node.Guid;
+                            });
+                    }
+                    if (nodeElement != null)
+                    {
+                        nodeElementsByGuid[node.Guid] = nodeElement;
+                    }
                 }
                 
-                var view = CreateNodeView(node);
-                if (view != null || node is Nodes.CommentNode)
+                // Clean up floating edges after port refresh
+                CleanupFloatingEdges();
+
+                // Clean up any "addStep" connections from graph data
+                var addStepConnections = graph.Connections.Where(c => c.outputPortId == "addStep").ToList();
+                foreach (var conn in addStepConnections)
                 {
-                    createdGuids.Add(node.Guid);
+                    graph.RemoveConnection(conn);
+                }
+
+                // Create edges
+                foreach (var conn in graph.Connections)
+                {
+                    CreateEdge(conn);
+                }
+
+                // Clean up floating edges
+                CleanupFloatingEdges();
+                schedule.Execute(() => CleanupFloatingEdges()).ExecuteLater(100);
+
+                // Restore saved groups
+                var restoredGroups = new List<Group>();
+                var restoredEntries = new List<NodeSystem.GroupEntry>();
+                _groupModels.Clear();
+                foreach (var g in graph.Groups)
+                {
+                    var group = new Group { title = g.title };
+                    group.SetPosition(new Rect(g.x, g.y, g.width, g.height));
+                    AddElement(group);
+                    var cloned = CloneGroupEntry(g);
+                    if (string.IsNullOrEmpty(cloned.id))
+                    {
+                        cloned.id = Guid.NewGuid().ToString();
+                    }
+                    _groupModels[group] = cloned;
+                    restoredGroups.Add(group);
+                    restoredEntries.Add(CloneGroupEntry(cloned));
+                }
+                BackfillEmptyGroupMembershipFromOverlap(restoredGroups, restoredEntries, nodeElementsByGuid);
+                AttachSavedNodesToGroups(restoredGroups, restoredEntries, nodeElementsByGuid);
+                
+                // Retry after layout to handle GraphView timing quirks.
+                var loadedGraph = Graph;
+                schedule.Execute(() =>
+                {
+                    if (Graph != loadedGraph) return;
+                    AttachSavedNodesToGroups(restoredGroups, restoredEntries, nodeElementsByGuid);
+                }).ExecuteLater(1);
+
+                // Initialize editor-side group cache so generic Save() paths don't clear groups.
+                SyncGroupsToGraph();
+
+                // Add minimap after graph content is loaded
+                if (_minimap == null || _minimap.parent == null)
+                {
+                    if (_minimap == null)
+                    {
+                        _minimap = new MinimapView();
+                    }
+                    Add(_minimap);
+                }
+
+                // Apply current zoom LOD to newly created nodes
+                foreach (var element in graphElements.ToList())
+                {
+                    if (element is NodeView nv)
+                    {
+                        nv.SetZoomDetailLevel(_currentZoom);
+                    }
+                }
+
+                // Sync with runtime state if in play mode
+                if (EditorApplication.isPlaying)
+                {
+                    SyncWithRuntimeState();
                 }
             }
-            
-            // Clean up floating edges after port refresh
-            CleanupFloatingEdges();
-
-            // Clean up any "addStep" connections from graph data
-            var addStepConnections = graph.Connections.Where(c => c.outputPortId == "addStep").ToList();
-            foreach (var conn in addStepConnections)
+            finally
             {
-                graph.RemoveConnection(conn);
+                _isLoadingGraph = false;
             }
+        }
 
-            // Create edges
-            foreach (var conn in graph.Connections)
+        private void AttachSavedNodesToGroups(
+            IReadOnlyList<Group> visualGroups,
+            IReadOnlyList<NodeSystem.GroupEntry> entries,
+            IReadOnlyDictionary<string, Node> nodeElementsByGuid = null)
+        {
+            if (visualGroups == null || entries == null) return;
+            int count = Mathf.Min(visualGroups.Count, entries.Count);
+            for (int i = 0; i < count; i++)
             {
-                CreateEdge(conn);
-            }
+                var group = visualGroups[i];
+                var entry = entries[i];
+                if (group == null || entry == null) continue;
 
-            // Clean up floating edges
-            CleanupFloatingEdges();
-            schedule.Execute(() => CleanupFloatingEdges()).ExecuteLater(100);
+                var current = new HashSet<GraphElement>(group.containedElements);
+                var nodesToAdd = new List<GraphElement>();
+                var resolvedGuids = new List<string>();
 
-            // Add minimap after graph content is loaded
-            if (_minimap == null || _minimap.parent == null)
-            {
-                if (_minimap == null)
+                if (nodeElementsByGuid != null)
                 {
-                    _minimap = new MinimapView();
-                }
-                Add(_minimap);
-            }
+                    foreach (var kvp in nodeElementsByGuid)
+                    {
+                        var nodeEl = kvp.Value;
+                        if (nodeEl == null || current.Contains(nodeEl)) continue;
 
-            // Apply current zoom LOD to newly created nodes
-            foreach (var element in graphElements.ToList())
-            {
-                if (element is NodeView nv)
+                        var nodeData = GetNodeData(nodeEl);
+                        if (nodeData == null || string.IsNullOrEmpty(nodeData.Guid)) continue;
+
+                        bool shouldBelong =
+                            (!string.IsNullOrEmpty(entry.id) && nodeData.GroupId == entry.id) ||
+                            (entry.nodeGuids != null && entry.nodeGuids.Contains(nodeData.Guid));
+                        if (!shouldBelong) continue;
+
+                        if (!string.IsNullOrEmpty(entry.id))
+                        {
+                            nodeData.GroupId = entry.id;
+                        }
+
+                        nodesToAdd.Add(nodeEl);
+                        resolvedGuids.Add(nodeData.Guid);
+                    }
+                }
+
+                if (nodesToAdd.Count > 0)
                 {
-                    nv.SetZoomDetailLevel(_currentZoom);
+                    group.AddElements(nodesToAdd);
+                    group.UpdateGeometryFromContent();
+                }
+                else if ((entry.nodeGuids?.Count ?? 0) > 0)
+                {
+                    Debug.LogWarning($"[NodeGraphView] Group '{entry.title}' has saved members but none resolved during load.");
+                }
+
+                if (_groupModels.TryGetValue(group, out var model))
+                {
+                    if (!string.IsNullOrEmpty(entry.id)) model.id = entry.id;
+                    if (resolvedGuids.Count > 0) model.nodeGuids = resolvedGuids;
                 }
             }
+        }
 
-            // Sync with runtime state if in play mode
-            if (EditorApplication.isPlaying)
+        private void BackfillEmptyGroupMembershipFromOverlap(
+            IReadOnlyList<Group> visualGroups,
+            IReadOnlyList<NodeSystem.GroupEntry> entries,
+            IReadOnlyDictionary<string, Node> nodeElementsByGuid)
+        {
+            if (visualGroups == null || entries == null || nodeElementsByGuid == null) return;
+
+            int count = Mathf.Min(visualGroups.Count, entries.Count);
+            for (int i = 0; i < count; i++)
             {
-                SyncWithRuntimeState();
+                var group = visualGroups[i];
+                var entry = entries[i];
+                if (group == null || entry == null) continue;
+                if (entry.nodeGuids != null && entry.nodeGuids.Count > 0) continue;
+                if (string.IsNullOrEmpty(entry.id)) continue;
+
+                var groupRect = new Rect(entry.x, entry.y, entry.width, entry.height);
+                var migrated = new List<string>();
+                foreach (var kvp in nodeElementsByGuid)
+                {
+                    var guid = kvp.Key;
+                    var nodeEl = kvp.Value;
+                    if (nodeEl == null) continue;
+                    if (!groupRect.Overlaps(nodeEl.GetPosition())) continue;
+                    migrated.Add(guid);
+                    var nodeData = GetNodeData(nodeEl);
+                    if (nodeData != null) nodeData.GroupId = entry.id;
+                }
+
+                if (migrated.Count > 0)
+                {
+                    entry.nodeGuids = migrated;
+                    if (_groupModels.TryGetValue(group, out var model))
+                    {
+                        model.nodeGuids = new List<string>(migrated);
+                    }
+                    Debug.Log($"[NodeGraphView] Migrated {migrated.Count} node(s) into group '{entry.title}' by overlap.");
+                }
             }
         }
 
@@ -986,6 +1559,12 @@ namespace NodeSystem.Editor
             {
                 RemoveElement(node);
             }
+
+            var allOdinNodes = allElements.OfType<NodeViewOdin>().ToList();
+            foreach (var node in allOdinNodes)
+            {
+                RemoveElement(node);
+            }
             
             var allComments = allElements.OfType<CommentNodeView>().ToList();
             foreach (var comment in allComments)
@@ -1000,8 +1579,9 @@ namespace NodeSystem.Editor
             // Clear execution tracking
             _executedNodeGuids.Clear();
             _currentRunningNodeGuid = null;
+            _groupModels.Clear();
             
-            Debug.Log($"[NodeGraphView] Cleared graph: removed {allNodes.Count} nodes, {allEdges.Count} edges");
+            Debug.Log($"[NodeGraphView] Cleared graph: removed {allNodes.Count + allOdinNodes.Count} nodes, {allEdges.Count} edges");
         }
 
         /// <summary>
@@ -1032,6 +1612,7 @@ namespace NodeSystem.Editor
             {
                 if (Graph != null)
                 {
+                    SyncGroupsToGraph();
                     Graph.SaveToJson();
                     EditorUtility.SetDirty(Graph);
                 }
@@ -1062,6 +1643,7 @@ namespace NodeSystem.Editor
             var node = (NodeData)Activator.CreateInstance(nodeType);
             node.Position = position;
 
+            SyncGroupsToGraph();
             Undo.RecordObject(Graph, "Add Node");
             Graph.AddNode(node);
             Graph.Save();
@@ -1122,6 +1704,7 @@ namespace NodeSystem.Editor
                 inputPort.name
             );
 
+            SyncGroupsToGraph();
             Undo.RecordObject(Graph, "Add Connection");
             Graph.AddConnection(conn);
             Graph.Save();
@@ -1147,6 +1730,8 @@ namespace NodeSystem.Editor
         {
             if (node is NodeView nodeView)
                 return nodeView.Data;
+            if (node is CommentNodeView commentView)
+                return commentView.Data;
 #if ODIN_INSPECTOR
             if (node is NodeViewOdin odinView)
                 return odinView.Data;
@@ -1249,6 +1834,9 @@ namespace NodeSystem.Editor
         private GraphViewChange OnGraphViewChanged(GraphViewChange change)
         {
             if (Graph == null) return change;
+            if (_isLoadingGraph) return change;
+
+            SyncGroupsToGraph();
 
             // Handle removed elements
             if (change.elementsToRemove != null)
@@ -1274,8 +1862,22 @@ namespace NodeSystem.Editor
                     
                     if (nodeData != null)
                     {
+                        RemoveNodeGuidFromAllGroupModels(nodeData.Guid);
                         Undo.RecordObject(Graph, "Remove Node");
                         Graph.RemoveNode(nodeData);
+                    }
+                    else if (elem is Group removedGroup)
+                    {
+                        if (_groupModels.TryGetValue(removedGroup, out var model))
+                        {
+                            foreach (var guid in model.nodeGuids.ToList())
+                            {
+                                var nodeEl = GetNodeByGuid(guid);
+                                var data = nodeEl != null ? GetNodeData(nodeEl) : null;
+                                if (data != null) data.GroupId = "";
+                            }
+                            _groupModels.Remove(removedGroup);
+                        }
                     }
                     else if (elem is Edge edge)
                     {
@@ -1356,15 +1958,32 @@ namespace NodeSystem.Editor
             // Handle moved elements
             if (change.movedElements != null)
             {
+                bool hasGroupMove = false;
                 foreach (var elem in change.movedElements)
                 {
                     if (elem is NodeView nodeView)
                     {
                         nodeView.Data.Position = nodeView.GetPosition().position;
                     }
+                    else if (elem is Group)
+                    {
+                        hasGroupMove = true;
+                    }
+                }
+                if (hasGroupMove)
+                {
+                    SyncGroupsToGraph();
                 }
                 EditorUtility.SetDirty(Graph);
                 Graph.Save();
+            }
+
+            // Re-sync groups after removals (e.g. deleted group) so saved state is correct
+            if (change.elementsToRemove != null && change.elementsToRemove.Count > 0)
+            {
+                SyncGroupsToGraph();
+                Graph.SaveToJson();
+                EditorUtility.SetDirty(Graph);
             }
 
             return change;
@@ -1472,6 +2091,7 @@ namespace NodeSystem.Editor
         {
             if (Graph == null || _copiedNodes.Count == 0) return;
 
+            SyncGroupsToGraph();
             Undo.RecordObject(Graph, "Paste Nodes");
             ClearSelection();
 
