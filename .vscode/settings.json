@@ -67,5 +67,6 @@
         "*.sln": "*.csproj",
         "*.slnx": "*.csproj"
     },
-    "dotnet.defaultSolution": "Quiz_Master.slnx"
+    "dotnet.defaultSolution": "Quiz_Master.slnx",
+    "chatgpt.openOnStartup": true
 }
