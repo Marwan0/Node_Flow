@@ -50,7 +50,7 @@ namespace NodeSystem.Editor
                     var instance = (NodeData)Activator.CreateInstance(type);
                     if (instance.Category == category)
                     {
-                        tree.Add(new SearchTreeEntry(new GUIContent(instance.Name))
+                        tree.Add(new SearchTreeEntry(new GUIContent(instance.Name, instance.GetHintText()))
                         {
                             level = 2,
                             userData = type
@@ -101,4 +101,3 @@ namespace NodeSystem.Editor
     }
 }
 #endif
-

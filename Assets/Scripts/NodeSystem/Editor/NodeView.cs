@@ -25,6 +25,7 @@ namespace NodeSystem.Editor
         private VisualElement _glowElement;
         private NodeState _visualState = NodeState.Idle;
         private VisualElement _inlineContentContainer;
+        private Button _hintButton;
         private TextField _labelField;
         
         // Pulse animation state
@@ -58,9 +59,12 @@ namespace NodeSystem.Editor
                 {
                     // Reserve space: input field width (120px) + right margin (40px) + spacing (10px) = 170px
                     titleLabel.style.paddingRight = 170;
+                    titleLabel.style.paddingLeft = 28;
                     titleLabel.style.overflow = Overflow.Hidden; // Prevent text from extending into input field
                 }
                 
+                CreateHintButton();
+
                 // Add custom label field next to title
                 CreateTitleLabelField(data);
             }
@@ -134,7 +138,7 @@ namespace NodeSystem.Editor
 
             // Create ports
             CreatePorts();
-
+            
             // Create inline content
             CreateInlineContent();
 
@@ -165,6 +169,42 @@ namespace NodeSystem.Editor
                     }
                 });
             }
+        }
+
+        private void CreateHintButton()
+        {
+            var hintText = Data.GetHintText();
+            if (string.IsNullOrWhiteSpace(hintText)) return;
+
+            _hintButton = new Button();
+            _hintButton.name = "node-hint-button";
+            _hintButton.text = "?";
+            _hintButton.tooltip = hintText;
+            _hintButton.style.position = Position.Absolute;
+            _hintButton.style.left = 4;
+            _hintButton.style.top = 2;
+            _hintButton.style.width = 20;
+            _hintButton.style.height = 20;
+            _hintButton.style.minWidth = 20;
+            _hintButton.style.paddingLeft = 0;
+            _hintButton.style.paddingRight = 0;
+            _hintButton.style.paddingTop = 0;
+            _hintButton.style.paddingBottom = 0;
+            _hintButton.style.fontSize = 12;
+            _hintButton.style.unityFontStyleAndWeight = FontStyle.Bold;
+            _hintButton.style.color = new Color(0.85f, 0.92f, 1f);
+            _hintButton.style.backgroundColor = new Color(0.08f, 0.17f, 0.27f, 0.95f);
+            _hintButton.style.borderTopLeftRadius = 10;
+            _hintButton.style.borderTopRightRadius = 10;
+            _hintButton.style.borderBottomLeftRadius = 10;
+            _hintButton.style.borderBottomRightRadius = 10;
+            _hintButton.style.borderTopColor = new Color(0.2f, 0.45f, 0.75f);
+            _hintButton.style.borderBottomColor = new Color(0.2f, 0.45f, 0.75f);
+            _hintButton.style.borderLeftColor = new Color(0.2f, 0.45f, 0.75f);
+            _hintButton.style.borderRightColor = new Color(0.2f, 0.45f, 0.75f);
+
+            _hintButton.RegisterCallback<MouseDownEvent>(evt => evt.StopPropagation());
+            _titleContainer.Add(_hintButton);
         }
 
         /// <summary>

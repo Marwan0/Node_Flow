@@ -108,6 +108,12 @@ namespace NodeSystem
         /// <summary>Category in search menu</summary>
         public virtual string Category => "General";
 
+        /// <summary>
+        /// Short human-readable hint for what this node does.
+        /// Override in custom nodes for better guidance in the editor.
+        /// </summary>
+        public virtual string Description => string.Empty;
+
         /// <summary>Runtime state (not serialized)</summary>
         [NonSerialized]
         public NodeState State = NodeState.Idle;
@@ -149,6 +155,32 @@ namespace NodeSystem
             return port?.capacity ?? PortCapacity.Single;
         }
 
+        /// <summary>
+        /// Returns description text for editor UI. Falls back to port summary when no custom description is provided.
+        /// </summary>
+        public string GetHintText()
+        {
+            if (!string.IsNullOrWhiteSpace(Description))
+            {
+                return Description.Trim();
+            }
+
+            var inputNames = GetInputPorts()?
+                .Where(p => p != null && !string.IsNullOrWhiteSpace(p.name))
+                .Select(p => p.name.Trim())
+                .ToList() ?? new List<string>();
+
+            var outputNames = GetOutputPorts()?
+                .Where(p => p != null && !string.IsNullOrWhiteSpace(p.name))
+                .Select(p => p.name.Trim())
+                .ToList() ?? new List<string>();
+
+            var inputSummary = inputNames.Count > 0 ? string.Join(", ", inputNames) : "None";
+            var outputSummary = outputNames.Count > 0 ? string.Join(", ", outputNames) : "None";
+
+            return $"{Name}: {Category} node. Inputs: {inputSummary}. Outputs: {outputSummary}.";
+        }
+
         /// <summary>Execute the node (called by runner)</summary>
         public void Execute()
         {
@@ -185,4 +217,3 @@ namespace NodeSystem
         }
     }
 }
-
