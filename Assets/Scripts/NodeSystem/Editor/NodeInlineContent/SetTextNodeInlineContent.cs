@@ -15,7 +15,7 @@ namespace NodeSystem.Editor
             CreateTextField(node.targetPath, v => node.targetPath = v, "Target GameObject path...");
 
             // Text content
-            CreateTextField(node.text, v => node.text = v, "Text content...");
+            CreateMultilineTextField(node.text, v => node.text = v, "Text content...");
 
             // Typewriter effect toggle
             CreateToggle("Typewriter", node.typewriterEffect, v => 
@@ -34,4 +34,3 @@ namespace NodeSystem.Editor
     }
 }
 #endif
-

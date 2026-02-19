@@ -62,6 +62,9 @@ namespace NodeSystem.Editor
             field.style.marginTop = 2;
             field.style.marginBottom = 2;
             field.style.minWidth = 80;
+            field.style.flexGrow = 1;
+            field.style.width = Length.Percent(100);
+            field.tooltip = field.value;
             
             if (!string.IsNullOrEmpty(placeholder) && string.IsNullOrEmpty(value))
             {
@@ -71,8 +74,38 @@ namespace NodeSystem.Editor
             field.RegisterValueChangedCallback(evt =>
             {
                 onChanged(evt.newValue);
+                field.tooltip = evt.newValue ?? string.Empty;
                 MarkDirty();
             });
+            Container.Add(field);
+            return field;
+        }
+
+        protected TextField CreateMultilineTextField(string value, Action<string> onChanged, string placeholder = "", float minHeight = 48f)
+        {
+            var field = new TextField() { value = value ?? "" };
+            field.multiline = true;
+            field.style.marginTop = 2;
+            field.style.marginBottom = 2;
+            field.style.minWidth = 80;
+            field.style.flexGrow = 1;
+            field.style.width = Length.Percent(100);
+            field.style.minHeight = minHeight;
+            field.style.whiteSpace = WhiteSpace.Normal;
+            field.tooltip = field.value;
+
+            if (!string.IsNullOrEmpty(placeholder) && string.IsNullOrEmpty(value))
+            {
+                field.Q<TextElement>().text = placeholder;
+            }
+
+            field.RegisterValueChangedCallback(evt =>
+            {
+                onChanged(evt.newValue);
+                field.tooltip = evt.newValue ?? string.Empty;
+                MarkDirty();
+            });
+
             Container.Add(field);
             return field;
         }
@@ -385,4 +418,3 @@ namespace NodeSystem.Editor
     }
 }
 #endif
-

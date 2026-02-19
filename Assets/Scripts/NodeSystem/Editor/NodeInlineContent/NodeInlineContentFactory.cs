@@ -32,6 +32,7 @@ namespace NodeSystem.Editor
             Register<Nodes.AnimationNode, AnimationNodeInlineContent>();
             Register<Nodes.AnimationSequencerNode, AnimationSequencerNodeInlineContent>();
             Register<Nodes.SetTextNode, SetTextNodeInlineContent>();
+            Register<Nodes.ShowMessageNode, ShowMessageNodeInlineContent>();
             Register<Nodes.ButtonActivationNode, ButtonActivationNodeInlineContent>();
             Register<Nodes.ButtonActionNode, ButtonActionNodeInlineContent>();
             Register<Nodes.SetActiveNode, SetActiveNodeInlineContent>();
@@ -116,4 +117,3 @@ namespace NodeSystem.Editor
     }
 }
 #endif
-

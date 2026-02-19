@@ -103,9 +103,10 @@ namespace NodeSystem.Editor
                 // Add a visual separator
                 AddSeparator("Question Preview");
 
-                // Draw the full Odin inspector inside a scrollable area
-                // This shows ALL properties including type-specific ones (answers, correctAnswerIndex, etc.)
-                DrawEmbeddedInspector_WithScrollView();
+                // Compact inline editor (no nested scrollbar).
+                // Full question editing stays in the normal Inspector via the button below.
+                DrawCompactQuestionEditor();
+                DrawQuestionAssetActions(currentQuestion);
             }
 
             // === STEP 3: Node-specific options ===
@@ -289,7 +290,7 @@ namespace NodeSystem.Editor
                 var questionTextProp = _serializedQuestion.FindProperty("questionText");
                 if (questionTextProp != null)
                 {
-                    EditorGUILayout.PropertyField(questionTextProp, new GUIContent("Question"));
+                    DrawLargeTextProperty(questionTextProp, "Question");
                 }
 
                 // Draw the question type
@@ -319,7 +320,13 @@ namespace NodeSystem.Editor
                 var hintsProp = _serializedQuestion.FindProperty("hints");
                 if (hintsProp != null)
                 {
-                    EditorGUILayout.PropertyField(hintsProp, new GUIContent("Hints"), true);
+                    DrawLargeStringArray(hintsProp, "Hints");
+                }
+
+                var explanationProp = _serializedQuestion.FindProperty("explanation");
+                if (explanationProp != null)
+                {
+                    DrawLargeTextProperty(explanationProp, "Explanation");
                 }
 
                 // IMPORTANT: Apply changes back to the object
@@ -413,7 +420,7 @@ namespace NodeSystem.Editor
                 
                 var questionTextProp = _serializedQuestion.FindProperty("questionText");
                 if (questionTextProp != null)
-                    EditorGUILayout.PropertyField(questionTextProp, new GUIContent("Question"));
+                    DrawLargeTextProperty(questionTextProp, "Question");
 
                 var typeProp = _serializedQuestion.FindProperty("questionType");
                 if (typeProp != null)
@@ -433,11 +440,11 @@ namespace NodeSystem.Editor
 
                 var hintsProp = _serializedQuestion.FindProperty("hints");
                 if (hintsProp != null)
-                    EditorGUILayout.PropertyField(hintsProp, new GUIContent("Hints"), true);
+                    DrawLargeStringArray(hintsProp, "Hints");
 
                 var explanationProp = _serializedQuestion.FindProperty("explanation");
                 if (explanationProp != null)
-                    EditorGUILayout.PropertyField(explanationProp, new GUIContent("Explanation"));
+                    DrawLargeTextProperty(explanationProp, "Explanation");
 
                 EditorGUILayout.Space(5);
 
@@ -544,6 +551,105 @@ namespace NodeSystem.Editor
         }
 
         /// <summary>
+        /// Compact question editor without nested scrolling.
+        /// Keeps the node lightweight and pushes full editing to normal Inspector.
+        /// </summary>
+        private void DrawCompactQuestionEditor()
+        {
+            if (_serializedQuestion == null) return;
+
+            var imguiContainer = new IMGUIContainer(() =>
+            {
+                _serializedQuestion.Update();
+
+                var questionTextProp = _serializedQuestion.FindProperty("questionText");
+                if (questionTextProp != null)
+                {
+                    DrawLargeTextProperty(questionTextProp, "Question", 72f);
+                }
+
+                var typeProp = _serializedQuestion.FindProperty("questionType");
+                if (typeProp != null)
+                {
+                    EditorGUI.BeginDisabledGroup(true);
+                    EditorGUILayout.PropertyField(typeProp, new GUIContent("Type"));
+                    EditorGUI.EndDisabledGroup();
+                }
+
+                var pointsProp = _serializedQuestion.FindProperty("points");
+                if (pointsProp != null)
+                {
+                    EditorGUILayout.PropertyField(pointsProp, new GUIContent("Points"));
+                }
+
+                var maxAttemptsProp = _serializedQuestion.FindProperty("maxAttempts");
+                if (maxAttemptsProp != null)
+                {
+                    EditorGUILayout.PropertyField(maxAttemptsProp, new GUIContent("Max Attempts"));
+                }
+
+                var hintsProp = _serializedQuestion.FindProperty("hints");
+                if (hintsProp != null)
+                {
+                    DrawLargeStringArray(hintsProp, "Hints", 34f);
+                }
+
+                var explanationProp = _serializedQuestion.FindProperty("explanation");
+                if (explanationProp != null)
+                {
+                    DrawLargeTextProperty(explanationProp, "Explanation", 64f);
+                }
+
+                if (_serializedQuestion.ApplyModifiedProperties())
+                {
+                    EditorUtility.SetDirty(_cachedQuestion);
+                    MarkDirty();
+                }
+            });
+
+            imguiContainer.style.marginTop = 4;
+            imguiContainer.style.marginBottom = 4;
+            imguiContainer.style.paddingLeft = 4;
+            imguiContainer.style.paddingRight = 4;
+            imguiContainer.style.backgroundColor = new Color(0.18f, 0.18f, 0.18f, 0.8f);
+            Container.Add(imguiContainer);
+        }
+
+        private void DrawQuestionAssetActions(QuestionData questionAsset)
+        {
+            if (questionAsset == null) return;
+
+            var actionsRow = new VisualElement();
+            actionsRow.style.flexDirection = FlexDirection.Row;
+            actionsRow.style.marginTop = 4;
+            actionsRow.style.marginBottom = 4;
+
+            var openButton = new UnityEngine.UIElements.Button(() =>
+            {
+                Selection.activeObject = questionAsset;
+                EditorGUIUtility.PingObject(questionAsset);
+            })
+            {
+                text = "Open Asset"
+            };
+            openButton.style.flexGrow = 1;
+            openButton.style.marginRight = 6;
+
+            var pingButton = new UnityEngine.UIElements.Button(() =>
+            {
+                EditorGUIUtility.PingObject(questionAsset);
+            })
+            {
+                text = "Ping"
+            };
+            pingButton.style.width = 72;
+
+            actionsRow.Add(openButton);
+            actionsRow.Add(pingButton);
+            Container.Add(actionsRow);
+        }
+
+        /// <summary>
         /// METHOD 3: Use UI Toolkit's PropertyField (most modern approach)
         /// 
         /// PROS: Native UI Toolkit, better performance, modern look
@@ -585,6 +691,69 @@ namespace NodeSystem.Editor
             propContainer.Bind(_serializedQuestion);
 
             Container.Add(propContainer);
+        }
+
+        private static void DrawLargeTextProperty(SerializedProperty prop, string label, float minHeight = 56f)
+        {
+            if (prop == null || prop.propertyType != SerializedPropertyType.String)
+            {
+                if (prop != null)
+                {
+                    EditorGUILayout.PropertyField(prop, new GUIContent(label), true);
+                }
+                return;
+            }
+
+            EditorGUILayout.LabelField(label, EditorStyles.miniBoldLabel);
+            EditorGUI.BeginChangeCheck();
+            string updated = EditorGUILayout.TextArea(prop.stringValue ?? string.Empty, GUILayout.MinHeight(minHeight));
+            if (EditorGUI.EndChangeCheck())
+            {
+                prop.stringValue = updated;
+            }
+        }
+
+        private static void DrawLargeStringArray(SerializedProperty arrayProp, string label, float minHeight = 40f)
+        {
+            if (arrayProp == null || !arrayProp.isArray)
+            {
+                if (arrayProp != null)
+                {
+                    EditorGUILayout.PropertyField(arrayProp, new GUIContent(label), true);
+                }
+                return;
+            }
+
+            EditorGUILayout.LabelField(label, EditorStyles.miniBoldLabel);
+            EditorGUI.indentLevel++;
+
+            int currentSize = arrayProp.arraySize;
+            int newSize = EditorGUILayout.IntField("Size", currentSize);
+            if (newSize != currentSize && newSize >= 0)
+            {
+                arrayProp.arraySize = newSize;
+            }
+
+            for (int i = 0; i < arrayProp.arraySize; i++)
+            {
+                var item = arrayProp.GetArrayElementAtIndex(i);
+                if (item != null && item.propertyType == SerializedPropertyType.String)
+                {
+                    EditorGUILayout.LabelField($"Hint {i + 1}", EditorStyles.miniLabel);
+                    EditorGUI.BeginChangeCheck();
+                    string updated = EditorGUILayout.TextArea(item.stringValue ?? string.Empty, GUILayout.MinHeight(minHeight));
+                    if (EditorGUI.EndChangeCheck())
+                    {
+                        item.stringValue = updated;
+                    }
+                }
+                else
+                {
+                    EditorGUILayout.PropertyField(item, new GUIContent($"Element {i}"), true);
+                }
+            }
+
+            EditorGUI.indentLevel--;
         }
 
         /// <summary>

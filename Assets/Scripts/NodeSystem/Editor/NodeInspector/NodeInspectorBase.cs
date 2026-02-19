@@ -45,9 +45,11 @@ namespace NodeSystem.Editor
         protected TextField CreateTextField(string label, string value, Action<string> onChanged)
         {
             var field = new TextField(label) { value = value ?? "" };
+            field.tooltip = field.value;
             field.RegisterValueChangedCallback(evt =>
             {
                 onChanged(evt.newValue);
+                field.tooltip = evt.newValue ?? string.Empty;
                 MarkDirty();
             });
             field.style.marginBottom = 5;
@@ -214,4 +216,3 @@ namespace NodeSystem.Editor
     }
 }
 #endif
-

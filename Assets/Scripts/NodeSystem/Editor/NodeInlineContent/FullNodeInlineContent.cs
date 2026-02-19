@@ -84,15 +84,30 @@ namespace NodeSystem.Editor
             row.Add(labelElem);
 
             var textField = new TextField() { value = value ?? "" };
+            if (IsLongTextField(field.Name, label))
+            {
+                textField.multiline = true;
+                textField.style.minHeight = 48;
+                textField.style.whiteSpace = WhiteSpace.Normal;
+            }
             textField.style.flexGrow = 1;
+            textField.tooltip = textField.value;
             textField.RegisterValueChangedCallback(evt =>
             {
                 field.SetValue(Node, evt.newValue);
+                textField.tooltip = evt.newValue ?? string.Empty;
                 MarkDirty();
             });
             row.Add(textField);
 
             Container.Add(row);
+        }
+
+        private bool IsLongTextField(string fieldName, string label)
+        {
+            string name = (fieldName ?? string.Empty).ToLowerInvariant();
+            string title = (label ?? string.Empty).ToLowerInvariant();
+            return name.Contains("message") || name.Contains("text") || title.Contains("message") || title.Contains("text");
         }
 
         private void DrawFloatField(string label, FieldInfo field, float value)
@@ -262,4 +277,3 @@ namespace NodeSystem.Editor
     }
 }
 #endif
-

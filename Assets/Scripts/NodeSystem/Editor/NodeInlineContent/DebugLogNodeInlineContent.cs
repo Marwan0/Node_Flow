@@ -14,9 +14,8 @@ namespace NodeSystem.Editor
             CreateEnumField("Type", node.logType, (DebugLogNode.LogType v) => node.logType = v);
 
             // Message
-            CreateTextField(node.message, v => node.message = v, "Message...");
+            CreateMultilineTextField(node.message, v => node.message = v, "Message...");
         }
     }
 }
 #endif
-
