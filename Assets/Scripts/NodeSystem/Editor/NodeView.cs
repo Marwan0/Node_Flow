@@ -26,7 +26,6 @@ namespace NodeSystem.Editor
         private NodeState _visualState = NodeState.Idle;
         private VisualElement _inlineContentContainer;
         private Button _hintButton;
-        private TextField _labelField;
         
         // Pulse animation state
         private IVisualElementScheduledItem _pulseSchedule;
@@ -57,16 +56,13 @@ namespace NodeSystem.Editor
                 var titleLabel = _titleContainer.Q<Label>("title-label");
                 if (titleLabel != null)
                 {
-                    // Reserve space: input field width (120px) + right margin (40px) + spacing (10px) = 170px
-                    titleLabel.style.paddingRight = 170;
+                    // Keep title clear of the right-side UI (breakpoint + fold).
+                    titleLabel.style.paddingRight = 44;
                     titleLabel.style.paddingLeft = 28;
                     titleLabel.style.overflow = Overflow.Hidden; // Prevent text from extending into input field
                 }
                 
                 CreateHintButton();
-
-                // Add custom label field next to title
-                CreateTitleLabelField(data);
             }
 
             // Add glow element (behind everything, inspired by Doozy's NodeGlow)
@@ -205,87 +201,6 @@ namespace NodeSystem.Editor
 
             _hintButton.RegisterCallback<MouseDownEvent>(evt => evt.StopPropagation());
             _titleContainer.Add(_hintButton);
-        }
-
-        /// <summary>
-        /// Create the custom label text field in the title bar
-        /// </summary>
-        private void CreateTitleLabelField(NodeData data)
-        {
-            // Breakpoint button: width 12px + right 5px = 17px from right
-            // Fold button: typically ~20px width
-            // Total margin needed: ~40px from right edge
-            const float breakpointButtonWidth = 12f;
-            const float breakpointButtonRight = 5f;
-            const float foldButtonWidth = 20f;
-            const float spacing = 3f;
-            const float totalRightMargin = breakpointButtonWidth + breakpointButtonRight + foldButtonWidth + spacing;
-            
-            // Create the label input field
-            _labelField = new TextField();
-            _labelField.value = data.displayLabel ?? "";
-            _labelField.style.position = Position.Absolute;
-            _labelField.style.right = totalRightMargin;
-            _labelField.style.width = 120; // Reduced width for smaller nodes
-            _labelField.style.maxWidth = 120;
-            _labelField.style.minWidth = 60;
-            _labelField.style.height = 18; // Slightly smaller height
-            _labelField.style.fontSize = 9;
-            
-            // Center vertically - title bar is typically 24px, field is 18px, so (24-18)/2 = 3px offset
-            _labelField.style.top = 3;
-            
-            // Style the input to look nice in the title bar
-            var textInput = _labelField.Q("unity-text-input");
-            if (textInput != null)
-            {
-                textInput.style.backgroundColor = new Color(0.1f, 0.1f, 0.1f, 0.9f);
-                textInput.style.borderTopWidth = 1;
-                textInput.style.borderBottomWidth = 1;
-                textInput.style.borderLeftWidth = 1;
-                textInput.style.borderRightWidth = 1;
-                textInput.style.borderTopColor = new Color(0.4f, 0.7f, 1f, 0.5f);
-                textInput.style.borderBottomColor = new Color(0.4f, 0.7f, 1f, 0.5f);
-                textInput.style.borderLeftColor = new Color(0.4f, 0.7f, 1f, 0.5f);
-                textInput.style.borderRightColor = new Color(0.4f, 0.7f, 1f, 0.5f);
-                textInput.style.borderTopLeftRadius = 3;
-                textInput.style.borderTopRightRadius = 3;
-                textInput.style.borderBottomLeftRadius = 3;
-                textInput.style.borderBottomRightRadius = 3;
-                textInput.style.paddingLeft = 4;
-                textInput.style.paddingRight = 4;
-                textInput.style.paddingTop = 1;
-                textInput.style.paddingBottom = 1;
-                textInput.style.color = new Color(0.4f, 0.85f, 1f); // Cyan/light blue text
-            }
-
-            // Set text color for the label field
-            _labelField.style.color = new Color(0.4f, 0.85f, 1f); // Cyan/light blue text
-
-            // Handle value changes
-            _labelField.RegisterValueChangedCallback(evt =>
-            {
-                data.displayLabel = evt.newValue;
-                OnDataChanged?.Invoke();
-            });
-
-            // Add focus handling to prevent graph interaction while typing
-            _labelField.RegisterCallback<FocusInEvent>(evt =>
-            {
-                evt.StopPropagation();
-            });
-            
-            _labelField.RegisterCallback<KeyDownEvent>(evt =>
-            {
-                // Stop propagation to prevent graph shortcuts
-                if (evt.keyCode != KeyCode.Escape)
-                {
-                    evt.StopPropagation();
-                }
-            });
-
-            // Add to title container with absolute positioning
-            _titleContainer.Add(_labelField);
         }
 
         /// <summary>
