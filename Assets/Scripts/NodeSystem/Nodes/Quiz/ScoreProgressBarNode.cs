@@ -71,6 +71,16 @@ namespace NodeSystem.Nodes.Quiz
         [Range(0.05f, 2f)]
         public float animationDuration = 0.3f;
 
+        [SerializeField]
+        [Tooltip("When Value from = Quiz Score, keep listening to score changes and update automatically.")]
+        public bool liveUpdateFromScoreEvents = true;
+
+        [NonSerialized]
+        private bool _isScoreEventSubscribed;
+
+        [NonSerialized]
+        private Coroutine _activeAnimation;
+
         public override string Name => "Score Progress Bar";
         public override Color Color => new Color(0.85f, 0.65f, 0.25f); // Amber/Gold
         public override string Category => "Quiz";
@@ -100,11 +110,33 @@ namespace NodeSystem.Nodes.Quiz
                 return;
             }
 
+            SubscribeToScoreEventsIfNeeded();
+            ApplyCurrentValueToTarget(onComplete: Complete);
+        }
+
+        private IEnumerator AnimateToFill(float fromValue, float toValue, float duration, Action<float> onUpdate, Action onComplete)
+        {
+            float elapsed = 0f;
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsed / duration);
+                t = t * t * (3f - 2f * t);
+                float current = Mathf.Lerp(fromValue, toValue, t);
+                onUpdate(current);
+                yield return null;
+            }
+            onUpdate(toValue);
+            onComplete?.Invoke();
+        }
+
+        private void ApplyCurrentValueToTarget(Action onComplete = null)
+        {
             GameObject targetGo = ResolveTarget();
             if (targetGo == null)
             {
                 Debug.LogWarning("[ScoreProgressBarNode] No target: assign one by drag-and-drop or set target path.");
-                Complete();
+                onComplete?.Invoke();
                 return;
             }
 
@@ -122,61 +154,96 @@ namespace NodeSystem.Nodes.Quiz
             var slider = targetGo.GetComponent<Slider>();
             if (slider != null)
             {
-                if (animateFill && animationDuration > 0f && Runner != null)
-                {
-                    Runner.StartCoroutine(AnimateToFill(
-                        fromValue: slider.value,
-                        toValue: fill,
-                        duration: animationDuration,
-                        onUpdate: v => slider.value = v,
-                        onComplete: Complete));
-                }
-                else
-                {
-                    slider.value = fill;
-                    Complete();
-                }
+                ApplyToSlider(slider, fill, onComplete);
                 return;
             }
 
             var image = targetGo.GetComponent<Image>();
             if (image != null && image.type == Image.Type.Filled)
             {
-                if (animateFill && animationDuration > 0f && Runner != null)
-                {
-                    Runner.StartCoroutine(AnimateToFill(
-                        fromValue: image.fillAmount,
-                        toValue: fill,
-                        duration: animationDuration,
-                        onUpdate: v => image.fillAmount = v,
-                        onComplete: Complete));
-                }
-                else
-                {
-                    image.fillAmount = fill;
-                    Complete();
-                }
+                ApplyToImage(image, fill, onComplete);
                 return;
             }
 
             Debug.LogWarning($"[ScoreProgressBarNode] No Slider or filled Image on: {targetGo.name}");
-            Complete();
+            onComplete?.Invoke();
         }
 
-        private IEnumerator AnimateToFill(float fromValue, float toValue, float duration, Action<float> onUpdate, Action onComplete)
+        private void ApplyToSlider(Slider slider, float normalizedFill, Action onComplete)
         {
-            float elapsed = 0f;
-            while (elapsed < duration)
+            if (slider == null)
             {
-                elapsed += Time.deltaTime;
-                float t = Mathf.Clamp01(elapsed / duration);
-                t = t * t * (3f - 2f * t);
-                float current = Mathf.Lerp(fromValue, toValue, t);
-                onUpdate(current);
-                yield return null;
+                onComplete?.Invoke();
+                return;
             }
-            onUpdate(toValue);
-            onComplete?.Invoke();
+
+            float from = Mathf.Clamp01(slider.normalizedValue);
+            if (animateFill && animationDuration > 0f && Runner != null)
+            {
+                StopActiveAnimation();
+                _activeAnimation = Runner.StartCoroutine(AnimateToFill(
+                    fromValue: from,
+                    toValue: normalizedFill,
+                    duration: animationDuration,
+                    onUpdate: v => slider.normalizedValue = v,
+                    onComplete: onComplete));
+            }
+            else
+            {
+                slider.normalizedValue = normalizedFill;
+                onComplete?.Invoke();
+            }
+        }
+
+        private void ApplyToImage(Image image, float normalizedFill, Action onComplete)
+        {
+            if (image == null)
+            {
+                onComplete?.Invoke();
+                return;
+            }
+
+            float from = Mathf.Clamp01(image.fillAmount);
+            if (animateFill && animationDuration > 0f && Runner != null)
+            {
+                StopActiveAnimation();
+                _activeAnimation = Runner.StartCoroutine(AnimateToFill(
+                    fromValue: from,
+                    toValue: normalizedFill,
+                    duration: animationDuration,
+                    onUpdate: v => image.fillAmount = v,
+                    onComplete: onComplete));
+            }
+            else
+            {
+                image.fillAmount = normalizedFill;
+                onComplete?.Invoke();
+            }
+        }
+
+        private void SubscribeToScoreEventsIfNeeded()
+        {
+            if (_isScoreEventSubscribed) return;
+            if (!liveUpdateFromScoreEvents) return;
+            if (valueSource != ValueSource.QuizScore) return;
+
+            QuizState.OnScoreChanged += OnQuizScoreChanged;
+            _isScoreEventSubscribed = true;
+        }
+
+        private void OnQuizScoreChanged(int _)
+        {
+            if (Runner == null || !Runner.IsRunning) return;
+            ApplyCurrentValueToTarget();
+        }
+
+        private void StopActiveAnimation()
+        {
+            if (_activeAnimation != null && Runner != null)
+            {
+                Runner.StopCoroutine(_activeAnimation);
+                _activeAnimation = null;
+            }
         }
 
         private GameObject ResolveTarget()
@@ -270,6 +337,17 @@ namespace NodeSystem.Nodes.Quiz
             if (v.Type == VariableType.Float)
                 return v.GetFloatValue();
             return fallback;
+        }
+
+        public override void Reset()
+        {
+            base.Reset();
+            StopActiveAnimation();
+            if (_isScoreEventSubscribed)
+            {
+                QuizState.OnScoreChanged -= OnQuizScoreChanged;
+                _isScoreEventSubscribed = false;
+            }
         }
     }
 }

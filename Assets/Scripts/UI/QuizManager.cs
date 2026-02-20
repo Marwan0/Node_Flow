@@ -143,6 +143,10 @@ namespace QuizSystem
         private Transform currentQuestionWrapper;
         private Sequence currentTransitionSequence;
         private Dictionary<int, GameObject> _runtimeUIPrefabOverrides;
+        private int _totalQuestionWeight;
+        private float _scoreRemainder;
+        private Dictionary<int, int> _awardedRawByQuestion = new Dictionary<int, int>();
+        private int _lastScoreConfigSignature = int.MinValue;
 
         private void Awake()
         {
@@ -180,21 +184,51 @@ namespace QuizSystem
         /// </summary>
         public void EnsureQuizStarted()
         {
-            if (shuffledQuestions != null) return;
-            if (questions == null || questions.Count == 0) return;
-            shuffledQuestions = new List<QuestionData>(questions);
-            if (shuffleQuestions)
+            if (shuffledQuestions == null)
             {
-                for (int i = 0; i < shuffledQuestions.Count; i++)
+                if (questions == null || questions.Count == 0) return;
+                shuffledQuestions = new List<QuestionData>(questions);
+                if (shuffleQuestions)
                 {
-                    QuestionData temp = shuffledQuestions[i];
-                    int randomIndex = Random.Range(i, shuffledQuestions.Count);
-                    shuffledQuestions[i] = shuffledQuestions[randomIndex];
-                    shuffledQuestions[randomIndex] = temp;
+                    for (int i = 0; i < shuffledQuestions.Count; i++)
+                    {
+                        QuestionData temp = shuffledQuestions[i];
+                        int randomIndex = Random.Range(i, shuffledQuestions.Count);
+                        shuffledQuestions[i] = shuffledQuestions[randomIndex];
+                        shuffledQuestions[randomIndex] = temp;
+                    }
+                }
+                currentScore = 0;
+                currentQuestionIndex = 0;
+                _scoreRemainder = 0f;
+                _awardedRawByQuestion.Clear();
+                RecalculateScoreWeights();
+                LogScoreConfigurationIfNeeded();
+                return;
+            }
+
+            // Keep shuffled list in sync for node-driven flows that append questions at runtime.
+            bool changed = false;
+            if (questions != null)
+            {
+                for (int i = 0; i < questions.Count; i++)
+                {
+                    var q = questions[i];
+                    if (q == null) continue;
+                    if (!shuffledQuestions.Contains(q))
+                    {
+                        shuffledQuestions.Add(q);
+                        changed = true;
+                    }
                 }
             }
-            currentScore = 0;
-            currentQuestionIndex = 0;
+
+            if (changed)
+            {
+                RecalculateScoreWeights();
+            }
+
+            LogScoreConfigurationIfNeeded();
         }
 
         /// <summary>
@@ -595,17 +629,211 @@ namespace QuizSystem
 
         public void OnQuestionAnswered(bool isCorrect, int points)
         {
-            if (isCorrect)
+            OnQuestionAnswered(isCorrect, points, null);
+        }
+
+        public void OnQuestionAnswered(bool isCorrect, int points, QuestionData answeredQuestion)
+        {
+            int questionIndex = ResolveQuestionIndex(answeredQuestion);
+            int awardedPoints = AwardRawPointsForQuestion(questionIndex, points, isCorrect);
+            if (awardedPoints > 0)
             {
-                currentScore += points;
-                Debug.Log($"Correct! +{points} points. Total: {currentScore}");
+                Debug.Log($"[QuizManager] Finalized question {questionIndex}: +{awardedPoints} distributed points (raw total: {points}). Total: {currentScore}");
             }
             
             // Notify QuizState to fire the OnLastAnswerResult event
             // This allows LoadQuestionNode to detect when an answer is submitted
             if (QuizState.Instance != null)
             {
-                QuizState.Instance.RecordAnswer(currentQuestionIndex, isCorrect, isCorrect ? points : 0);
+                // Score was already applied live via AddScore in AwardRawPointsForQuestion.
+                // RecordAnswer here should only advance quiz progression and emit answer-result events.
+                QuizState.Instance.RecordAnswer(questionIndex, isCorrect, 0);
+            }
+        }
+
+        /// <summary>
+        /// Live progress scoring for multi-step questions (e.g., Connect).
+        /// Updates score without marking the question as answered.
+        /// </summary>
+        public void UpdateCurrentQuestionProgress(int completedUnits, int totalUnits)
+        {
+            UpdateQuestionProgress(null, completedUnits, totalUnits);
+        }
+
+        public void UpdateQuestionProgress(QuestionData question, int completedUnits, int totalUnits)
+        {
+            if (totalUnits <= 0) return;
+
+            int questionIndex = ResolveQuestionIndex(question);
+            int questionRawMax = GetQuestionRawWeight(questionIndex);
+            if (questionRawMax <= 0) return;
+
+            float normalized = Mathf.Clamp01((float)completedUnits / totalUnits);
+            int rawTarget = Mathf.RoundToInt(questionRawMax * normalized);
+            int deltaDistributed = AwardRawPointsForQuestion(questionIndex, rawTarget, false);
+
+            if (deltaDistributed > 0)
+            {
+                Debug.Log($"[QuizManager] Live score update on Q{questionIndex}: +{deltaDistributed} (progress {completedUnits}/{totalUnits})");
+            }
+        }
+
+        private int ResolveQuestionIndex(QuestionData question)
+        {
+            EnsureQuizStarted();
+
+            if (question != null && shuffledQuestions != null)
+            {
+                int idx = shuffledQuestions.IndexOf(question);
+                if (idx >= 0)
+                {
+                    return idx;
+                }
+            }
+
+            return Mathf.Clamp(currentQuestionIndex, 0, Mathf.Max(0, (shuffledQuestions?.Count ?? 1) - 1));
+        }
+
+        private void RecalculateScoreWeights()
+        {
+            _totalQuestionWeight = 0;
+            if (shuffledQuestions == null) return;
+
+            int limit = GetScoreWeightQuestionLimit();
+            int count = shuffledQuestions.Count;
+            if (limit > 0)
+            {
+                count = Mathf.Min(count, limit);
+            }
+
+            for (int i = 0; i < count; i++)
+            {
+                var question = shuffledQuestions[i];
+                if (question == null) continue;
+                _totalQuestionWeight += Mathf.Max(0, question.points);
+            }
+        }
+
+        private int GetScoreWeightQuestionLimit()
+        {
+            var state = QuizState.Instance;
+            if (state == null) return 0;
+            return state.totalQuestions > 0 ? state.totalQuestions : 0;
+        }
+
+        private int GetDistributedPointsForRawDelta(int rawPointsDelta)
+        {
+            int targetMaxScore = GetTargetMaxScore();
+            if (targetMaxScore <= 0)
+                return Mathf.Max(0, rawPointsDelta);
+
+            if (rawPointsDelta <= 0)
+                return 0;
+
+            if (_totalQuestionWeight <= 0)
+            {
+                int questionCount = shuffledQuestions != null ? shuffledQuestions.Count : 0;
+                if (questionCount <= 0)
+                    return rawPointsDelta;
+
+                float equalShare = ((float)targetMaxScore / questionCount) + _scoreRemainder;
+                int equalPoints = Mathf.FloorToInt(equalShare);
+                _scoreRemainder = equalShare - equalPoints;
+                return Mathf.Max(0, equalPoints);
+            }
+
+            float weightedShare = ((float)targetMaxScore * rawPointsDelta / _totalQuestionWeight) + _scoreRemainder;
+            int awardedPoints = Mathf.FloorToInt(weightedShare);
+            _scoreRemainder = weightedShare - awardedPoints;
+            return Mathf.Max(0, awardedPoints);
+        }
+
+        private int AwardRawPointsForQuestion(int questionIndex, int requestedRawPoints, bool forceFullOnCorrect)
+        {
+            int questionRawMax = GetQuestionRawWeight(questionIndex);
+            if (questionRawMax <= 0) return 0;
+
+            int rawTarget = Mathf.Clamp(Mathf.Max(0, requestedRawPoints), 0, questionRawMax);
+            if (forceFullOnCorrect && rawTarget <= 0)
+            {
+                rawTarget = questionRawMax;
+            }
+
+            int alreadyAwardedRaw = 0;
+            _awardedRawByQuestion.TryGetValue(questionIndex, out alreadyAwardedRaw);
+            if (rawTarget <= alreadyAwardedRaw)
+            {
+                return 0;
+            }
+
+            int rawDelta = rawTarget - alreadyAwardedRaw;
+            int distributedDelta = Mathf.Max(0, rawDelta);
+            int targetMaxScore = GetTargetMaxScore();
+            if (targetMaxScore > 0)
+            {
+                int remaining = Mathf.Max(0, targetMaxScore - currentScore);
+                distributedDelta = Mathf.Min(distributedDelta, remaining);
+            }
+
+            _awardedRawByQuestion[questionIndex] = rawTarget;
+            if (distributedDelta > 0)
+            {
+                currentScore += distributedDelta;
+                QuizState.Instance?.AddScore(distributedDelta);
+            }
+
+            return distributedDelta;
+        }
+
+        private int GetQuestionRawWeight(int questionIndex)
+        {
+            if (shuffledQuestions == null || questionIndex < 0 || questionIndex >= shuffledQuestions.Count)
+            {
+                return 0;
+            }
+
+            var question = shuffledQuestions[questionIndex];
+            if (question == null) return 0;
+            return Mathf.Max(0, question.points);
+        }
+
+        private int GetTargetMaxScore()
+        {
+            var state = QuizState.Instance;
+            if (state != null && state.maxPossibleScore > 0)
+                return state.maxPossibleScore;
+
+            return shuffledQuestions != null ? shuffledQuestions.Count * 10 : 0;
+        }
+
+        private void LogScoreConfigurationIfNeeded()
+        {
+            var state = QuizState.Instance;
+            if (state == null || shuffledQuestions == null) return;
+
+            int limit = GetScoreWeightQuestionLimit();
+            int count = shuffledQuestions.Count;
+            if (limit > 0)
+            {
+                count = Mathf.Min(count, limit);
+            }
+
+            int totalPoints = 0;
+            for (int i = 0; i < count; i++)
+            {
+                var q = shuffledQuestions[i];
+                if (q == null) continue;
+                totalPoints += Mathf.Max(0, q.points);
+            }
+
+            int max = state.maxPossibleScore;
+            int signature = (count * 486187739) ^ (totalPoints * 16777619) ^ max;
+            if (signature == _lastScoreConfigSignature) return;
+            _lastScoreConfigSignature = signature;
+
+            if (max > 0 && totalPoints > 0 && totalPoints != max)
+            {
+                Debug.LogWarning($"[QuizManager] Score config mismatch: loaded question points sum = {totalPoints}, StartQuiz maxScore = {max}, questions considered = {count}. Progress may not match expected percentages.");
             }
         }
 
@@ -627,6 +855,8 @@ namespace QuizSystem
             currentValidator = null;
             currentScore = 0;
             currentQuestionIndex = 0;
+            _scoreRemainder = 0f;
+            _awardedRawByQuestion.Clear();
         }
     }
 }

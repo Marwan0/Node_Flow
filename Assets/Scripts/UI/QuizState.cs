@@ -29,6 +29,7 @@ namespace QuizSystem
         public static event Action<int, int> OnQuestionAnswered; // questionIndex, totalQuestions
         public static event Action<bool> OnLastAnswerResult; // wasCorrect - fires when question is COMPLETE (correct or all attempts used)
         public static event Action OnWrongAttempt; // fires on EACH wrong answer (for VFX/sounds) - doesn't complete question
+        public static event Action OnCorrectAttempt; // fires on EACH correct attempt in multi-step questions
         public static event Action OnQuizStarted;
         public static event Action OnQuizCompleted;
         public static event Action<float> OnTimerTick; // remainingTime
@@ -133,6 +134,16 @@ namespace QuizSystem
         {
             OnWrongAttempt?.Invoke();
             Debug.Log("[QuizState] Wrong attempt - user can try again");
+        }
+
+        /// <summary>
+        /// Call when user performs a correct step (e.g. one correct connect pair)
+        /// before the full question is complete.
+        /// </summary>
+        public void NotifyCorrectAttempt()
+        {
+            OnCorrectAttempt?.Invoke();
+            Debug.Log("[QuizState] Correct attempt");
         }
 
         public void AddScore(int points)

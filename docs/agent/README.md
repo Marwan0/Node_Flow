@@ -8,6 +8,7 @@ Read order
 1. node-system-overview.md
 2. node-system-extension.md
 3. node-system-file-map.md
+4. demo-graph-scoring-notes.md
 
 Notes
 - This pack is derived from the code and existing docs:

@@ -137,9 +137,39 @@ namespace NodeSystem.Editor
             });
 
             CreateLabel("Layout Override (optional, drag prefab from Project)");
-            CreateObjectField<GameObject>("", node.layoutOverridePrefab, v =>
+            GameObject currentLayoutPrefab = node.layoutOverridePrefab;
+            if (currentLayoutPrefab == null && !string.IsNullOrEmpty(node.layoutOverridePrefabPath))
             {
-                node.layoutOverridePrefab = v;
+                currentLayoutPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(node.layoutOverridePrefabPath);
+                if (currentLayoutPrefab != null)
+                {
+                    node.layoutOverridePrefab = currentLayoutPrefab;
+                }
+            }
+
+            CreateObjectField<GameObject>("", currentLayoutPrefab, v =>
+            {
+                GameObject prefabAsset = v;
+                if (prefabAsset != null)
+                {
+                    // If a scene instance is dragged, resolve it to its source prefab asset.
+                    if (!AssetDatabase.Contains(prefabAsset))
+                    {
+                        var source = PrefabUtility.GetCorrespondingObjectFromSource(prefabAsset);
+                        if (source is GameObject sourceGo)
+                        {
+                            prefabAsset = sourceGo;
+                        }
+                        else
+                        {
+                            Debug.LogWarning("[LoadQuestionNode] Layout Override must be a prefab asset from Project, not a scene object.");
+                            prefabAsset = null;
+                        }
+                    }
+                }
+
+                node.layoutOverridePrefab = prefabAsset;
+                node.layoutOverridePrefabPath = prefabAsset != null ? AssetDatabase.GetAssetPath(prefabAsset) : "";
                 var graph = GetNodeGraph();
                 if (graph != null) { graph.SaveToJson(); EditorUtility.SetDirty(graph); }
                 MarkDirty();

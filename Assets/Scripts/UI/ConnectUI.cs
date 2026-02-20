@@ -295,12 +295,14 @@ namespace QuizSystem
                 starsCollected++;
                 PlayPointAudio();
                 PlayCorrectAudio();
+                QuizState.Instance?.NotifyCorrectAttempt();
+                quizManager?.UpdateQuestionProgress(currentQuestion, starsCollected, totalConnections);
                 currentConnectionIndex++;
                 attemptsForCurrentConnection = 0;
                 RefreshItemInteractability();
                 UpdateProgressText();
                 if (currentConnectionIndex >= totalConnections)
-                    CompleteQuestion(true, starsCollected);
+                    CompleteQuestion(true, GetEarnedRawQuestionPoints());
             }
             else
             {
@@ -327,7 +329,7 @@ namespace QuizSystem
                     RefreshItemInteractability();
                     UpdateProgressText();
                     if (currentConnectionIndex >= totalConnections)
-                        CompleteQuestion(false, starsCollected);
+                        CompleteQuestion(false, GetEarnedRawQuestionPoints());
                 }
             }
         }
@@ -336,7 +338,14 @@ namespace QuizSystem
         {
             if (submitButton != null)
                 submitButton.gameObject.SetActive(false);
-            quizManager?.OnQuestionAnswered(allCorrect, points);
+            quizManager?.OnQuestionAnswered(allCorrect, points, currentQuestion);
+        }
+
+        private int GetEarnedRawQuestionPoints()
+        {
+            if (totalConnections <= 0 || currentQuestion == null) return 0;
+            float normalized = Mathf.Clamp01((float)starsCollected / totalConnections);
+            return Mathf.RoundToInt(currentQuestion.points * normalized);
         }
 
         public void StartDrag(ConnectItemUI item, Vector2 screenPos)

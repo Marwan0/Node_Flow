@@ -189,7 +189,7 @@ namespace QuizSystem
                 AnimateCorrectAnswer();
             }
             
-            quizManager?.OnQuestionAnswered(true, currentQuestion.points);
+            quizManager?.OnQuestionAnswered(true, currentQuestion.points, currentQuestion);
         }
 
         protected virtual void OnWrongAnswer()
@@ -239,7 +239,7 @@ namespace QuizSystem
             
             // User exhausted all attempts without getting the correct answer
             // Pass false since they didn't actually answer correctly
-            quizManager?.OnQuestionAnswered(false, 0);
+            quizManager?.OnQuestionAnswered(false, 0, currentQuestion);
         }
 
         protected abstract string GetCorrectAnswerDisplay();

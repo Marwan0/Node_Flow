@@ -36,6 +36,10 @@ namespace NodeSystem.Nodes.Quiz
         public GameObject layoutOverridePrefab;
 
         [SerializeField]
+        [Tooltip("Asset path fallback for layout override prefab (auto-synced in editor)")]
+        public string layoutOverridePrefabPath = "";
+
+        [SerializeField]
         [Tooltip("Fallback path when reference is null.")]
         public string questionContainerPath = "";
 
@@ -112,6 +116,7 @@ namespace NodeSystem.Nodes.Quiz
             {
                 new PortData("correct", "Correct", PortDirection.Output),
                 new PortData("incorrect", "Incorrect", PortDirection.Output),
+                new PortData("on_correct", "On Correct Attempt", PortDirection.Output),
                 new PortData("on_wrong", "On Wrong Attempt", PortDirection.Output),
                 new PortData("complete", "Complete", PortDirection.Output)
             };
@@ -235,6 +240,21 @@ namespace NodeSystem.Nodes.Quiz
 
             int questionIndex = _quizManager.questions.IndexOf(question);
 
+            // Restore layout override from path if the direct prefab reference was lost after serialization.
+            if (layoutOverridePrefab == null && !string.IsNullOrEmpty(layoutOverridePrefabPath))
+            {
+#if UNITY_EDITOR
+                layoutOverridePrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(layoutOverridePrefabPath);
+#else
+                // Runtime fallback if prefab is in a Resources folder.
+                string resourcePath = layoutOverridePrefabPath
+                    .Replace("Assets/", "")
+                    .Replace("Resources/", "")
+                    .Replace(".prefab", "");
+                layoutOverridePrefab = Resources.Load<GameObject>(resourcePath);
+#endif
+            }
+
             if (layoutOverridePrefab != null)
                 _quizManager.SetUIPrefabOverrideForLoad(questionIndex, layoutOverridePrefab);
 
@@ -251,6 +271,7 @@ namespace NodeSystem.Nodes.Quiz
             if (waitForAnswer)
             {
                 QuizState.OnLastAnswerResult += OnAnswerReceived;
+                QuizState.OnCorrectAttempt += OnCorrectAttemptReceived;
                 QuizState.OnWrongAttempt += OnWrongAttemptReceived;
                 Runner?.StartCoroutine(LoadAndWaitForAnswer(questionIndex));
             }
@@ -284,6 +305,7 @@ namespace NodeSystem.Nodes.Quiz
 
             // Unsubscribe
             QuizState.OnLastAnswerResult -= OnAnswerReceived;
+            QuizState.OnCorrectAttempt -= OnCorrectAttemptReceived;
             QuizState.OnWrongAttempt -= OnWrongAttemptReceived;
 
             // Note: QuizState.RecordAnswer is now called by QuizManager.OnQuestionAnswered()
@@ -308,6 +330,20 @@ namespace NodeSystem.Nodes.Quiz
             {
                 var wrongNodes = Runner.Graph.GetConnectedNodes(Guid, "on_wrong");
                 foreach (var node in wrongNodes)
+                {
+                    Runner.ExecuteNode(node);
+                }
+            }
+        }
+
+        private void OnCorrectAttemptReceived()
+        {
+            // Fire nodes connected to "on_correct" port for per-step feedback
+            // (e.g. one correct Connect pair). This does NOT complete the question.
+            if (Runner != null && Runner.Graph != null)
+            {
+                var correctNodes = Runner.Graph.GetConnectedNodes(Guid, "on_correct");
+                foreach (var node in correctNodes)
                 {
                     Runner.ExecuteNode(node);
                 }
@@ -366,6 +402,7 @@ namespace NodeSystem.Nodes.Quiz
             _questionAnswered = false;
             _lastAnswerCorrect = false;
             QuizState.OnLastAnswerResult -= OnAnswerReceived;
+            QuizState.OnCorrectAttempt -= OnCorrectAttemptReceived;
             QuizState.OnWrongAttempt -= OnWrongAttemptReceived;
         }
     }

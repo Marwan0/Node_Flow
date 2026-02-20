@@ -1415,13 +1415,23 @@ namespace NodeSystem.Editor
                 }
                 else if ((entry.nodeGuids?.Count ?? 0) > 0)
                 {
-                    Debug.LogWarning($"[NodeGraphView] Group '{entry.title}' has saved members but none resolved during load.");
+                    int staleCount = entry.nodeGuids.Count;
+
+                    // Self-heal stale group membership so warnings don't repeat forever.
+                    // This happens when saved node GUIDs no longer exist in the graph.
+                    entry.nodeGuids.Clear();
+                    if (_groupModels.TryGetValue(group, out var staleModel) && staleModel?.nodeGuids != null)
+                    {
+                        staleModel.nodeGuids.Clear();
+                    }
+
+                    Debug.Log($"[NodeGraphView] Cleared {staleCount} stale member GUID(s) from group '{entry.title}' during load.");
                 }
 
                 if (_groupModels.TryGetValue(group, out var model))
                 {
                     if (!string.IsNullOrEmpty(entry.id)) model.id = entry.id;
-                    if (resolvedGuids.Count > 0) model.nodeGuids = resolvedGuids;
+                    model.nodeGuids = resolvedGuids.Count > 0 ? resolvedGuids : (entry.nodeGuids ?? new List<string>());
                 }
             }
         }

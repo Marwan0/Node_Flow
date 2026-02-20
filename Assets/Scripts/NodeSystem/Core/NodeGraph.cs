@@ -175,6 +175,10 @@ namespace NodeSystem
         private void EnsureLoaded()
         {
             if (_loaded) return;
+
+            // Reset stale failure state before each load attempt.
+            // A previous transient load error should not permanently block saving.
+            _loadFailed = false;
             
             // Clear existing data
             _runtimeNodes = new List<NodeData>();
@@ -286,6 +290,9 @@ namespace NodeSystem
 
                 // Build performance indices after loading
                 BuildIndices();
+
+                // Load completed successfully
+                _loadFailed = false;
 
             }
             catch (Exception e)
@@ -803,6 +810,7 @@ namespace NodeSystem
         public void ForceReload()
         {
             _loaded = false;
+            _loadFailed = false;
             InvalidateIndices();
             EnsureLoaded();
         }
