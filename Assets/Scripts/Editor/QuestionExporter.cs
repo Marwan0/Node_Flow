@@ -199,6 +199,7 @@ namespace QuizSystem
                             targetIndex = c.Value
                         }).ToArray();
                     }
+                    entry.maxAttemptsPerConnection = cn.maxAttemptsPerConnection;
                     break;
 
                 default:

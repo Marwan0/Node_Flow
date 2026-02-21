@@ -297,6 +297,9 @@ namespace QuizSystem
                             cn.correctConnections[c.sourceIndex] = c.targetIndex;
                         }
                     }
+                    cn.maxAttemptsPerConnection = entry.maxAttemptsPerConnection > 0
+                        ? entry.maxAttemptsPerConnection
+                        : cn.maxAttemptsPerConnection;
                     question = cn;
                     break;
 

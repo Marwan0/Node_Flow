@@ -170,10 +170,11 @@ namespace QuizSystem
 
         private void UpdateProgressText()
         {
+            int maxAttempts = GetMaxAttemptsPerConnection();
             if (connectionProgressText != null)
                 connectionProgressText.text = $"Connection {currentConnectionIndex + 1} / {totalConnections}";
             if (attemptProgressText != null)
-                attemptProgressText.text = $"Try {attemptsForCurrentConnection + 1} / {connectData.maxAttemptsPerConnection}";
+                attemptProgressText.text = $"Try {attemptsForCurrentConnection + 1} / {maxAttempts}";
             if (attemptCounterText != null)
                 attemptCounterText.text = $"Stars: {starsCollected} / {totalConnections}";
         }
@@ -311,7 +312,7 @@ namespace QuizSystem
                 QuizState.Instance?.NotifyWrongAttempt();
                 UpdateProgressText();
 
-                if (attemptsForCurrentConnection >= connectData.maxAttemptsPerConnection)
+                if (attemptsForCurrentConnection >= GetMaxAttemptsPerConnection())
                 {
                     if (connectData.correctConnections.TryGetValue(leftIdx, out int correctRight))
                     {
@@ -332,6 +333,12 @@ namespace QuizSystem
                         CompleteQuestion(false, GetEarnedRawQuestionPoints());
                 }
             }
+        }
+
+        private int GetMaxAttemptsPerConnection()
+        {
+            if (connectData == null) return 3;
+            return Mathf.Max(1, connectData.maxAttemptsPerConnection);
         }
 
         private void CompleteQuestion(bool allCorrect, int points)

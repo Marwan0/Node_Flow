@@ -91,6 +91,7 @@ namespace QuizSystem
         public ExportConnectItem[] leftColumnItems;
         public ExportConnectItem[] rightColumnItems;
         public ExportPairing[] correctConnections;
+        public int maxAttemptsPerConnection;
     }
 
     [Serializable]

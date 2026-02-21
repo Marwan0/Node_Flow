@@ -95,7 +95,7 @@ namespace NodeSystem.Editor
                     }
                     catch (System.Exception ex)
                     {
-                        Debug.LogWarning($"[LoadQuestionNode] Failed to create editor: {ex.Message}");
+                        // Warning: Failed to create editor: {ex.Message}
                         _questionEditor = null;
                     }
                 }
@@ -162,7 +162,7 @@ namespace NodeSystem.Editor
                         }
                         else
                         {
-                            Debug.LogWarning("[LoadQuestionNode] Layout Override must be a prefab asset from Project, not a scene object.");
+                            // Warning: Layout Override must be a prefab asset from Project, not a scene object.
                             prefabAsset = null;
                         }
                     }
@@ -344,6 +344,12 @@ namespace NodeSystem.Editor
                 if (maxAttemptsProp != null)
                 {
                     EditorGUILayout.PropertyField(maxAttemptsProp, new GUIContent("Max Attempts"));
+                }
+
+                var maxAttemptsPerConnectionProp = _serializedQuestion.FindProperty("maxAttemptsPerConnection");
+                if (maxAttemptsPerConnectionProp != null)
+                {
+                    EditorGUILayout.PropertyField(maxAttemptsPerConnectionProp, new GUIContent("Max Attempts Per Connection"));
                 }
 
                 // Draw hints array
@@ -616,6 +622,12 @@ namespace NodeSystem.Editor
                 if (maxAttemptsProp != null)
                 {
                     EditorGUILayout.PropertyField(maxAttemptsProp, new GUIContent("Max Attempts"));
+                }
+
+                var maxAttemptsPerConnectionProp = _serializedQuestion.FindProperty("maxAttemptsPerConnection");
+                if (maxAttemptsPerConnectionProp != null)
+                {
+                    EditorGUILayout.PropertyField(maxAttemptsPerConnectionProp, new GUIContent("Max Attempts Per Connection"));
                 }
 
                 var hintsProp = _serializedQuestion.FindProperty("hints");
