@@ -72,8 +72,8 @@ namespace QuizSystem
                     if (label != null && button != null)
                     {
                         label.text = orderingData.items[originalIndex];
-                        int capturedIndex = i;
-                        button.onClick.AddListener(() => OnItemClicked(capturedIndex));
+                        int capturedOriginalIndex = originalIndex;
+                        button.onClick.AddListener(() => OnItemClicked(capturedOriginalIndex));
 
                         orderingItems.Add(new OrderingItem
                         {
@@ -81,7 +81,7 @@ namespace QuizSystem
                             label = label,
                             button = button,
                             originalIndex = originalIndex,
-                            currentIndex = capturedIndex
+                            currentIndex = i
                         });
 
                         currentOrder.Add(originalIndex);
@@ -121,11 +121,13 @@ namespace QuizSystem
 
         private void UpdateItemPositions()
         {
-            for (int i = 0; i < orderingItems.Count; i++)
+            for (int i = 0; i < currentOrder.Count; i++)
             {
-                if (orderingItems[i].gameObject != null)
+                int originalIndex = currentOrder[i];
+                var item = orderingItems.Find(x => x.originalIndex == originalIndex);
+                if (item != null && item.gameObject != null)
                 {
-                    orderingItems[i].gameObject.transform.SetSiblingIndex(i);
+                    item.gameObject.transform.SetSiblingIndex(i);
                 }
             }
         }
@@ -156,10 +158,19 @@ namespace QuizSystem
         {
             if (orderingData != null)
             {
-                return string.Join(" → ", orderingData.items);
+                var expectedOrder = orderingData.GetExpectedOrder();
+                var orderedItems = new List<string>(expectedOrder.Count);
+                for (int i = 0; i < expectedOrder.Count; i++)
+                {
+                    int itemIndex = expectedOrder[i];
+                    if (itemIndex >= 0 && itemIndex < orderingData.items.Count)
+                        orderedItems.Add(orderingData.items[itemIndex]);
+                }
+                return string.Join(" -> ", orderedItems);
             }
             return "";
         }
     }
 }
+
 

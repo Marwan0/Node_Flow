@@ -1238,6 +1238,10 @@ namespace NodeSystem.Editor
                 // Ensure graph is fully loaded
                 var nodes = graph.Nodes;
                 var connections = graph.Connections;
+
+                // Rebind scene-object refs from stored hierarchy paths.
+                // Important after clone/import where JSON instanceIDs are no longer valid.
+                graph.TryRestoreSceneReferencesInEditor(saveIfChanged: true);
                 
                 Debug.Log($"[NodeGraphView] Loading: {graph.graphName} - {nodes.Count} nodes, {connections.Count} connections");
                 

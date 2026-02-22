@@ -113,8 +113,26 @@ namespace NodeSystem.Editor
             AddSeparator("Node Options");
             CreateTextField(node.quizManagerPath, v => node.quizManagerPath = v, "QuizManager path");
 
+            UnityEngine.Object currentContainer = node.questionContainerRef;
+            if (currentContainer == null && !string.IsNullOrEmpty(node.questionContainerPath))
+            {
+                var restoredContainer = FindGameObjectByPath(node.questionContainerPath);
+                if (restoredContainer != null)
+                {
+                    currentContainer = restoredContainer;
+                    node.questionContainerRef = restoredContainer;
+
+                    var graphForRestore = GetNodeGraph();
+                    if (graphForRestore != null)
+                    {
+                        graphForRestore.SaveToJson();
+                        EditorUtility.SetDirty(graphForRestore);
+                    }
+                }
+            }
+
             CreateLabel("Question Parent (optional, drag from Hierarchy)");
-            CreateObjectField<UnityEngine.Object>("", node.questionContainerRef, v =>
+            CreateObjectField<UnityEngine.Object>("", currentContainer, v =>
             {
                 node.questionContainerRef = v;
                 if (v != null)
@@ -135,6 +153,10 @@ namespace NodeSystem.Editor
                 // Don't clear questionContainerPath when v is null - keep it for restoration
                 MarkDirty();
             });
+            if (!string.IsNullOrEmpty(node.questionContainerPath))
+            {
+                CreateLabel($"Path: {node.questionContainerPath}", new Color(0.55f, 0.55f, 0.55f));
+            }
 
             CreateLabel("Layout Override (optional, drag prefab from Project)");
             GameObject currentLayoutPrefab = node.layoutOverridePrefab;
@@ -874,6 +896,65 @@ namespace NodeSystem.Editor
             }
             parts.Reverse();
             return string.Join("/", parts);
+        }
+
+        private static GameObject FindGameObjectByPath(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return null;
+
+            var found = GameObject.Find(path);
+            if (found != null) return found;
+
+            var parts = path.Split('/');
+            if (parts.Length > 0)
+            {
+                string rootName = parts[0];
+                string relativePath = parts.Length > 1 ? string.Join("/", parts, 1, parts.Length - 1) : "";
+
+                for (int i = 0; i < UnityEngine.SceneManagement.SceneManager.sceneCount; i++)
+                {
+                    var scene = UnityEngine.SceneManagement.SceneManager.GetSceneAt(i);
+                    if (!scene.isLoaded) continue;
+
+                    foreach (var rootGo in scene.GetRootGameObjects())
+                    {
+                        if (rootGo.name != rootName) continue;
+                        if (parts.Length == 1) return rootGo;
+
+                        var t = rootGo.transform.Find(relativePath);
+                        if (t != null) return t.gameObject;
+                    }
+                }
+            }
+
+            string leafName = parts.Length > 0 ? parts[parts.Length - 1] : path;
+            for (int i = 0; i < UnityEngine.SceneManagement.SceneManager.sceneCount; i++)
+            {
+                var scene = UnityEngine.SceneManagement.SceneManager.GetSceneAt(i);
+                if (!scene.isLoaded) continue;
+
+                foreach (var rootGo in scene.GetRootGameObjects())
+                {
+                    var byName = FindInHierarchyByName(rootGo.transform, leafName);
+                    if (byName != null) return byName;
+                }
+            }
+
+            return null;
+        }
+
+        private static GameObject FindInHierarchyByName(Transform parent, string targetName)
+        {
+            if (parent == null || string.IsNullOrEmpty(targetName)) return null;
+            if (parent.name == targetName) return parent.gameObject;
+
+            for (int i = 0; i < parent.childCount; i++)
+            {
+                var result = FindInHierarchyByName(parent.GetChild(i), targetName);
+                if (result != null) return result;
+            }
+
+            return null;
         }
 
         /// <summary>

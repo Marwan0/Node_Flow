@@ -399,14 +399,22 @@ namespace NodeSystem
         /// </summary>
         private void ValidateAndRestoreReferences()
         {
-            if (_runtimeNodes == null) return;
+            TryRestoreSceneReferencesInEditor(saveIfChanged: true);
+        }
+
+        /// <summary>
+        /// Editor-only: restore scene object references from saved hierarchy paths.
+        /// This is needed because JsonUtility stores UnityEngine.Object as session-specific instanceIDs.
+        /// </summary>
+        public bool TryRestoreSceneReferencesInEditor(bool saveIfChanged = true)
+        {
+            if (_runtimeNodes == null) return false;
 
             bool anyRestored = false;
             foreach (var node in _runtimeNodes)
             {
                 if (node == null) continue;
 
-                // Check LoadQuestionNode
                 if (node is Nodes.Quiz.LoadQuestionNode loadNode)
                 {
                     if (loadNode.questionContainerRef == null && !string.IsNullOrEmpty(loadNode.questionContainerPath))
@@ -420,7 +428,6 @@ namespace NodeSystem
                     }
                 }
 
-                // Check ScoreProgressBarNode
                 if (node is Nodes.Quiz.ScoreProgressBarNode progressNode)
                 {
                     if (progressNode.targetRef == null && !string.IsNullOrEmpty(progressNode.targetPath))
@@ -435,12 +442,13 @@ namespace NodeSystem
                 }
             }
 
-            if (anyRestored)
+            if (anyRestored && saveIfChanged)
             {
-                // Save the graph with restored references
                 SaveToJson();
                 UnityEditor.EditorUtility.SetDirty(this);
             }
+
+            return anyRestored;
         }
 
         private UnityEngine.Object RestoreGameObjectFromPath(string path)
@@ -451,20 +459,56 @@ namespace NodeSystem
             var found = GameObject.Find(path);
             if (found != null) return found;
 
-            // Try hierarchical search (works even if object is inactive)
+            // Try hierarchical search across all loaded scenes (works even if object is inactive)
             var parts = path.Split('/');
             if (parts.Length > 0)
             {
-                var rootObjects = UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects();
-                foreach (var rootGo in rootObjects)
+                string rootName = parts[0];
+                for (int i = 0; i < UnityEngine.SceneManagement.SceneManager.sceneCount; i++)
                 {
-                    if (rootGo.name != parts[0]) continue;
-                    if (parts.Length == 1) return rootGo;
-                    var t = rootGo.transform.Find(string.Join("/", parts, 1, parts.Length - 1));
-                    if (t != null) return t.gameObject;
+                    var scene = UnityEngine.SceneManagement.SceneManager.GetSceneAt(i);
+                    if (!scene.isLoaded) continue;
+
+                    var rootObjects = scene.GetRootGameObjects();
+                    foreach (var rootGo in rootObjects)
+                    {
+                        if (rootGo.name != rootName) continue;
+                        if (parts.Length == 1) return rootGo;
+
+                        var relativePath = string.Join("/", parts, 1, parts.Length - 1);
+                        var t = rootGo.transform.Find(relativePath);
+                        if (t != null) return t.gameObject;
+                    }
                 }
             }
 
+            // Fallback: find by leaf name in all loaded scenes.
+            string targetName = parts.Length > 0 ? parts[parts.Length - 1] : path;
+            for (int i = 0; i < UnityEngine.SceneManagement.SceneManager.sceneCount; i++)
+            {
+                var scene = UnityEngine.SceneManagement.SceneManager.GetSceneAt(i);
+                if (!scene.isLoaded) continue;
+
+                foreach (var rootGo in scene.GetRootGameObjects())
+                {
+                    var fallback = FindInHierarchyByName(rootGo.transform, targetName);
+                    if (fallback != null) return fallback;
+                }
+            }
+
+            return null;
+        }
+
+        private static GameObject FindInHierarchyByName(Transform parent, string targetName)
+        {
+            if (parent == null || string.IsNullOrEmpty(targetName)) return null;
+            if (parent.name == targetName) return parent.gameObject;
+
+            for (int i = 0; i < parent.childCount; i++)
+            {
+                var result = FindInHierarchyByName(parent.GetChild(i), targetName);
+                if (result != null) return result;
+            }
             return null;
         }
 #endif

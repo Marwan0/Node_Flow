@@ -13,8 +13,26 @@ namespace NodeSystem.Editor
             var node = Node as ScoreProgressBarNode;
             if (node == null) return;
 
+            UnityEngine.Object currentTarget = node.targetRef;
+            if (currentTarget == null && !string.IsNullOrEmpty(node.targetPath))
+            {
+                var restored = FindGameObjectByPath(node.targetPath);
+                if (restored != null)
+                {
+                    currentTarget = restored;
+                    node.targetRef = restored;
+
+                    var graph = GetNodeGraph();
+                    if (graph != null)
+                    {
+                        graph.SaveToJson();
+                        UnityEditor.EditorUtility.SetDirty(graph);
+                    }
+                }
+            }
+
             CreateLabel("Target (drag Slider, Image, or GameObject)");
-            CreateObjectField<UnityEngine.Object>("Target", node.targetRef, v =>
+            CreateObjectField<UnityEngine.Object>("Target", currentTarget, v =>
             {
                 node.targetRef = v;
                 if (v != null)
@@ -35,6 +53,10 @@ namespace NodeSystem.Editor
                 // Don't clear targetPath when v is null - keep it for restoration
                 MarkDirty();
             });
+            if (!string.IsNullOrEmpty(node.targetPath))
+            {
+                CreateLabel($"Path: {node.targetPath}", new Color(0.55f, 0.55f, 0.55f));
+            }
 
             CreateEnumField("Value from", node.valueSource, v =>
             {
@@ -87,6 +109,65 @@ namespace NodeSystem.Editor
             }
             parts.Reverse();
             return string.Join("/", parts);
+        }
+
+        private static GameObject FindGameObjectByPath(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return null;
+
+            var found = GameObject.Find(path);
+            if (found != null) return found;
+
+            var parts = path.Split('/');
+            if (parts.Length > 0)
+            {
+                string rootName = parts[0];
+                string relativePath = parts.Length > 1 ? string.Join("/", parts, 1, parts.Length - 1) : "";
+
+                for (int i = 0; i < UnityEngine.SceneManagement.SceneManager.sceneCount; i++)
+                {
+                    var scene = UnityEngine.SceneManagement.SceneManager.GetSceneAt(i);
+                    if (!scene.isLoaded) continue;
+
+                    foreach (var rootGo in scene.GetRootGameObjects())
+                    {
+                        if (rootGo.name != rootName) continue;
+                        if (parts.Length == 1) return rootGo;
+
+                        var t = rootGo.transform.Find(relativePath);
+                        if (t != null) return t.gameObject;
+                    }
+                }
+            }
+
+            string leafName = parts.Length > 0 ? parts[parts.Length - 1] : path;
+            for (int i = 0; i < UnityEngine.SceneManagement.SceneManager.sceneCount; i++)
+            {
+                var scene = UnityEngine.SceneManagement.SceneManager.GetSceneAt(i);
+                if (!scene.isLoaded) continue;
+
+                foreach (var rootGo in scene.GetRootGameObjects())
+                {
+                    var byName = FindInHierarchyByName(rootGo.transform, leafName);
+                    if (byName != null) return byName;
+                }
+            }
+
+            return null;
+        }
+
+        private static GameObject FindInHierarchyByName(Transform parent, string targetName)
+        {
+            if (parent == null || string.IsNullOrEmpty(targetName)) return null;
+            if (parent.name == targetName) return parent.gameObject;
+
+            for (int i = 0; i < parent.childCount; i++)
+            {
+                var result = FindInHierarchyByName(parent.GetChild(i), targetName);
+                if (result != null) return result;
+            }
+
+            return null;
         }
 
         private NodeGraph GetNodeGraph()

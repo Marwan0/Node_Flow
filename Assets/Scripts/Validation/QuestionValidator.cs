@@ -46,6 +46,11 @@ namespace QuizSystem
 
         protected ValidationResult HandleWrongAnswer()
         {
+            return HandleWrongAnswer("Incorrect. Try again.");
+        }
+
+        protected ValidationResult HandleWrongAnswer(string defaultMessage)
+        {
             currentAttempt++;
 
             if (HasReachedMaxAttempts())
@@ -60,7 +65,7 @@ namespace QuizSystem
             string hint = GetHint(currentAttempt);
             return new ValidationResult(
                 false,
-                string.IsNullOrEmpty(hint) ? "Incorrect. Try again." : hint
+                string.IsNullOrEmpty(hint) ? defaultMessage : hint
             );
         }
     }

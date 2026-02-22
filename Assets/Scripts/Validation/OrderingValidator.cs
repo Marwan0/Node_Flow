@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 
 namespace QuizSystem
 {
@@ -15,6 +16,14 @@ namespace QuizSystem
         {
             if (answer is List<int> userOrder)
             {
+                if (orderingData == null)
+                    return new ValidationResult(false, "Ordering question data is missing.");
+
+                if (orderingData.enforceStartIndex && !orderingData.HasRequiredStart(userOrder))
+                {
+                    return HandleWrongAnswer($"Start must be item index {orderingData.requiredStartIndex}.");
+                }
+
                 if (orderingData.IsOrderCorrect(userOrder))
                 {
                     return new ValidationResult(true, "Correct order!");
@@ -35,6 +44,15 @@ namespace QuizSystem
             }
 
             return new ValidationResult(false, "Invalid answer format.");
+        }
+
+        public string GetExpectedOrderDebugText()
+        {
+            if (orderingData == null)
+                return string.Empty;
+
+            var expected = orderingData.GetExpectedOrder();
+            return string.Join(" -> ", expected.Select(i => i.ToString()));
         }
     }
 }
