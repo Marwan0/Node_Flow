@@ -1,10 +1,7 @@
+#if UNITY_EDITOR
 using UnityEngine;
 using UnityEditor;
-using Sirenix.OdinInspector.Editor;
-using Sirenix.OdinInspector;
 using DG.Tweening;
-using System.Collections;
-using System;
 
 namespace QuizSystem
 {
@@ -12,7 +9,7 @@ namespace QuizSystem
     /// Editor window for previewing and customizing quiz animations at editor-time.
     /// Uses Animation Sequencer's built-in preview system when available.
     /// </summary>
-    public class QuizAnimationPreviewWindow : OdinEditorWindow
+    public class QuizAnimationPreviewWindow : EditorWindow
     {
         [MenuItem("Tools/Quiz System/Animation Preview")]
         private static void OpenWindow()
@@ -20,132 +17,18 @@ namespace QuizSystem
             GetWindow<QuizAnimationPreviewWindow>("Animation Preview").Show();
         }
 
-        [Title("Animation Preview")]
-        [InfoBox("Select a QuizManager or QuestionUI component to preview animations. If Animation Sequencer components are attached, use their built-in preview. Otherwise, use custom preview.", InfoMessageType.Info)]
-        
-        [BoxGroup("Target Selection")]
-        [Tooltip("QuizManager component to preview transitions")]
-        [OnValueChanged("OnTargetChanged")]
         public QuizManager quizManager;
-
-        [BoxGroup("Target Selection")]
-        [Tooltip("QuestionUI component to preview feedback animations")]
-        [OnValueChanged("OnTargetChanged")]
         public QuestionUI questionUI;
 
-        [BoxGroup("Animation Sequencer Components")]
-        [ShowIf("HasQuizManager")]
-        [InfoBox("Add Animation Sequencer components to QuizManager for visual editor-time preview. Use the + button in the Animation Sequencer component to add animation steps.", InfoMessageType.Info)]
-        [PropertyOrder(5)]
-        [Button("Add Transition Out Sequencer", ButtonSizes.Small)]
-        [ShowIf("HasQuizManager")]
-        private void AddTransitionOutSequencer()
-        {
-            if (quizManager != null && isAnimationSequencerAvailable)
-            {
-                var sequencer = quizManager.gameObject.AddComponent(animationSequencerType);
-                transitionOutSequencer = sequencer;
-                EditorUtility.SetDirty(quizManager);
-            }
-        }
-
-        [BoxGroup("Animation Sequencer Components")]
-        [ShowIf("HasQuizManager")]
-        [PropertyOrder(5)]
-        [LabelText("Transition Out Sequencer")]
-        [Tooltip("Animation Sequencer for question transition out")]
         public Component transitionOutSequencer;
-
-        [BoxGroup("Animation Sequencer Components")]
-        [ShowIf("HasQuizManager")]
-        [PropertyOrder(6)]
-        [Button("Add Transition In Sequencer", ButtonSizes.Small)]
-        [ShowIf("HasQuizManager")]
-        private void AddTransitionInSequencer()
-        {
-            if (quizManager != null && isAnimationSequencerAvailable)
-            {
-                var sequencer = quizManager.gameObject.AddComponent(animationSequencerType);
-                transitionInSequencer = sequencer;
-                EditorUtility.SetDirty(quizManager);
-            }
-        }
-
-        [BoxGroup("Animation Sequencer Components")]
-        [ShowIf("HasQuizManager")]
-        [PropertyOrder(6)]
-        [LabelText("Transition In Sequencer")]
-        [Tooltip("Animation Sequencer for question transition in")]
         public Component transitionInSequencer;
-
-        [BoxGroup("Animation Sequencer Components")]
-        [ShowIf("HasQuestionUI")]
-        [PropertyOrder(7)]
-        [Button("Add Correct Answer Sequencer", ButtonSizes.Small)]
-        [ShowIf("HasQuestionUI")]
-        private void AddCorrectAnswerSequencer()
-        {
-            if (questionUI != null && isAnimationSequencerAvailable)
-            {
-                var sequencer = questionUI.gameObject.AddComponent(animationSequencerType);
-                correctAnswerSequencer = sequencer;
-                EditorUtility.SetDirty(questionUI);
-            }
-        }
-
-        [BoxGroup("Animation Sequencer Components")]
-        [ShowIf("HasQuestionUI")]
-        [PropertyOrder(7)]
-        [LabelText("Correct Answer Sequencer")]
-        [Tooltip("Animation Sequencer for correct answer feedback")]
         public Component correctAnswerSequencer;
-
-        [BoxGroup("Animation Sequencer Components")]
-        [ShowIf("HasQuestionUI")]
-        [PropertyOrder(8)]
-        [Button("Add Wrong Answer Sequencer", ButtonSizes.Small)]
-        [ShowIf("HasQuestionUI")]
-        private void AddWrongAnswerSequencer()
-        {
-            if (questionUI != null && isAnimationSequencerAvailable)
-            {
-                var sequencer = questionUI.gameObject.AddComponent(animationSequencerType);
-                wrongAnswerSequencer = sequencer;
-                EditorUtility.SetDirty(questionUI);
-            }
-        }
-
-        [BoxGroup("Animation Sequencer Components")]
-        [ShowIf("HasQuestionUI")]
-        [PropertyOrder(8)]
-        [LabelText("Wrong Answer Sequencer")]
-        [Tooltip("Animation Sequencer for wrong answer feedback")]
         public Component wrongAnswerSequencer;
-
-        [BoxGroup("Animation Sequencer Components")]
-        [ShowIf("HasQuestionUI")]
-        [PropertyOrder(9)]
-        [Button("Add Hint Reveal Sequencer", ButtonSizes.Small)]
-        [ShowIf("HasQuestionUI")]
-        private void AddHintRevealSequencer()
-        {
-            if (questionUI != null && isAnimationSequencerAvailable)
-            {
-                var sequencer = questionUI.gameObject.AddComponent(animationSequencerType);
-                hintRevealSequencer = sequencer;
-                EditorUtility.SetDirty(questionUI);
-            }
-        }
-
-        [BoxGroup("Animation Sequencer Components")]
-        [ShowIf("HasQuestionUI")]
-        [PropertyOrder(9)]
-        [LabelText("Hint Reveal Sequencer")]
-        [Tooltip("Animation Sequencer for hint reveal")]
         public Component hintRevealSequencer;
 
         private System.Type animationSequencerType;
         private bool isAnimationSequencerAvailable;
+        private Vector2 scrollPos;
 
         private void OnEnable()
         {
@@ -180,31 +63,104 @@ namespace QuizSystem
             isAnimationSequencerAvailable = false;
         }
 
-        [BoxGroup("Preview Controls")]
-        [Button("Preview Transition Out", ButtonSizes.Large)]
-        [EnableIf("HasQuizManager")]
-        [PropertyOrder(10)]
+        private void OnGUI()
+        {
+            scrollPos = EditorGUILayout.BeginScrollView(scrollPos);
+
+            EditorGUILayout.Space(5);
+            EditorGUILayout.LabelField("Animation Preview", EditorStyles.boldLabel);
+            EditorGUILayout.HelpBox("Select a QuizManager or QuestionUI component to preview animations.", MessageType.Info);
+
+            EditorGUILayout.Space(10);
+
+            // Target Selection
+            EditorGUILayout.LabelField("Target Selection", EditorStyles.boldLabel);
+            EditorGUI.BeginChangeCheck();
+            quizManager = (QuizManager)EditorGUILayout.ObjectField("Quiz Manager", quizManager, typeof(QuizManager), true);
+            questionUI = (QuestionUI)EditorGUILayout.ObjectField("Question UI", questionUI, typeof(QuestionUI), true);
+            if (EditorGUI.EndChangeCheck())
+            {
+                OnTargetChanged();
+            }
+
+            EditorGUILayout.Space(10);
+
+            // Animation Sequencer Components
+            if (isAnimationSequencerAvailable)
+            {
+                EditorGUILayout.LabelField("Animation Sequencer Components", EditorStyles.boldLabel);
+
+                if (quizManager != null)
+                {
+                    transitionOutSequencer = (Component)EditorGUILayout.ObjectField("Transition Out", transitionOutSequencer, typeof(Component), true);
+                    transitionInSequencer = (Component)EditorGUILayout.ObjectField("Transition In", transitionInSequencer, typeof(Component), true);
+                }
+
+                if (questionUI != null)
+                {
+                    correctAnswerSequencer = (Component)EditorGUILayout.ObjectField("Correct Answer", correctAnswerSequencer, typeof(Component), true);
+                    wrongAnswerSequencer = (Component)EditorGUILayout.ObjectField("Wrong Answer", wrongAnswerSequencer, typeof(Component), true);
+                    hintRevealSequencer = (Component)EditorGUILayout.ObjectField("Hint Reveal", hintRevealSequencer, typeof(Component), true);
+                }
+
+                EditorGUILayout.Space(5);
+            }
+
+            // Preview Controls
+            EditorGUILayout.Space(10);
+            EditorGUILayout.LabelField("Preview Controls", EditorStyles.boldLabel);
+
+            GUI.enabled = quizManager != null;
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button("Preview Transition Out", GUILayout.Height(30)))
+                PreviewTransitionOut();
+            if (GUILayout.Button("Preview Transition In", GUILayout.Height(30)))
+                PreviewTransitionIn();
+            EditorGUILayout.EndHorizontal();
+
+            GUI.enabled = questionUI != null;
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button("Preview Correct Answer", GUILayout.Height(30)))
+                PreviewCorrectAnswer();
+            if (GUILayout.Button("Preview Wrong Answer", GUILayout.Height(30)))
+                PreviewWrongAnswer();
+            EditorGUILayout.EndHorizontal();
+
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button("Preview Hint Reveal", GUILayout.Height(30)))
+                PreviewHintReveal();
+            
+            bool isMultipleChoice = questionUI != null && questionUI is MultipleChoiceUI;
+            GUI.enabled = isMultipleChoice;
+            if (GUILayout.Button("Preview Button Entrance", GUILayout.Height(30)))
+                PreviewButtonEntrance();
+            EditorGUILayout.EndHorizontal();
+
+            GUI.enabled = true;
+            EditorGUILayout.Space(10);
+            if (GUILayout.Button("Stop All Previews", GUILayout.Height(25)))
+                StopAllPreviews();
+
+            EditorGUILayout.EndScrollView();
+        }
+
         private void PreviewTransitionOut()
         {
             if (quizManager == null) return;
 
-            // Use Animation Sequencer if available
             if (isAnimationSequencerAvailable && transitionOutSequencer != null)
             {
                 PlayAnimationSequencer(transitionOutSequencer);
                 return;
             }
 
-            // Fallback to custom preview
             PreviewTransitionOutCustom();
         }
 
         private void PreviewTransitionOutCustom()
         {
-            EditorApplication.isPlaying = false;
             EditorApplication.update += UpdateEditor;
             
-            // Create a dummy container for preview
             GameObject previewContainer = new GameObject("Preview Container");
             previewContainer.transform.SetParent(quizManager.transform);
             RectTransform rectTransform = previewContainer.AddComponent<RectTransform>();
@@ -214,7 +170,6 @@ namespace QuizSystem
             CanvasGroup canvasGroup = previewContainer.AddComponent<CanvasGroup>();
             canvasGroup.alpha = 1f;
 
-            // Preview transition out
             Sequence sequence = DOTween.Sequence();
             
             switch (quizManager.transitionStyle)
@@ -240,31 +195,23 @@ namespace QuizSystem
             sequence.Play();
         }
 
-        [BoxGroup("Preview Controls")]
-        [Button("Preview Transition In", ButtonSizes.Large)]
-        [EnableIf("HasQuizManager")]
-        [PropertyOrder(11)]
         private void PreviewTransitionIn()
         {
             if (quizManager == null) return;
 
-            // Use Animation Sequencer if available
             if (isAnimationSequencerAvailable && transitionInSequencer != null)
             {
                 PlayAnimationSequencer(transitionInSequencer);
                 return;
             }
 
-            // Fallback to custom preview
             PreviewTransitionInCustom();
         }
 
         private void PreviewTransitionInCustom()
         {
-            EditorApplication.isPlaying = false;
             EditorApplication.update += UpdateEditor;
 
-            // Create a dummy container for preview
             GameObject previewContainer = new GameObject("Preview Container");
             previewContainer.transform.SetParent(quizManager.transform);
             RectTransform rectTransform = previewContainer.AddComponent<RectTransform>();
@@ -273,7 +220,6 @@ namespace QuizSystem
 
             CanvasGroup canvasGroup = previewContainer.AddComponent<CanvasGroup>();
 
-            // Reset state based on transition style
             switch (quizManager.transitionStyle)
             {
                 case QuizManager.TransitionStyle.Fade:
@@ -289,7 +235,6 @@ namespace QuizSystem
                     break;
             }
 
-            // Preview transition in
             Sequence sequence = DOTween.Sequence();
 
             switch (quizManager.transitionStyle)
@@ -314,31 +259,23 @@ namespace QuizSystem
             sequence.Play();
         }
 
-        [BoxGroup("Preview Controls")]
-        [Button("Preview Correct Answer", ButtonSizes.Large)]
-        [EnableIf("HasQuestionUI")]
-        [PropertyOrder(20)]
         private void PreviewCorrectAnswer()
         {
             if (questionUI == null) return;
 
-            // Use Animation Sequencer if available
             if (isAnimationSequencerAvailable && correctAnswerSequencer != null)
             {
                 PlayAnimationSequencer(correctAnswerSequencer);
                 return;
             }
 
-            // Fallback to custom preview
             PreviewCorrectAnswerCustom();
         }
 
         private void PreviewCorrectAnswerCustom()
         {
-            EditorApplication.isPlaying = false;
             EditorApplication.update += UpdateEditor;
 
-            // Preview correct answer animation
             if (questionUI.transform != null)
             {
                 Vector3 originalScale = questionUI.transform.localScale;
@@ -350,31 +287,23 @@ namespace QuizSystem
             }
         }
 
-        [BoxGroup("Preview Controls")]
-        [Button("Preview Wrong Answer", ButtonSizes.Large)]
-        [EnableIf("HasQuestionUI")]
-        [PropertyOrder(21)]
         private void PreviewWrongAnswer()
         {
             if (questionUI == null) return;
 
-            // Use Animation Sequencer if available
             if (isAnimationSequencerAvailable && wrongAnswerSequencer != null)
             {
                 PlayAnimationSequencer(wrongAnswerSequencer);
                 return;
             }
 
-            // Fallback to custom preview
             PreviewWrongAnswerCustom();
         }
 
         private void PreviewWrongAnswerCustom()
         {
-            EditorApplication.isPlaying = false;
             EditorApplication.update += UpdateEditor;
 
-            // Preview wrong answer animation
             if (questionUI.transform != null)
             {
                 Sequence sequence = DOTween.Sequence();
@@ -384,31 +313,23 @@ namespace QuizSystem
             }
         }
 
-        [BoxGroup("Preview Controls")]
-        [Button("Preview Hint Reveal", ButtonSizes.Large)]
-        [EnableIf("HasQuestionUI")]
-        [PropertyOrder(22)]
         private void PreviewHintReveal()
         {
             if (questionUI == null) return;
 
-            // Use Animation Sequencer if available
             if (isAnimationSequencerAvailable && hintRevealSequencer != null)
             {
                 PlayAnimationSequencer(hintRevealSequencer);
                 return;
             }
 
-            // Fallback to custom preview
             PreviewHintRevealCustom();
         }
 
         private void PreviewHintRevealCustom()
         {
-            EditorApplication.isPlaying = false;
             EditorApplication.update += UpdateEditor;
 
-            // Get hint panel components using reflection
             var hintPanelField = typeof(QuestionUI).GetField("hintPanel", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
             var hintPanelRectTransformField = typeof(QuestionUI).GetField("hintPanelRectTransform", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
             var hintPanelCanvasGroupField = typeof(QuestionUI).GetField("hintPanelCanvasGroup", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
@@ -423,12 +344,10 @@ namespace QuizSystem
 
                 if (rectTransform != null && canvasGroup != null)
                 {
-                    // Reset state
                     canvasGroup.alpha = 0f;
                     Vector2 targetPos = rectTransform.anchoredPosition;
                     rectTransform.anchoredPosition = targetPos + Vector2.down * 30f;
 
-                    // Animate in
                     Sequence sequence = DOTween.Sequence();
                     sequence.Join(rectTransform.DOAnchorPos(targetPos, questionUI.feedbackDuration * 0.8f).SetEase(Ease.OutQuad));
                     sequence.Join(canvasGroup.DOFade(1f, questionUI.feedbackDuration).SetEase(Ease.OutQuad));
@@ -437,36 +356,27 @@ namespace QuizSystem
                 }
                 else
                 {
-                    // Fallback: just show the panel
                     EditorApplication.update -= UpdateEditor;
                 }
             }
         }
 
-        [BoxGroup("Preview Controls")]
-        [Button("Preview Button Entrance", ButtonSizes.Large)]
-        [EnableIf("HasMultipleChoiceUI")]
-        [PropertyOrder(23)]
         private void PreviewButtonEntrance()
         {
             MultipleChoiceUI mcUI = questionUI as MultipleChoiceUI;
             if (mcUI == null) return;
 
-            EditorApplication.isPlaying = false;
             EditorApplication.update += UpdateEditor;
 
-            // Get answer buttons using reflection
             var answerButtonsField = typeof(MultipleChoiceUI).GetField("answerButtons", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            var enableButtonEntranceField = typeof(MultipleChoiceUI).GetField("enableButtonEntrance", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
             var buttonStaggerDelayField = typeof(MultipleChoiceUI).GetField("buttonStaggerDelay", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
             var buttonEntranceDurationField = typeof(MultipleChoiceUI).GetField("buttonEntranceDuration", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
 
             UnityEngine.UI.Button[] buttons = answerButtonsField?.GetValue(mcUI) as UnityEngine.UI.Button[];
-            bool enableEntrance = enableButtonEntranceField != null ? (bool)enableButtonEntranceField.GetValue(mcUI) : true;
             float staggerDelay = buttonStaggerDelayField != null ? (float)buttonStaggerDelayField.GetValue(mcUI) : 0.1f;
             float entranceDuration = buttonEntranceDurationField != null ? (float)buttonEntranceDurationField.GetValue(mcUI) : 0.3f;
 
-            if (buttons != null && enableEntrance)
+            if (buttons != null)
             {
                 int completedCount = 0;
                 int totalButtons = buttons.Length;
@@ -494,17 +404,8 @@ namespace QuizSystem
             }
         }
 
-        private bool HasMultipleChoiceUI()
-        {
-            return questionUI != null && questionUI is MultipleChoiceUI;
-        }
-
-        [BoxGroup("Preview Controls")]
-        [Button("Stop All Previews", ButtonSizes.Medium)]
-        [PropertyOrder(30)]
         private void StopAllPreviews()
         {
-            // Stop Animation Sequencer previews if available
             if (isAnimationSequencerAvailable)
             {
                 StopAnimationSequencer(transitionOutSequencer);
@@ -514,7 +415,6 @@ namespace QuizSystem
                 StopAnimationSequencer(hintRevealSequencer);
             }
 
-            // Stop custom DOTween animations
             DOTween.KillAll();
             EditorApplication.update -= UpdateEditor;
         }
@@ -523,7 +423,6 @@ namespace QuizSystem
         {
             if (sequencer == null || !isAnimationSequencerAvailable) return;
 
-            // Use reflection to call Play() method on Animation Sequencer
             var playMethod = sequencer.GetType().GetMethod("Play", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
             if (playMethod != null)
             {
@@ -535,7 +434,6 @@ namespace QuizSystem
         {
             if (sequencer == null || !isAnimationSequencerAvailable) return;
 
-            // Use reflection to call Kill() or Stop() method on Animation Sequencer
             var killMethod = sequencer.GetType().GetMethod("Kill", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
             if (killMethod != null)
             {
@@ -548,41 +446,10 @@ namespace QuizSystem
             }
         }
 
-        [Title("Animation Settings")]
-        [BoxGroup("QuizManager Settings")]
-        [ShowIf("HasQuizManager")]
-        [InlineEditor(InlineEditorModes.FullEditor)]
-        [PropertyOrder(100)]
-        public QuizManager quizManagerSettings;
-
-        [BoxGroup("QuestionUI Settings")]
-        [ShowIf("HasQuestionUI")]
-        [InlineEditor(InlineEditorModes.FullEditor)]
-        [PropertyOrder(101)]
-        public QuestionUI questionUISettings;
-
-        private bool HasQuizManager()
-        {
-            return quizManager != null;
-        }
-
-        private bool HasQuestionUI()
-        {
-            return questionUI != null;
-        }
-
         private void OnTargetChanged()
         {
-            quizManagerSettings = quizManager;
-            questionUISettings = questionUI;
-
-            // Auto-detect Animation Sequencer components
             if (quizManager != null && isAnimationSequencerAvailable)
             {
-                transitionOutSequencer = quizManager.GetComponent(animationSequencerType);
-                transitionInSequencer = quizManager.GetComponent(animationSequencerType);
-                
-                // Try to find multiple sequencers (they might be on child objects)
                 var sequencers = quizManager.GetComponentsInChildren(animationSequencerType);
                 if (sequencers.Length > 0)
                 {
@@ -594,11 +461,6 @@ namespace QuizSystem
 
             if (questionUI != null && isAnimationSequencerAvailable)
             {
-                correctAnswerSequencer = questionUI.GetComponent(animationSequencerType);
-                wrongAnswerSequencer = questionUI.GetComponent(animationSequencerType);
-                hintRevealSequencer = questionUI.GetComponent(animationSequencerType);
-                
-                // Try to find multiple sequencers
                 var sequencers = questionUI.GetComponentsInChildren(animationSequencerType);
                 if (sequencers.Length > 0)
                 {
@@ -611,7 +473,6 @@ namespace QuizSystem
 
         private void UpdateEditor()
         {
-            // Update DOTween in editor
             DOTween.ManualUpdate(0.016f, 0.016f);
             SceneView.RepaintAll();
         }
@@ -622,4 +483,4 @@ namespace QuizSystem
         }
     }
 }
-
+#endif

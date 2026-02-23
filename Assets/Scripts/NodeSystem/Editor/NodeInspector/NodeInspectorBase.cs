@@ -125,6 +125,40 @@ namespace NodeSystem.Editor
             return field;
         }
 
+        /// <summary>
+        /// Creates a StringIdSelector dropdown in the inspector panel.
+        /// Shows a popup with IDs from the selector; user picks one like an enum.
+        /// </summary>
+        protected VisualElement CreateStringIdSelector(string label, StringIdSelector selector, Action onSelectionChanged = null)
+        {
+            var ids = selector.GetIdsArray();
+
+            if (ids.Length == 0)
+            {
+                var emptyLabel = new Label($"{label}: (no IDs defined)");
+                emptyLabel.style.color = new Color(0.5f, 0.5f, 0.5f);
+                emptyLabel.style.unityFontStyleAndWeight = FontStyle.Italic;
+                emptyLabel.style.marginBottom = 5;
+                Container.Add(emptyLabel);
+                return emptyLabel;
+            }
+
+            var choices = new System.Collections.Generic.List<string>(ids);
+            int currentIdx = selector.GetSelectedIndex();
+            if (currentIdx < 0) currentIdx = 0;
+
+            var field = new PopupField<string>(label, choices, currentIdx);
+            field.RegisterValueChangedCallback(evt =>
+            {
+                selector.SelectedId = evt.newValue;
+                MarkDirty();
+                onSelectionChanged?.Invoke();
+            });
+            field.style.marginBottom = 5;
+            Container.Add(field);
+            return field;
+        }
+
         protected ObjectField CreateObjectField<T>(string label, string currentPath, Action<string> onPathChanged) where T : UnityEngine.Object
         {
             var field = new ObjectField(label)

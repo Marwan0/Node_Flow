@@ -37,6 +37,16 @@ namespace NodeSystem.Editor
         {
             string label = FormatLabel(field.Name);
 
+            if (fieldType == typeof(StringIdSelector))
+            {
+                var selector = (StringIdSelector)value;
+                if (selector != null)
+                {
+                    CreateStringIdSelector(label, selector);
+                }
+                return;
+            }
+
             if (fieldType == typeof(string))
             {
                 var variableAttr = field.GetCustomAttribute<GraphVariableAttribute>();

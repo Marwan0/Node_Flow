@@ -2,7 +2,6 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using DG.Tweening;
-using Sirenix.OdinInspector;
 
 namespace QuizSystem
 {
@@ -16,48 +15,13 @@ namespace QuizSystem
         [Tooltip("Submit button (optional - not needed for question types that auto-submit like Multiple Choice)")]
         [SerializeField] protected Button submitButton;
 
-        [BoxGroup("Animations")]
+        [Header("Animations")]
         [Tooltip("Enable feedback animations")]
         public bool enableFeedbackAnimations = true;
 
-        [BoxGroup("Animations")]
-        [ShowIf("enableFeedbackAnimations")]
         [Range(0.1f, 1f)]
         [Tooltip("Duration of feedback animations")]
         public float feedbackDuration = 0.5f;
-
-        [BoxGroup("Animations")]
-        [ShowIf("enableFeedbackAnimations")]
-        [Button("Open Animation Preview", ButtonSizes.Medium)]
-        [PropertyOrder(10)]
-        private void OpenAnimationPreview()
-        {
-#if UNITY_EDITOR
-            UnityEditor.EditorApplication.ExecuteMenuItem("Tools/Quiz System/Animation Preview");
-            
-            // Use reflection to get the window type and set the questionUI field
-            var assemblies = System.AppDomain.CurrentDomain.GetAssemblies();
-            System.Type windowType = null;
-            
-            foreach (var assembly in assemblies)
-            {
-                windowType = assembly.GetType("QuizSystem.QuizAnimationPreviewWindow");
-                if (windowType != null) break;
-            }
-            
-            if (windowType != null)
-            {
-                var getWindowMethod = typeof(UnityEditor.EditorWindow).GetMethod("GetWindow", new System.Type[] { typeof(System.Type) });
-                var window = getWindowMethod?.Invoke(null, new object[] { windowType });
-                
-                if (window != null)
-                {
-                    var questionUIField = windowType.GetField("questionUI", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
-                    questionUIField?.SetValue(window, this);
-                }
-            }
-#endif
-        }
 
         protected QuestionData currentQuestion;
         protected IQuestionValidator validator;
@@ -245,4 +209,3 @@ namespace QuizSystem
         protected abstract string GetCorrectAnswerDisplay();
     }
 }
-

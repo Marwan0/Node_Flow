@@ -1,7 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
-using Sirenix.OdinInspector;
 using DG.Tweening;
 
 namespace QuizSystem
@@ -9,23 +8,17 @@ namespace QuizSystem
     public class MultipleChoiceUI : QuestionUI
     {
         [Header("Multiple Choice UI")]
-        [InfoBox("Answers auto-submit immediately when clicked - no submit button needed!", InfoMessageType.Info)]
         [SerializeField] private Button[] answerButtons = new Button[4];
         [SerializeField] private TextMeshProUGUI[] answerTexts = new TextMeshProUGUI[4];
 
-        [BoxGroup("Button Animations")]
-        [ShowIf("enableFeedbackAnimations")]
+        [Header("Button Animations")]
         [Tooltip("Enable staggered button entrance animation")]
         public bool enableButtonEntrance = true;
 
-        [BoxGroup("Button Animations")]
-        [ShowIf("enableButtonEntrance")]
         [Range(0.05f, 0.3f)]
         [Tooltip("Delay between each button appearance")]
         public float buttonStaggerDelay = 0.1f;
 
-        [BoxGroup("Button Animations")]
-        [ShowIf("enableButtonEntrance")]
         [Range(0.1f, 0.5f)]
         [Tooltip("Duration of button entrance animation")]
         public float buttonEntranceDuration = 0.3f;
@@ -53,7 +46,7 @@ namespace QuizSystem
             }
 
             // Setup answer buttons
-            for (int i = 0; i < answerButtons.Length && i < mcData.answers.Length; i++)
+            for (int i = 0; i < answerButtons.Length && i < mcData.answerCount; i++)
             {
                 if (answerButtons[i] != null)
                 {
@@ -63,9 +56,9 @@ namespace QuizSystem
                     answerButtons[i].interactable = true;
                 }
 
-                if (answerTexts[i] != null && i < mcData.answers.Length)
+                if (answerTexts[i] != null && i < mcData.answerCount)
                 {
-                    answerTexts[i].text = mcData.answers[i];
+                    answerTexts[i].text = mcData.GetAnswer(i);
                 }
             }
 
@@ -96,7 +89,7 @@ namespace QuizSystem
             bool hasCustomAnimations = customAnimations != null && customAnimations.Length > 0;
 
             // Determine how many answers we actually have (from question data)
-            int actualAnswerCount = mcData != null && mcData.answers != null ? mcData.answers.Length : answerButtons.Length;
+            int actualAnswerCount = mcData != null ? mcData.answerCount : answerButtons.Length;
             int maxAnswers = Mathf.Min(actualAnswerCount, answerButtons.Length);
 
             for (int i = 0; i < maxAnswers; i++)
@@ -388,12 +381,11 @@ namespace QuizSystem
 
         protected override string GetCorrectAnswerDisplay()
         {
-            if (mcData != null && mcData.correctAnswerIndex >= 0 && mcData.correctAnswerIndex < mcData.answers.Length)
+            if (mcData != null && mcData.ValidateCorrectAnswer())
             {
-                return mcData.answers[mcData.correctAnswerIndex];
+                return mcData.correctAnswer;
             }
             return "";
         }
     }
 }
-

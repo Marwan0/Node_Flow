@@ -31,6 +31,7 @@ namespace NodeSystem.Editor
         private QuestionData _cachedQuestion;
         private UnityEditor.Editor _questionEditor;
         private SerializedObject _serializedQuestion;
+        private bool _showExtendedQuestionFields;
         
         public override void Draw()
         {
@@ -507,32 +508,11 @@ namespace NodeSystem.Editor
                 EditorGUILayout.Space(5);
 
                 // === Type-Specific Properties ===
-                // Multiple Choice
+                // Multiple Choice - uses StringIdSelector (list + dropdown drawn by custom PropertyDrawer)
                 var answersProp = _serializedQuestion.FindProperty("answers");
-                if (answersProp != null && answersProp.isArray)
+                if (answersProp != null)
                 {
-                    // Use PropertyField with includeChildren=true for full array editing (add/remove buttons)
-                    EditorGUILayout.PropertyField(answersProp, new GUIContent("Answers"), true);
-                }
-
-                var correctAnswerIndexProp = _serializedQuestion.FindProperty("correctAnswerIndex");
-                if (correctAnswerIndexProp != null)
-                {
-                    // Create dropdown for correct answer selection
-                    if (answersProp != null && answersProp.isArray && answersProp.arraySize > 0)
-                    {
-                        string[] options = new string[answersProp.arraySize];
-                        for (int i = 0; i < answersProp.arraySize; i++)
-                        {
-                            var answer = answersProp.GetArrayElementAtIndex(i).stringValue;
-                            options[i] = string.IsNullOrEmpty(answer) ? $"Answer {i + 1}" : answer;
-                        }
-                        correctAnswerIndexProp.intValue = EditorGUILayout.Popup("Correct Answer", correctAnswerIndexProp.intValue, options);
-                    }
-                    else
-                    {
-                        EditorGUILayout.PropertyField(correctAnswerIndexProp, new GUIContent("Correct Answer Index"));
-                    }
+                    EditorGUILayout.PropertyField(answersProp, new GUIContent("Answers (select correct)"), true);
                 }
 
                 // True/False
@@ -616,6 +596,11 @@ namespace NodeSystem.Editor
         {
             if (_serializedQuestion == null) return;
 
+            CreateToggle("Show Question Details", _showExtendedQuestionFields, v =>
+            {
+                _showExtendedQuestionFields = v;
+            });
+
             var imguiContainer = new IMGUIContainer(() =>
             {
                 _serializedQuestion.Update();
@@ -623,7 +608,7 @@ namespace NodeSystem.Editor
                 var questionTextProp = _serializedQuestion.FindProperty("questionText");
                 if (questionTextProp != null)
                 {
-                    DrawLargeTextProperty(questionTextProp, "Question", 72f);
+                    DrawLargeTextProperty(questionTextProp, "Question", 56f);
                 }
 
                 var typeProp = _serializedQuestion.FindProperty("questionType");
@@ -652,16 +637,19 @@ namespace NodeSystem.Editor
                     EditorGUILayout.PropertyField(maxAttemptsPerConnectionProp, new GUIContent("Max Attempts Per Connection"));
                 }
 
-                var hintsProp = _serializedQuestion.FindProperty("hints");
-                if (hintsProp != null)
+                if (_showExtendedQuestionFields)
                 {
-                    DrawLargeStringArray(hintsProp, "Hints", 34f);
-                }
+                    var hintsProp = _serializedQuestion.FindProperty("hints");
+                    if (hintsProp != null)
+                    {
+                        DrawLargeStringArray(hintsProp, "Hints", 28f);
+                    }
 
-                var explanationProp = _serializedQuestion.FindProperty("explanation");
-                if (explanationProp != null)
-                {
-                    DrawLargeTextProperty(explanationProp, "Explanation", 64f);
+                    var explanationProp = _serializedQuestion.FindProperty("explanation");
+                    if (explanationProp != null)
+                    {
+                        DrawLargeTextProperty(explanationProp, "Explanation", 52f);
+                    }
                 }
 
                 if (_serializedQuestion.ApplyModifiedProperties())

@@ -70,7 +70,7 @@ namespace QuizSystem
             switch (question)
             {
                 case MultipleChoiceQuestionData mc:
-                    entry.answers = mc.answers;
+                    entry.answers = mc.GetAnswersArray();
                     entry.correctAnswerIndex = mc.correctAnswerIndex;
                     break;
 

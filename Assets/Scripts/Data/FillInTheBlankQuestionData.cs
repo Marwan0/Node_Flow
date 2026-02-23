@@ -1,5 +1,3 @@
-using Sirenix.OdinInspector;
-using Sirenix.Serialization;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -8,41 +6,26 @@ namespace QuizSystem
     [CreateAssetMenu(fileName = "FillInTheBlankQuestion", menuName = "Quiz System/Fill in the Blank Question")]
     public class FillInTheBlankQuestionData : QuestionData
     {
-        [BoxGroup("Answer")]
-        [Required]
+        [Header("Answer")]
         [Tooltip("The correct answer (case-sensitive if Case Sensitive is enabled)")]
         public string correctAnswer = "";
 
-        [BoxGroup("Answer")]
-        [ListDrawerSettings(ShowIndexLabels = true)]
         [Tooltip("Alternative acceptable answers (synonyms, variations)")]
         public List<string> alternativeAnswers = new List<string>();
 
-        [BoxGroup("Answer")]
         [Tooltip("Whether the answer is case-sensitive")]
         public bool caseSensitive = false;
 
-        [BoxGroup("Answer")]
         [Tooltip("Allow partial matches (useful for longer answers)")]
         public bool allowPartialMatch = false;
 
-        [BoxGroup("Answer")]
-        [ShowIf("allowPartialMatch")]
-        [PropertyRange(0.5f, 1.0f)]
         [Tooltip("Minimum similarity required for partial match (0.5 = 50% match)")]
+        [Range(0.5f, 1.0f)]
         public float partialMatchThreshold = 0.8f;
 
         private void OnEnable()
         {
             questionType = QuestionType.FillInTheBlank;
-        }
-
-        [Button("Test Answer Match")]
-        [BoxGroup("Answer")]
-        private void TestAnswerMatch(string testAnswer)
-        {
-            bool matches = IsAnswerCorrect(testAnswer);
-            Debug.Log($"Answer '{testAnswer}' matches: {matches}");
         }
 
         public bool IsAnswerCorrect(string userAnswer)
@@ -94,4 +77,3 @@ namespace QuizSystem
         }
     }
 }
-

@@ -1,5 +1,4 @@
 using UnityEngine;
-using Sirenix.OdinInspector;
 using DG.Tweening;
 using System;
 
@@ -135,19 +134,14 @@ namespace QuizSystem
     /// </summary>
     public class QuizAnimationController : MonoBehaviour
     {
-        [BoxGroup("Animation System")]
-        [InfoBox("If Animation Sequencer is available, it will be used. Otherwise, custom DOTween animations will be used.")]
+        [Header("Animation System")]
         [Tooltip("Enable to use Animation Sequencer if available")]
         public bool preferAnimationSequencer = true;
 
-        [BoxGroup("Animation System")]
-        [ShowIf("preferAnimationSequencer")]
         [Tooltip("Animation Sequencer component (auto-created if available)")]
-        [ReadOnly]
         public Component animationSequencerComponent;
 
-        [BoxGroup("Fallback Settings")]
-        [HideIf("preferAnimationSequencer")]
+        [Header("Fallback Settings")]
         [Tooltip("Duration for fallback custom animations")]
         [Range(0.1f, 2f)]
         public float fallbackDuration = 0.5f;
@@ -194,4 +188,3 @@ namespace QuizSystem
         }
     }
 }
-

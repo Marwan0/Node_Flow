@@ -1,21 +1,39 @@
+#if UNITY_EDITOR
 using UnityEngine;
 using UnityEditor;
-using Sirenix.OdinInspector.Editor;
-using Sirenix.OdinInspector;
 using System.IO;
 
 namespace QuizSystem
 {
-    public class QuizDemoHelper : OdinEditorWindow
+    public class QuizDemoHelper : EditorWindow
     {
         [MenuItem("Tools/Quiz System/Create Demo Questions")]
         private static void OpenWindow()
         {
-            GetWindow<QuizDemoHelper>().Show();
+            GetWindow<QuizDemoHelper>("Demo Questions").Show();
         }
 
-        [Button("Create Sample Multiple Choice Question")]
-        [InfoBox("Creates a sample multiple choice question for testing")]
+        private void OnGUI()
+        {
+            EditorGUILayout.Space(10);
+            EditorGUILayout.LabelField("Create Sample Questions", EditorStyles.boldLabel);
+            EditorGUILayout.HelpBox("Creates sample questions for testing", MessageType.Info);
+            EditorGUILayout.Space(5);
+
+            if (GUILayout.Button("Create Sample Multiple Choice Question", GUILayout.Height(30)))
+                CreateSampleMultipleChoice();
+            if (GUILayout.Button("Create Sample True/False Question", GUILayout.Height(30)))
+                CreateSampleTrueFalse();
+            if (GUILayout.Button("Create Sample Drag & Drop Question", GUILayout.Height(30)))
+                CreateSampleDragDrop();
+            if (GUILayout.Button("Create Sample Connect Question", GUILayout.Height(30)))
+                CreateSampleConnect();
+
+            EditorGUILayout.Space(10);
+            if (GUILayout.Button("Create All Sample Questions", GUILayout.Height(40)))
+                CreateAllSamples();
+        }
+
         private void CreateSampleMultipleChoice()
         {
             string path = "Assets/Data/Questions";
@@ -26,8 +44,7 @@ namespace QuizSystem
 
             MultipleChoiceQuestionData question = ScriptableObject.CreateInstance<MultipleChoiceQuestionData>();
             question.questionText = "What is the capital of France?";
-            question.answers = new string[] { "Paris", "London", "Berlin", "Madrid" };
-            question.correctAnswerIndex = 0;
+            question.answers = NodeSystem.StringIdSelector.Create("Paris", "London", "Berlin", "Madrid");
             question.hints = new string[] 
             { 
                 "It's a famous city known for the Eiffel Tower",
@@ -48,7 +65,6 @@ namespace QuizSystem
             Debug.Log($"Created sample question at: {assetPath}");
         }
 
-        [Button("Create Sample True/False Question")]
         private void CreateSampleTrueFalse()
         {
             string path = "Assets/Data/Questions";
@@ -80,7 +96,6 @@ namespace QuizSystem
             Debug.Log($"Created sample question at: {assetPath}");
         }
 
-        [Button("Create Sample Drag & Drop Question")]
         private void CreateSampleDragDrop()
         {
             string path = "Assets/Data/Questions";
@@ -127,7 +142,6 @@ namespace QuizSystem
             Debug.Log($"Created sample question at: {assetPath}");
         }
 
-        [Button("Create Sample Connect Question")]
         private void CreateSampleConnect()
         {
             string path = "Assets/Data/Questions";
@@ -174,8 +188,6 @@ namespace QuizSystem
             Debug.Log($"Created sample question at: {assetPath}");
         }
 
-        [Button("Create All Sample Questions")]
-        [InfoBox("Creates all sample questions at once")]
         private void CreateAllSamples()
         {
             CreateSampleMultipleChoice();
@@ -186,4 +198,4 @@ namespace QuizSystem
         }
     }
 }
-
+#endif

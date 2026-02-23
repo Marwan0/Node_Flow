@@ -1,140 +1,76 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
-using Sirenix.OdinInspector;
 using DG.Tweening;
 
 namespace QuizSystem
 {
     public class QuizManager : MonoBehaviour
     {
-        [BoxGroup("Quiz Settings")]
+        [Header("Quiz Settings")]
         [Tooltip("List of questions for this quiz")]
         public List<QuestionData> questions = new List<QuestionData>();
 
-        [BoxGroup("Quiz Settings")]
         [Tooltip("Shuffle questions before starting")]
         public bool shuffleQuestions = false;
 
-        [BoxGroup("UI References")]
-        [Required]
+        [Header("UI References")]
         [Tooltip("Parent to instantiate each question under. You can disable this or animate it to remove the current question before the next one.")]
         public Transform questionContainer;
 
-        [BoxGroup("UI References")]
         [Tooltip("Prefab for True/False questions")]
         public GameObject trueFalseUIPrefab;
 
-        [BoxGroup("UI References")]
         [Tooltip("Prefab for Fill in the Blank questions")]
         public GameObject fillInTheBlankUIPrefab;
 
-        [BoxGroup("UI References")]
         [Tooltip("Prefab for Multi-Select questions")]
         public GameObject multiSelectUIPrefab;
 
-        [BoxGroup("UI References")]
         [Tooltip("Prefab for Ordering questions")]
         public GameObject orderingUIPrefab;
 
-        [BoxGroup("UI References")]
         [Tooltip("Prefab for Hotspot questions")]
         public GameObject hotspotUIPrefab;
 
-        [BoxGroup("UI References")]
         [Tooltip("Prefab for Slider questions")]
         public GameObject sliderUIPrefab;
 
-        [BoxGroup("UI References")]
         [Tooltip("Prefab for Audio questions")]
         public GameObject audioUIPrefab;
 
-        [BoxGroup("UI References")]
         [Tooltip("Prefab for Multiple Choice questions")]
         public GameObject multipleChoiceUIPrefab;
 
-        [BoxGroup("UI References")]
         [Tooltip("Prefab for Drag & Drop questions")]
         public GameObject dragDropUIPrefab;
 
-        [BoxGroup("UI References")]
         [Tooltip("Prefab for Connect questions")]
         public GameObject connectUIPrefab;
 
-        [BoxGroup("Score")]
-        [ReadOnly]
+        [Header("Score")]
         [Tooltip("Current score")]
         public int currentScore = 0;
 
-        [BoxGroup("Score")]
-        [ReadOnly]
         [Tooltip("Current question index")]
         public int currentQuestionIndex = 0;
 
-        [BoxGroup("Animations")]
+        [Header("Animations")]
         [Tooltip("Enable smooth transitions between questions")]
         public bool enableTransitions = true;
 
-        [BoxGroup("Animations")]
-        [ShowIf("enableTransitions")]
         [Tooltip("Duration of fade transition")]
         [Range(0.1f, 1f)]
         public float transitionDuration = 0.3f;
 
-        [BoxGroup("Animations")]
-        [ShowIf("enableTransitions")]
         [Tooltip("Transition style")]
-        [ValueDropdown("GetTransitionStyles")]
         public TransitionStyle transitionStyle = TransitionStyle.Fade;
-
-        [BoxGroup("Animations")]
-        [ShowIf("enableTransitions")]
-        [Button("Open Animation Preview", ButtonSizes.Medium)]
-        [PropertyOrder(10)]
-        private void OpenAnimationPreview()
-        {
-#if UNITY_EDITOR
-            UnityEditor.EditorApplication.ExecuteMenuItem("Tools/Quiz System/Animation Preview");
-            
-            // Use reflection to get the window type and set the quizManager field
-            var assemblies = System.AppDomain.CurrentDomain.GetAssemblies();
-            System.Type windowType = null;
-            
-            foreach (var assembly in assemblies)
-            {
-                windowType = assembly.GetType("QuizSystem.QuizAnimationPreviewWindow");
-                if (windowType != null) break;
-            }
-            
-            if (windowType != null)
-            {
-                var getWindowMethod = typeof(UnityEditor.EditorWindow).GetMethod("GetWindow", new System.Type[] { typeof(System.Type) });
-                var window = getWindowMethod?.Invoke(null, new object[] { windowType });
-                
-                if (window != null)
-                {
-                    var quizManagerField = windowType.GetField("quizManager", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
-                    quizManagerField?.SetValue(window, this);
-                }
-            }
-#endif
-        }
 
         public enum TransitionStyle
         {
             Fade,
             Slide,
             Scale
-        }
-
-        private ValueDropdownList<TransitionStyle> GetTransitionStyles()
-        {
-            return new ValueDropdownList<TransitionStyle>
-            {
-                { "Fade", TransitionStyle.Fade },
-                { "Slide", TransitionStyle.Slide },
-                { "Scale", TransitionStyle.Scale }
-            };
         }
 
         private List<QuestionData> shuffledQuestions;
@@ -153,8 +89,6 @@ namespace QuizSystem
             // No longer add CanvasGroup to questionContainer; each question gets its own wrapper with transition applied
         }
 
-        [Button("Start Quiz")]
-        [BoxGroup("Quiz Controls")]
         public void StartQuiz()
         {
             if (questions == null || questions.Count == 0)
@@ -253,8 +187,6 @@ namespace QuizSystem
             LoadQuestion(index);
         }
 
-        [Button("Next Question")]
-        [BoxGroup("Quiz Controls")]
         public void NextQuestion()
         {
             EnsureQuizStarted();
@@ -274,8 +206,6 @@ namespace QuizSystem
             }
         }
 
-        [Button("Previous Question")]
-        [BoxGroup("Quiz Controls")]
         public void PreviousQuestion()
         {
             EnsureQuizStarted();
@@ -843,9 +773,7 @@ namespace QuizSystem
             // You can add UI for quiz completion here
         }
 
-        [Button("Reset Quiz")]
-        [BoxGroup("Quiz Controls")]
-        private void ResetQuiz()
+        public void ResetQuiz()
         {
             if (currentQuestionUI != null)
             {
@@ -860,4 +788,3 @@ namespace QuizSystem
         }
     }
 }
-

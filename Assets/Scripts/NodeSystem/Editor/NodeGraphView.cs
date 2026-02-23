@@ -147,6 +147,7 @@ namespace NodeSystem.Editor
             if (_isLoadingGraph) return;
             if (_groupModels.TryGetValue(group, out var model))
             {
+                var groupRect = group != null ? group.GetPosition() : default;
                 foreach (var element in elements)
                 {
                     if (element is Node node)
@@ -154,7 +155,13 @@ namespace NodeSystem.Editor
                         var data = GetNodeData(node);
                         if (data != null)
                         {
-                            data.GroupId = "";
+                            // GraphView can emit transient remove/add events while relayout happens.
+                            // Only clear persistent membership when the node is truly outside the group.
+                            bool isStillInsideGroup = group != null && groupRect.Overlaps(node.GetPosition());
+                            if (!isStillInsideGroup)
+                            {
+                                data.GroupId = "";
+                            }
                             model.nodeGuids.Remove(data.Guid);
                         }
                     }
@@ -755,13 +762,6 @@ namespace NodeSystem.Editor
                     nodeView.SetVisualState(state);
                     return;
                 }
-#if ODIN_INSPECTOR
-                else if (nodeElement is NodeViewOdin odinView)
-                {
-                    odinView.SetVisualState(state);
-                    return;
-                }
-#endif
             }
 
             // If immediate update failed, schedule for next frame
@@ -775,12 +775,6 @@ namespace NodeSystem.Editor
                 {
                     delayedNodeView.SetVisualState(state);
                 }
-#if ODIN_INSPECTOR
-                else if (delayedNodeElement is NodeViewOdin delayedOdinView)
-                {
-                    delayedOdinView.SetVisualState(state);
-                }
-#endif
             };
         }
 
@@ -812,12 +806,6 @@ namespace NodeSystem.Editor
                 {
                     nodeView.ResetVisualState();
                 }
-#if ODIN_INSPECTOR
-                else if (element is NodeViewOdin odinView)
-                {
-                    odinView.ResetVisualState();
-                }
-#endif
             }
         }
 
@@ -852,21 +840,6 @@ namespace NodeSystem.Editor
                         _executedNodeGuids.Add(guid);
                     }
                 }
-#if ODIN_INSPECTOR
-                else if (nodeElement is NodeViewOdin odinView)
-                {
-                    if (runner.CurrentNode != null && runner.CurrentNode.Guid == guid)
-                    {
-                        odinView.SetVisualState(NodeState.Running);
-                        _currentRunningNodeGuid = guid;
-                    }
-                    else
-                    {
-                        odinView.SetVisualState(NodeState.Completed);
-                        _executedNodeGuids.Add(guid);
-                    }
-                }
-#endif
             }
             
             // Sync edge highlights
@@ -1574,11 +1547,6 @@ namespace NodeSystem.Editor
                 RemoveElement(node);
             }
 
-            var allOdinNodes = allElements.OfType<NodeViewOdin>().ToList();
-            foreach (var node in allOdinNodes)
-            {
-                RemoveElement(node);
-            }
             
             var allComments = allElements.OfType<CommentNodeView>().ToList();
             foreach (var comment in allComments)
@@ -1595,7 +1563,7 @@ namespace NodeSystem.Editor
             _currentRunningNodeGuid = null;
             _groupModels.Clear();
             
-            Debug.Log($"[NodeGraphView] Cleared graph: removed {allNodes.Count + allOdinNodes.Count} nodes, {allEdges.Count} edges");
+            Debug.Log($"[NodeGraphView] Cleared graph: removed {allNodes.Count} nodes, {allEdges.Count} edges");
         }
 
         /// <summary>
@@ -1738,7 +1706,7 @@ namespace NodeSystem.Editor
         }
 
         /// <summary>
-        /// Get NodeData from a node (supports both NodeView and NodeViewOdin)
+        /// Get NodeData from a node
         /// </summary>
         private NodeData GetNodeData(UnityEditor.Experimental.GraphView.Node node)
         {
@@ -1746,15 +1714,11 @@ namespace NodeSystem.Editor
                 return nodeView.Data;
             if (node is CommentNodeView commentView)
                 return commentView.Data;
-#if ODIN_INSPECTOR
-            if (node is NodeViewOdin odinView)
-                return odinView.Data;
-#endif
             return null;
         }
 
         /// <summary>
-        /// Get a port from a node (supports both NodeView and NodeViewOdin)
+        /// Get a port from a node
         /// </summary>
         private Port GetPortFromNode(UnityEditor.Experimental.GraphView.Node node, string portId, bool isInput)
         {
@@ -1762,12 +1726,6 @@ namespace NodeSystem.Editor
             {
                 return isInput ? nodeView.GetInputPort(portId) : nodeView.GetOutputPort(portId);
             }
-#if ODIN_INSPECTOR
-            else if (node is NodeViewOdin odinView)
-            {
-                return isInput ? odinView.GetInputPort(portId) : odinView.GetOutputPort(portId);
-            }
-#endif
             return null;
         }
 
@@ -1863,12 +1821,6 @@ namespace NodeSystem.Editor
                     {
                         nodeData = nodeView.Data;
                     }
-#if ODIN_INSPECTOR
-                    else if (elem is NodeViewOdin odinView)
-                    {
-                        nodeData = odinView.Data;
-                    }
-#endif
                     else if (elem is CommentNodeView commentView)
                     {
                         nodeData = commentView.Data;

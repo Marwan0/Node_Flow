@@ -1,12 +1,10 @@
 using System.Collections.Generic;
-using Sirenix.OdinInspector;
-using Sirenix.Serialization;
 using UnityEngine;
 
 namespace QuizSystem
 {
     [CreateAssetMenu(fileName = "ConnectQuestion", menuName = "Quiz System/Connect Question")]
-    public class ConnectQuestionData : QuestionData
+    public class ConnectQuestionData : QuestionData, ISerializationCallbackReceiver
     {
         [System.Serializable]
         public class ConnectItem
@@ -18,27 +16,26 @@ namespace QuizSystem
             public Sprite icon;
         }
 
-        [BoxGroup("Left Column")]
-        [InfoBox("Items in the left column that will be connected to right column items")]
-        [TableList(ShowIndexLabels = true, AlwaysExpanded = true)]
-        [Tooltip("Items in the left column")]
+        [Header("Left Column")]
+        [Tooltip("Items in the left column that will be connected to right column items")]
         public List<ConnectItem> leftColumnItems = new List<ConnectItem>();
 
-        [BoxGroup("Right Column")]
-        [InfoBox("Items in the right column that will be connected to left column items")]
-        [TableList(ShowIndexLabels = true, AlwaysExpanded = true)]
-        [Tooltip("Items in the right column")]
+        [Header("Right Column")]
+        [Tooltip("Items in the right column that will be connected to left column items")]
         public List<ConnectItem> rightColumnItems = new List<ConnectItem>();
 
-        [BoxGroup("Correct Connections")]
-        [InfoBox("Maps left column index to correct right column index. Key = left index, Value = right index. Connections are completed in order: left 0, then left 1, then left 2, etc.")]
-        [DictionaryDrawerSettings(KeyLabel = "Left Item", ValueLabel = "Right Item")]
-        [Tooltip("Dictionary mapping left column indices to their correct right column indices")]
+        [Header("Correct Connections")]
+        [Tooltip("Maps left column index to correct right column index")]
+        [HideInInspector]
         public Dictionary<int, int> correctConnections = new Dictionary<int, int>();
 
-        [BoxGroup("Connect Rules")]
-        [Tooltip("Max attempts per connection before the correct answer is revealed (e.g. 3 = 2 tries then 3rd reveals). Resets for each new connection.")]
-        [PropertyRange(2, 10)]
+        // Serializable backing fields for the dictionary
+        [SerializeField] private List<int> _connectionKeys = new List<int>();
+        [SerializeField] private List<int> _connectionValues = new List<int>();
+
+        [Header("Connect Rules")]
+        [Tooltip("Max attempts per connection before the correct answer is revealed")]
+        [Range(2, 10)]
         public int maxAttemptsPerConnection = 3;
 
         private void OnEnable()
@@ -46,30 +43,25 @@ namespace QuizSystem
             questionType = QuestionType.Connect;
         }
 
-        [Button("Validate Connections")]
-        [BoxGroup("Correct Connections")]
-        private void ValidateConnections()
+        public void OnBeforeSerialize()
         {
-            if (correctConnections == null || correctConnections.Count == 0)
+            _connectionKeys.Clear();
+            _connectionValues.Clear();
+            foreach (var kvp in correctConnections)
             {
-                Debug.LogWarning($"{name}: No correct connections defined!");
-                return;
+                _connectionKeys.Add(kvp.Key);
+                _connectionValues.Add(kvp.Value);
             }
+        }
 
-            foreach (var connection in correctConnections)
+        public void OnAfterDeserialize()
+        {
+            correctConnections = new Dictionary<int, int>();
+            for (int i = 0; i < Mathf.Min(_connectionKeys.Count, _connectionValues.Count); i++)
             {
-                if (connection.Key < 0 || connection.Key >= leftColumnItems.Count)
-                {
-                    Debug.LogWarning($"{name}: Invalid left column index: {connection.Key}");
-                }
-                if (connection.Value < 0 || connection.Value >= rightColumnItems.Count)
-                {
-                    Debug.LogWarning($"{name}: Invalid right column index: {connection.Value}");
-                }
+                if (!correctConnections.ContainsKey(_connectionKeys[i]))
+                    correctConnections[_connectionKeys[i]] = _connectionValues[i];
             }
-
-            Debug.Log($"{name}: Connection validation complete!");
         }
     }
 }
-

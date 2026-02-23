@@ -12,78 +12,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8273f7378b91c474e819dcd9a9517747, type: 3}
   m_Name: Sample_Connect_Question
   m_EditorClassIdentifier: Assembly-CSharp::QuizSystem.ConnectQuestionData
-  serializationData:
-    SerializedFormat: 2
-    SerializedBytes: 
-    ReferencedUnityObjects: []
-    SerializedBytesString: 
-    Prefab: {fileID: 0}
-    PrefabModificationsReferencedUnityObjects: []
-    PrefabModifications: []
-    SerializationNodes:
-    - Name: correctConnections
-      Entry: 7
-      Data: 0|System.Collections.Generic.Dictionary`2[[System.Int32, mscorlib],[System.Int32,
-        mscorlib]], mscorlib
-    - Name: comparer
-      Entry: 7
-      Data: 1|System.Collections.Generic.GenericEqualityComparer`1[[System.Int32,
-        mscorlib]], mscorlib
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 12
-      Data: 3
-    - Name: 
-      Entry: 7
-      Data: 
-    - Name: $k
-      Entry: 3
-      Data: 0
-    - Name: $v
-      Entry: 3
-      Data: 0
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 
-    - Name: $k
-      Entry: 3
-      Data: 1
-    - Name: $v
-      Entry: 3
-      Data: 1
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 7
-      Data: 
-    - Name: $k
-      Entry: 3
-      Data: 2
-    - Name: $v
-      Entry: 3
-      Data: 2
-    - Name: 
-      Entry: 8
-      Data: 
-    - Name: 
-      Entry: 13
-      Data: 
-    - Name: 
-      Entry: 8
-      Data: 
   questionText: 'Connect the animals with their habitats:'
   questionType: 2
   hints:
   - Polar bears live in cold, icy regions
   - Camels are adapted to dry, hot environments
   - Penguins live in the southernmost continent
-  maxAttempts: 2
+  maxAttempts: 3
   points: 50
   explanation: Polar Bear->Arctic, Camel->Desert, Penguin->Antarctica
   customUIPrefab: {fileID: 0}
@@ -101,4 +36,6 @@ MonoBehaviour:
     icon: {fileID: 21300000, guid: 200c70d390d204444a5eb6ce2258cafb, type: 3}
   - label: Antarctica
     icon: {fileID: 21300000, guid: 229f9dceb220b4b438a10fb0a3285237, type: 3}
-  maxAttemptsPerConnection: 3
+  _connectionKeys: 000000000200000001000000
+  _connectionValues: 000000000200000001000000
+  maxAttemptsPerConnection: 2

@@ -1,12 +1,10 @@
 using System.Collections.Generic;
-using Sirenix.OdinInspector;
-using Sirenix.Serialization;
 using UnityEngine;
 
 namespace QuizSystem
 {
     [CreateAssetMenu(fileName = "DragDropQuestion", menuName = "Quiz System/Drag & Drop Question")]
-    public class DragDropQuestionData : QuestionData
+    public class DragDropQuestionData : QuestionData, ISerializationCallbackReceiver
     {
         [System.Serializable]
         public class DragItem
@@ -28,53 +26,47 @@ namespace QuizSystem
             public Sprite icon;
         }
 
-        [BoxGroup("Drag Items")]
-        [InfoBox("Items that can be dragged to drop zones")]
-        [TableList(ShowIndexLabels = true, AlwaysExpanded = true)]
+        [Header("Drag Items")]
         [Tooltip("List of items that can be dragged")]
         public List<DragItem> dragItems = new List<DragItem>();
 
-        [BoxGroup("Drop Zones")]
-        [InfoBox("Zones where drag items can be dropped")]
-        [TableList(ShowIndexLabels = true, AlwaysExpanded = true)]
+        [Header("Drop Zones")]
         [Tooltip("List of drop zones")]
         public List<DropZone> dropZones = new List<DropZone>();
 
-        [BoxGroup("Correct Pairings")]
-        [InfoBox("Maps drag item index to correct drop zone index. Key = drag item index, Value = drop zone index")]
-        [DictionaryDrawerSettings(KeyLabel = "Drag Item", ValueLabel = "Drop Zone")]
-        [Tooltip("Dictionary mapping drag item indices to their correct drop zone indices")]
+        [Header("Correct Pairings")]
+        [Tooltip("Maps drag item index to correct drop zone index")]
+        [HideInInspector]
         public Dictionary<int, int> correctPairings = new Dictionary<int, int>();
+
+        // Serializable backing fields for the dictionary
+        [SerializeField] private List<int> _pairingKeys = new List<int>();
+        [SerializeField] private List<int> _pairingValues = new List<int>();
 
         private void OnEnable()
         {
             questionType = QuestionType.DragDrop;
         }
 
-        [Button("Validate Pairings")]
-        [BoxGroup("Correct Pairings")]
-        private void ValidatePairings()
+        public void OnBeforeSerialize()
         {
-            if (correctPairings == null || correctPairings.Count == 0)
+            _pairingKeys.Clear();
+            _pairingValues.Clear();
+            foreach (var kvp in correctPairings)
             {
-                Debug.LogWarning($"{name}: No correct pairings defined!");
-                return;
+                _pairingKeys.Add(kvp.Key);
+                _pairingValues.Add(kvp.Value);
             }
+        }
 
-            foreach (var pairing in correctPairings)
+        public void OnAfterDeserialize()
+        {
+            correctPairings = new Dictionary<int, int>();
+            for (int i = 0; i < Mathf.Min(_pairingKeys.Count, _pairingValues.Count); i++)
             {
-                if (pairing.Key < 0 || pairing.Key >= dragItems.Count)
-                {
-                    Debug.LogWarning($"{name}: Invalid drag item index: {pairing.Key}");
-                }
-                if (pairing.Value < 0 || pairing.Value >= dropZones.Count)
-                {
-                    Debug.LogWarning($"{name}: Invalid drop zone index: {pairing.Value}");
-                }
+                if (!correctPairings.ContainsKey(_pairingKeys[i]))
+                    correctPairings[_pairingKeys[i]] = _pairingValues[i];
             }
-
-            Debug.Log($"{name}: Pairing validation complete!");
         }
     }
 }
-

@@ -33,6 +33,16 @@ namespace NodeSystem.Editor
 
         private void DrawField(FieldInfo field, object value, Type fieldType)
         {
+            if (fieldType == typeof(StringIdSelector))
+            {
+                var selector = (StringIdSelector)value;
+                if (selector != null)
+                {
+                    CreateStringIdSelector(FormatLabel(field.Name), selector);
+                }
+                return;
+            }
+
             if (fieldType == typeof(string))
             {
                 CreateTextField(FormatLabel(field.Name), (string)value ?? "", v => field.SetValue(Node, v));

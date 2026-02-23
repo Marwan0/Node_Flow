@@ -1,45 +1,35 @@
-using Sirenix.OdinInspector;
-using Sirenix.Serialization;
 using UnityEngine;
 
 namespace QuizSystem
 {
-    public abstract class QuestionData : SerializedScriptableObject
+    public abstract class QuestionData : ScriptableObject
     {
-        [BoxGroup("Question Info")]
-        [Required]
-        [MultiLineProperty(3)]
+        [Header("Question Info")]
+        [TextArea(3, 5)]
         [Tooltip("The question text displayed to the user")]
         public string questionText;
 
-        [BoxGroup("Question Info")]
-        [EnumToggleButtons]
         [Tooltip("The type of question")]
         public QuestionType questionType;
 
-        [BoxGroup("Hints & Attempts")]
-        [InfoBox("Hints are shown in order for each wrong attempt. Leave empty if no hint for that attempt.")]
-        [ListDrawerSettings(ShowIndexLabels = true, DraggableItems = false)]
+        [Header("Hints & Attempts")]
         [Tooltip("Hints shown for each wrong attempt (one per attempt)")]
         public string[] hints = new string[3];
 
-        [BoxGroup("Hints & Attempts")]
-        [PropertyRange(1, 10)]
+        [Range(1, 10)]
         [Tooltip("Maximum number of attempts before auto-correct")]
         public int maxAttempts = 3;
 
-        [BoxGroup("Scoring")]
-        [PropertyRange(0, 100)]
+        [Header("Scoring")]
+        [Range(0, 100)]
         [Tooltip("Points awarded for correct answer")]
         public int points = 10;
 
-        [BoxGroup("Scoring")]
         [Tooltip("Explanation shown after answering (or after max attempts)")]
-        [MultiLineProperty(3)]
+        [TextArea(3, 5)]
         public string explanation;
 
-        [BoxGroup("Layout Override")]
-        [ValidateInput(nameof(ValidateCustomUIPrefab), "Custom UI prefab must have a QuestionUI component (e.g. MultipleChoiceUI).")]
+        [Header("Layout Override")]
         [Tooltip("If set, this prefab is used instead of QuizManager's default for this question type. Must use the same QuestionUI variant as the type (e.g. MultipleChoiceUI for Multiple Choice).")]
         public GameObject customUIPrefab;
 
@@ -48,24 +38,5 @@ namespace QuizSystem
             if (prefab == null) return true;
             return prefab.GetComponentInChildren<QuestionUI>(true) != null;
         }
-
-        [Button("Validate Question")]
-        [BoxGroup("Validation")]
-        private void ValidateQuestion()
-        {
-            if (string.IsNullOrEmpty(questionText))
-            {
-                Debug.LogWarning($"{name}: Question text is empty!");
-                return;
-            }
-
-            if (hints == null || hints.Length == 0)
-            {
-                Debug.LogWarning($"{name}: No hints provided!");
-            }
-
-            Debug.Log($"{name}: Question validation passed!");
-        }
     }
 }
-

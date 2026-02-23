@@ -1,54 +1,43 @@
-using Sirenix.OdinInspector;
-using Sirenix.Serialization;
 using UnityEngine;
+using NodeSystem;
 
 namespace QuizSystem
 {
     [CreateAssetMenu(fileName = "MultipleChoiceQuestion", menuName = "Quiz System/Multiple Choice Question")]
     public class MultipleChoiceQuestionData : QuestionData
     {
-        [BoxGroup("Answers")]
-        [InfoBox("Exactly 4 answer options are required. One must be marked as correct.")]
-        [TableList(ShowIndexLabels = true, AlwaysExpanded = true)]
-        [ValidateInput("ValidateAnswers", "Must have exactly 4 answers")]
-        [Tooltip("The 4 answer options")]
-        public string[] answers = new string[4];
+        [Header("Answers")]
+        [Tooltip("Add answer options and select the correct one from the dropdown")]
+        public StringIdSelector answers = StringIdSelector.Create("Answer 1", "Answer 2", "Answer 3", "Answer 4");
 
-        [BoxGroup("Answers")]
-        [ValueDropdown("GetAnswerOptions")]
-        [ValidateInput("ValidateCorrectAnswer", "Correct answer index must be valid")]
-        [Tooltip("Index of the correct answer (0-3)")]
-        public int correctAnswerIndex = 0;
+        /// <summary>Index of the correct answer (derived from the selector's selected ID)</summary>
+        public int correctAnswerIndex => answers.GetSelectedIndex();
+
+        /// <summary>The correct answer text</summary>
+        public string correctAnswer => answers.SelectedId;
+
+        /// <summary>Number of answer options</summary>
+        public int answerCount => answers.Count;
+
+        /// <summary>Get answer text at index</summary>
+        public string GetAnswer(int index) => answers.GetAt(index);
+
+        /// <summary>Get all answers as array</summary>
+        public string[] GetAnswersArray() => answers.GetIdsArray();
 
         private void OnEnable()
         {
             questionType = QuestionType.MultipleChoice;
-            if (answers == null || answers.Length != 4)
-            {
-                answers = new string[4];
-            }
         }
 
-        private System.Collections.Generic.IEnumerable<ValueDropdownItem<int>> GetAnswerOptions()
+        public bool ValidateAnswers()
         {
-            for (int i = 0; i < answers.Length; i++)
-            {
-                string label = string.IsNullOrEmpty(answers[i]) ? $"Answer {i + 1}" : answers[i];
-                yield return new ValueDropdownItem<int>(label, i);
-            }
+            return answers != null && answers.Count >= 2;
         }
 
-        private bool ValidateAnswers()
+        public bool ValidateCorrectAnswer()
         {
-            return answers != null && answers.Length == 4;
-        }
-
-        private bool ValidateCorrectAnswer()
-        {
-            if (answers == null || answers.Length != 4)
-                return false;
-            return correctAnswerIndex >= 0 && correctAnswerIndex < 4;
+            return answers != null && answers.IsSelectionValid();
         }
     }
 }
-

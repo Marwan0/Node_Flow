@@ -12,15 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 15fd7d42a5594b1468bb37902ac70bb5, type: 3}
   m_Name: Sample_MultipleChoice_Question
   m_EditorClassIdentifier: Assembly-CSharp::QuizSystem.MultipleChoiceQuestionData
-  serializationData:
-    SerializedFormat: 2
-    SerializedBytes: 
-    ReferencedUnityObjects: []
-    SerializedBytesString: 
-    Prefab: {fileID: 0}
-    PrefabModificationsReferencedUnityObjects: []
-    PrefabModifications: []
-    SerializationNodes: []
   questionText: What is the capital of France?
   questionType: 0
   hints:
@@ -32,8 +23,9 @@ MonoBehaviour:
   explanation: Paris is the capital and largest city of France.
   customUIPrefab: {fileID: 0}
   answers:
-  - London
-  - Berlin
-  - Madrid
-  - Paris
-  correctAnswerIndex: 3
+    _ids:
+    - Paris
+    - London
+    - city00
+    - City55
+    _selectedId: Paris

@@ -293,6 +293,57 @@ namespace NodeSystem.Editor
             Container.Add(label);
         }
 
+        /// <summary>
+        /// Creates a StringIdSelector dropdown inside a node.
+        /// Shows a popup with IDs from the selector; user picks one like an enum.
+        /// </summary>
+        protected VisualElement CreateStringIdSelector(string label, StringIdSelector selector, Action onSelectionChanged = null)
+        {
+            var row = new VisualElement();
+            row.style.flexDirection = FlexDirection.Row;
+            row.style.alignItems = Align.Center;
+            row.style.marginTop = 2;
+            row.style.marginBottom = 2;
+
+            if (!string.IsNullOrEmpty(label))
+            {
+                var labelElement = new Label(label);
+                labelElement.style.minWidth = 50;
+                labelElement.style.color = new Color(0.8f, 0.8f, 0.8f);
+                labelElement.style.fontSize = 10;
+                row.Add(labelElement);
+            }
+
+            var ids = selector.GetIdsArray();
+            if (ids.Length == 0)
+            {
+                var emptyLabel = new Label("(no IDs)");
+                emptyLabel.style.color = new Color(0.5f, 0.5f, 0.5f);
+                emptyLabel.style.unityFontStyleAndWeight = FontStyle.Italic;
+                emptyLabel.style.fontSize = 10;
+                row.Add(emptyLabel);
+            }
+            else
+            {
+                var choices = new System.Collections.Generic.List<string>(ids);
+                int currentIdx = selector.GetSelectedIndex();
+                if (currentIdx < 0) currentIdx = 0;
+
+                var popup = new PopupField<string>(choices, currentIdx);
+                popup.style.flexGrow = 1;
+                popup.RegisterValueChangedCallback(evt =>
+                {
+                    selector.SelectedId = evt.newValue;
+                    MarkDirty();
+                    onSelectionChanged?.Invoke();
+                });
+                row.Add(popup);
+            }
+
+            Container.Add(row);
+            return row;
+        }
+
         protected ObjectField CreateObjectField<T>(string label, UnityEngine.Object currentValue, Action<T> onChanged) where T : UnityEngine.Object
         {
             var row = new VisualElement();

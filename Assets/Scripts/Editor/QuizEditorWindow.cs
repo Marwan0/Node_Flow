@@ -1,25 +1,113 @@
+#if UNITY_EDITOR
 using UnityEngine;
 using UnityEditor;
-using Sirenix.OdinInspector.Editor;
-using Sirenix.OdinInspector;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
 namespace QuizSystem
 {
-    public class QuizEditorWindow : OdinEditorWindow
+    public class QuizEditorWindow : EditorWindow
     {
         [MenuItem("Tools/Quiz System/Question Editor")]
         private static void OpenWindow()
         {
-            GetWindow<QuizEditorWindow>().Show();
+            GetWindow<QuizEditorWindow>("Question Editor").Show();
         }
 
-        // === Export/Import Section ===
-        [TitleGroup("Import/Export", "Manage questions via JSON files", Order = -100)]
-        [HorizontalGroup("Import/Export/Buttons")]
-        [Button("Export All Questions", ButtonSizes.Large), GUIColor(0.4f, 0.8f, 0.4f)]
+        private Vector2 scrollPos;
+        private int selectedTab = 0;
+        private string[] tabNames = new string[]
+        {
+            "True/False", "Fill in Blank", "Multi-Select", "Ordering",
+            "Hotspot", "Slider", "Audio", "Multiple Choice", "Drag & Drop", "Connect"
+        };
+
+        public List<TrueFalseQuestionData> trueFalseQuestions = new List<TrueFalseQuestionData>();
+        public List<FillInTheBlankQuestionData> fillInTheBlankQuestions = new List<FillInTheBlankQuestionData>();
+        public List<MultiSelectQuestionData> multiSelectQuestions = new List<MultiSelectQuestionData>();
+        public List<OrderingQuestionData> orderingQuestions = new List<OrderingQuestionData>();
+        public List<HotspotQuestionData> hotspotQuestions = new List<HotspotQuestionData>();
+        public List<SliderQuestionData> sliderQuestions = new List<SliderQuestionData>();
+        public List<AudioQuestionData> audioQuestions = new List<AudioQuestionData>();
+        public List<MultipleChoiceQuestionData> multipleChoiceQuestions = new List<MultipleChoiceQuestionData>();
+        public List<DragDropQuestionData> dragDropQuestions = new List<DragDropQuestionData>();
+        public List<ConnectQuestionData> connectQuestions = new List<ConnectQuestionData>();
+
+        private void OnGUI()
+        {
+            EditorGUILayout.Space(5);
+
+            // Import/Export buttons
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button("Export All Questions", GUILayout.Height(30)))
+                ExportAllQuestions();
+            if (GUILayout.Button("Import Questions", GUILayout.Height(30)))
+                ImportQuestions();
+            EditorGUILayout.EndHorizontal();
+
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button("Load All Questions", GUILayout.Height(25)))
+                LoadAllQuestions();
+            if (GUILayout.Button("Export Selected Tab", GUILayout.Height(25)))
+                ExportSelectedTab();
+            EditorGUILayout.EndHorizontal();
+
+            EditorGUILayout.Space(10);
+
+            // Tab selection
+            selectedTab = GUILayout.Toolbar(selectedTab, tabNames);
+
+            EditorGUILayout.Space(5);
+
+            scrollPos = EditorGUILayout.BeginScrollView(scrollPos);
+
+            switch (selectedTab)
+            {
+                case 0: DrawQuestionList(trueFalseQuestions, "True/False", "TrueFalseQuestion"); break;
+                case 1: DrawQuestionList(fillInTheBlankQuestions, "Fill in the Blank", "FillInTheBlankQuestion"); break;
+                case 2: DrawQuestionList(multiSelectQuestions, "Multi-Select", "MultiSelectQuestion"); break;
+                case 3: DrawQuestionList(orderingQuestions, "Ordering", "OrderingQuestion"); break;
+                case 4: DrawQuestionList(hotspotQuestions, "Hotspot", "HotspotQuestion"); break;
+                case 5: DrawQuestionList(sliderQuestions, "Slider", "SliderQuestion"); break;
+                case 6: DrawQuestionList(audioQuestions, "Audio", "AudioQuestion"); break;
+                case 7: DrawQuestionList(multipleChoiceQuestions, "Multiple Choice", "MultipleChoiceQuestion"); break;
+                case 8: DrawQuestionList(dragDropQuestions, "Drag & Drop", "DragDropQuestion"); break;
+                case 9: DrawQuestionList(connectQuestions, "Connect", "ConnectQuestion"); break;
+            }
+
+            EditorGUILayout.EndScrollView();
+        }
+
+        private void DrawQuestionList<T>(List<T> questions, string label, string defaultName) where T : QuestionData
+        {
+            EditorGUILayout.LabelField($"{label} Questions ({questions.Count})", EditorStyles.boldLabel);
+
+            if (GUILayout.Button($"Create {label} Question"))
+            {
+                CreateQuestion<T>(defaultName);
+            }
+
+            EditorGUILayout.Space(5);
+
+            for (int i = 0; i < questions.Count; i++)
+            {
+                EditorGUILayout.BeginHorizontal();
+                questions[i] = (T)EditorGUILayout.ObjectField(questions[i], typeof(T), false);
+                if (questions[i] != null && GUILayout.Button("Select", GUILayout.Width(60)))
+                {
+                    Selection.activeObject = questions[i];
+                    EditorGUIUtility.PingObject(questions[i]);
+                }
+                if (GUILayout.Button("X", GUILayout.Width(25)))
+                {
+                    questions.RemoveAt(i);
+                    i--;
+                }
+                EditorGUILayout.EndHorizontal();
+            }
+        }
+
         private void ExportAllQuestions()
         {
             var allQuestions = new List<QuestionData>();
@@ -43,8 +131,6 @@ namespace QuizSystem
             QuestionExporter.ExportWithDialog(allQuestions);
         }
 
-        [HorizontalGroup("Import/Export/Buttons")]
-        [Button("Import Questions", ButtonSizes.Large), GUIColor(0.4f, 0.6f, 0.9f)]
         private void ImportQuestions()
         {
             var imported = QuestionImporter.ImportWithDialog();
@@ -54,11 +140,8 @@ namespace QuizSystem
             }
         }
 
-        [HorizontalGroup("Import/Export/Buttons2")]
-        [Button("Export Selected Tab", ButtonSizes.Medium)]
         private void ExportSelectedTab()
         {
-            // This is a simplified version - exports whatever list has items
             var questions = GetCurrentTabQuestions();
             if (questions.Count == 0)
             {
@@ -70,7 +153,6 @@ namespace QuizSystem
 
         private List<QuestionData> GetCurrentTabQuestions()
         {
-            // Returns all loaded questions - user can select which tab they want
             var allQuestions = new List<QuestionData>();
             allQuestions.AddRange(trueFalseQuestions);
             allQuestions.AddRange(fillInTheBlankQuestions);
@@ -85,84 +167,6 @@ namespace QuizSystem
             return allQuestions;
         }
 
-        [FoldoutGroup("Import/Export/Advanced", false)]
-        [Button("Export True/False Only")]
-        private void ExportTrueFalseOnly() => QuestionExporter.ExportWithDialog(trueFalseQuestions.Cast<QuestionData>().ToList());
-
-        [FoldoutGroup("Import/Export/Advanced")]
-        [Button("Export Multiple Choice Only")]
-        private void ExportMultipleChoiceOnly() => QuestionExporter.ExportWithDialog(multipleChoiceQuestions.Cast<QuestionData>().ToList());
-
-        [FoldoutGroup("Import/Export/Advanced")]
-        [Button("Export Fill in Blank Only")]
-        private void ExportFillInBlankOnly() => QuestionExporter.ExportWithDialog(fillInTheBlankQuestions.Cast<QuestionData>().ToList());
-
-        [FoldoutGroup("Import/Export/Advanced")]
-        [InfoBox("Import path for new questions: Assets/Data/Questions/Imported")]
-        [Button("Open Import Folder")]
-        private void OpenImportFolder()
-        {
-            string path = "Assets/Data/Questions/Imported";
-            if (!Directory.Exists(path))
-            {
-                Directory.CreateDirectory(path);
-                AssetDatabase.Refresh();
-            }
-            EditorUtility.RevealInFinder(path);
-        }
-
-        [TabGroup("True/False")]
-        [ListDrawerSettings(ShowIndexLabels = true, DraggableItems = true, HideAddButton = false, HideRemoveButton = false)]
-        [Searchable]
-        public List<TrueFalseQuestionData> trueFalseQuestions = new List<TrueFalseQuestionData>();
-
-        [TabGroup("Fill in the Blank")]
-        [ListDrawerSettings(ShowIndexLabels = true, DraggableItems = true, HideAddButton = false, HideRemoveButton = false)]
-        [Searchable]
-        public List<FillInTheBlankQuestionData> fillInTheBlankQuestions = new List<FillInTheBlankQuestionData>();
-
-        [TabGroup("Multi-Select")]
-        [ListDrawerSettings(ShowIndexLabels = true, DraggableItems = true, HideAddButton = false, HideRemoveButton = false)]
-        [Searchable]
-        public List<MultiSelectQuestionData> multiSelectQuestions = new List<MultiSelectQuestionData>();
-
-        [TabGroup("Ordering")]
-        [ListDrawerSettings(ShowIndexLabels = true, DraggableItems = true, HideAddButton = false, HideRemoveButton = false)]
-        [Searchable]
-        public List<OrderingQuestionData> orderingQuestions = new List<OrderingQuestionData>();
-
-        [TabGroup("Hotspot")]
-        [ListDrawerSettings(ShowIndexLabels = true, DraggableItems = true, HideAddButton = false, HideRemoveButton = false)]
-        [Searchable]
-        public List<HotspotQuestionData> hotspotQuestions = new List<HotspotQuestionData>();
-
-        [TabGroup("Slider")]
-        [ListDrawerSettings(ShowIndexLabels = true, DraggableItems = true, HideAddButton = false, HideRemoveButton = false)]
-        [Searchable]
-        public List<SliderQuestionData> sliderQuestions = new List<SliderQuestionData>();
-
-        [TabGroup("Audio")]
-        [ListDrawerSettings(ShowIndexLabels = true, DraggableItems = true, HideAddButton = false, HideRemoveButton = false)]
-        [Searchable]
-        public List<AudioQuestionData> audioQuestions = new List<AudioQuestionData>();
-
-        [TabGroup("Multiple Choice")]
-        [ListDrawerSettings(ShowIndexLabels = true, DraggableItems = true, HideAddButton = false, HideRemoveButton = false)]
-        [Searchable]
-        public List<MultipleChoiceQuestionData> multipleChoiceQuestions = new List<MultipleChoiceQuestionData>();
-
-        [TabGroup("Drag & Drop")]
-        [ListDrawerSettings(ShowIndexLabels = true, DraggableItems = true, HideAddButton = false, HideRemoveButton = false)]
-        [Searchable]
-        public List<DragDropQuestionData> dragDropQuestions = new List<DragDropQuestionData>();
-
-        [TabGroup("Connect")]
-        [ListDrawerSettings(ShowIndexLabels = true, DraggableItems = true, HideAddButton = false, HideRemoveButton = false)]
-        [Searchable]
-        public List<ConnectQuestionData> connectQuestions = new List<ConnectQuestionData>();
-
-        [Button("Load All Questions")]
-        [PropertyOrder(-1)]
         private void LoadAllQuestions()
         {
             string[] guids = AssetDatabase.FindAssets("t:TrueFalseQuestionData");
@@ -198,76 +202,6 @@ namespace QuizSystem
             Debug.Log("All questions loaded!");
         }
 
-        [Button("Create True/False Question")]
-        [TabGroup("True/False")]
-        private void CreateTrueFalseQuestion()
-        {
-            CreateQuestion<TrueFalseQuestionData>("TrueFalseQuestion");
-        }
-
-        [Button("Create Fill in the Blank Question")]
-        [TabGroup("Fill in the Blank")]
-        private void CreateFillInTheBlankQuestion()
-        {
-            CreateQuestion<FillInTheBlankQuestionData>("FillInTheBlankQuestion");
-        }
-
-        [Button("Create Multi-Select Question")]
-        [TabGroup("Multi-Select")]
-        private void CreateMultiSelectQuestion()
-        {
-            CreateQuestion<MultiSelectQuestionData>("MultiSelectQuestion");
-        }
-
-        [Button("Create Ordering Question")]
-        [TabGroup("Ordering")]
-        private void CreateOrderingQuestion()
-        {
-            CreateQuestion<OrderingQuestionData>("OrderingQuestion");
-        }
-
-        [Button("Create Hotspot Question")]
-        [TabGroup("Hotspot")]
-        private void CreateHotspotQuestion()
-        {
-            CreateQuestion<HotspotQuestionData>("HotspotQuestion");
-        }
-
-        [Button("Create Slider Question")]
-        [TabGroup("Slider")]
-        private void CreateSliderQuestion()
-        {
-            CreateQuestion<SliderQuestionData>("SliderQuestion");
-        }
-
-        [Button("Create Audio Question")]
-        [TabGroup("Audio")]
-        private void CreateAudioQuestion()
-        {
-            CreateQuestion<AudioQuestionData>("AudioQuestion");
-        }
-
-        [Button("Create Multiple Choice Question")]
-        [TabGroup("Multiple Choice")]
-        private void CreateMultipleChoiceQuestion()
-        {
-            CreateQuestion<MultipleChoiceQuestionData>("MultipleChoiceQuestion");
-        }
-
-        [Button("Create Drag & Drop Question")]
-        [TabGroup("Drag & Drop")]
-        private void CreateDragDropQuestion()
-        {
-            CreateQuestion<DragDropQuestionData>("DragDropQuestion");
-        }
-
-        [Button("Create Connect Question")]
-        [TabGroup("Connect")]
-        private void CreateConnectQuestion()
-        {
-            CreateQuestion<ConnectQuestionData>("ConnectQuestion");
-        }
-
         private void CreateQuestion<T>(string defaultName) where T : QuestionData
         {
             string path = "Assets/Data/Questions";
@@ -289,4 +223,4 @@ namespace QuizSystem
         }
     }
 }
-
+#endif

@@ -109,8 +109,11 @@ namespace QuizSystem
             {
                 case QuestionType.MultipleChoice:
                     var mc = ScriptableObject.CreateInstance<MultipleChoiceQuestionData>();
-                    mc.answers = entry.answers ?? new string[4];
-                    mc.correctAnswerIndex = entry.correctAnswerIndex;
+                    var importedAnswers = entry.answers ?? new string[4];
+                    mc.answers = new NodeSystem.StringIdSelector();
+                    mc.answers.SetIds(importedAnswers);
+                    if (entry.correctAnswerIndex >= 0 && entry.correctAnswerIndex < importedAnswers.Length)
+                        mc.answers.SelectByIndex(entry.correctAnswerIndex);
                     question = mc;
                     break;
 
