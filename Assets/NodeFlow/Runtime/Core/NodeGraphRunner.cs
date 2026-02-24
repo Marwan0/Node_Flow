@@ -513,13 +513,6 @@ namespace NodeSystem
                 
                 // outputPort is already set to "complete" for the main loop below
             }
-            else if (completedNode is Nodes.Quiz.CheckAnswerNode)
-            {
-                // CheckAnswerNode: Completed = correct, Failed = incorrect
-                outputPort = completedNode.State == NodeState.Completed ? "correct" : "incorrect";
-                completedNode.State = NodeState.Completed;
-            }
-
             // Remove this node from active tracking
             _activeNodeGuids.Remove(completedNode.Guid);
 
