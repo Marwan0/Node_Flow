@@ -30,6 +30,11 @@ namespace QuizSystem
         [Tooltip("Allow partial credit for partially correct ordering")]
         public bool allowPartialCredit = false;
 
+        [Header("Ordering Rules")]
+        [Tooltip("Max attempts per slot placement before the correct answer is revealed")]
+        [Range(2, 10)]
+        public int maxAttemptsPerSlot = 3;
+
         [Header("Validation")]
         [Tooltip("NaturalIndexOrder expects [0,1,2,...]. CustomOrder uses the list below.")]
         public OrderValidationMode validationMode = OrderValidationMode.NaturalIndexOrder;

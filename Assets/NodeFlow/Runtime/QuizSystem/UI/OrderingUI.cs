@@ -36,6 +36,11 @@ namespace QuizSystem
         private List<OrderingDragItem> dragItems = new List<OrderingDragItem>();
         private List<OrderingDropSlot> dropSlots = new List<OrderingDropSlot>();
 
+        public int currentSlotIndex { get; private set; } = 0;
+        private int attemptsForCurrentSlot = 0;
+        private int starsCollected = 0;
+        private int totalSlots = 0;
+
         // ──────────────── setup ────────────────
 
         protected override void SetupQuestion()
@@ -54,15 +59,60 @@ namespace QuizSystem
             if (submitButton != null)
             {
                 submitButton.onClick.RemoveAllListeners();
-                submitButton.onClick.AddListener(OnSubmitClicked);
-                submitButton.interactable = true;
+                submitButton.gameObject.SetActive(false); // No longer needed for sequential
             }
 
             if (resetButton != null)
             {
-                resetButton.onClick.RemoveAllListeners();
-                resetButton.onClick.AddListener(ResetAll);
+                resetButton.gameObject.SetActive(false); // No longer needed for sequential
             }
+            
+            SetupHintButton();
+        }
+
+        private void SetupHintButton()
+        {
+            if (hintButton == null) return;
+            hintButton.onClick.RemoveAllListeners();
+
+            if (HintsEnabled)
+            {
+                hintButton.onClick.AddListener(OnHintButtonClicked);
+            }
+
+            hintButton.gameObject.SetActive(false);
+        }
+
+        protected override void OnHintButtonClicked()
+        {
+            if (hintPanel == null) return;
+
+            if (hintPanel.activeSelf)
+            {
+                HideHint();
+            }
+            else
+            {
+                string hint = GetCurrentHintText();
+                if (!string.IsNullOrEmpty(hint))
+                    ShowHint(hint);
+            }
+        }
+
+        private string GetCurrentHintText()
+        {
+            if (currentQuestion == null || currentQuestion.hints == null || currentQuestion.hints.Length == 0)
+                return null;
+
+            int threshold = currentQuestion.showHintAfterAttempt;
+            if (threshold <= 0) return null;
+
+            int hintIndex = attemptsForCurrentSlot - threshold;
+            if (hintIndex < 0) return null;
+            hintIndex = Mathf.Min(hintIndex, currentQuestion.hints.Length - 1);
+
+            string hint = currentQuestion.hints[hintIndex];
+            return string.IsNullOrEmpty(hint) ? null : hint;
         }
 
         private void ClearUI()
@@ -109,6 +159,10 @@ namespace QuizSystem
 
                 dropSlots.Add(slot);
             }
+            totalSlots = orderingData.items.Count;
+            currentSlotIndex = 0;
+            attemptsForCurrentSlot = 0;
+            starsCollected = 0;
         }
 
         // ──────────────── drag item creation ────────────────
@@ -160,7 +214,103 @@ namespace QuizSystem
         /// <summary>Called by OrderingDropSlot when an item is dropped into a slot.</summary>
         public void OnItemPlacedInSlot(OrderingDragItem item, OrderingDropSlot slot)
         {
-            slot.SetHighlight(slotOccupiedColor);
+            if (slot.slotIndex != currentSlotIndex)
+            {
+                item.AnimateToHome();
+                return;
+            }
+
+            ValidateAndApplyPlacement(item, slot);
+        }
+
+        private void ValidateAndApplyPlacement(OrderingDragItem item, OrderingDropSlot slot)
+        {
+            var expectedOrder = orderingData.GetExpectedOrder();
+            if (expectedOrder == null || currentSlotIndex >= expectedOrder.Count) return;
+
+            int expectedOriginalIndex = expectedOrder[currentSlotIndex];
+
+            if (item.originalIndex == expectedOriginalIndex)
+            {
+                // Correct!
+                slot.SetHighlight(slotCorrectColor);
+                slot.isLocked = true;
+                item.GetComponent<CanvasGroup>().blocksRaycasts = false; // Disable dragging
+
+                starsCollected++;
+                QuizState.Instance?.NotifyCorrectAttempt();
+                quizManager?.UpdateQuestionProgress(currentQuestion, starsCollected, totalSlots);
+
+                HideHint();
+                if (hintButton != null) hintButton.gameObject.SetActive(false);
+
+                currentSlotIndex++;
+                attemptsForCurrentSlot = 0;
+
+                if (currentSlotIndex >= totalSlots)
+                {
+                    CompleteQuestion(true, GetEarnedRawQuestionPoints());
+                }
+            }
+            else
+            {
+                // Wrong!
+                attemptsForCurrentSlot++;
+                QuizState.Instance?.NotifyWrongAttempt();
+
+                // Snap item back home automatically
+                item.AnimateToHome();
+                slot.Clear();
+
+                int maxAttempts = orderingData.maxAttemptsPerSlot > 0 ? orderingData.maxAttemptsPerSlot : 3;
+                if (attemptsForCurrentSlot >= maxAttempts)
+                {
+                    // Auto-correct
+                    var correctItem = dragItems.Find(d => d.originalIndex == expectedOriginalIndex);
+                    if (correctItem != null)
+                    {
+                        correctItem.PlaceInSlot(slot);
+                        slot.SetHighlight(slotCorrectColor);
+                        slot.isLocked = true;
+                        correctItem.GetComponent<CanvasGroup>().blocksRaycasts = false;
+                    }
+
+                    if (HintsEnabled)
+                    {
+                        // Add hint logic if desired
+                    }
+
+                    if (hintButton != null) hintButton.gameObject.SetActive(false);
+                    currentSlotIndex++;
+                    attemptsForCurrentSlot = 0;
+
+                    if (currentSlotIndex >= totalSlots)
+                    {
+                        CompleteQuestion(false, GetEarnedRawQuestionPoints());
+                    }
+                }
+                else
+                {
+                    string hint = GetCurrentHintText();
+                    if (HintsEnabled && !string.IsNullOrEmpty(hint))
+                    {
+                        ShowHint(hint);
+                        if (hintButton != null) hintButton.gameObject.SetActive(true);
+                    }
+                }
+            }
+        }
+
+        private void CompleteQuestion(bool allCorrect, int points)
+        {
+            quizManager?.OnQuestionAnswered(allCorrect, points, currentQuestion);
+        }
+
+        private int GetEarnedRawQuestionPoints()
+        {
+            if (totalSlots <= 0 || currentQuestion == null) return 0;
+            float normalized = Mathf.Clamp01((float)starsCollected / totalSlots);
+            return Mathf.RoundToInt(currentQuestion.points * normalized);
         }
 
         /// <summary>Called by OrderingDragItem when an item snaps back to source.</summary>
@@ -169,41 +319,9 @@ namespace QuizSystem
             // Nothing extra needed; slot is already cleared in AnimateToHome
         }
 
-        // ──────────────── submit / reset ────────────────
-
-        private void OnSubmitClicked()
-        {
-            var userOrder = BuildCurrentOrder();
-            if (userOrder == null)
-            {
-                Debug.LogWarning("OrderingUI: Not all slots are filled.");
-                HighlightEmptySlots();
-                return;
-            }
-
-            var result = validator.ValidateAnswer(userOrder);
-            HandleValidationResult(result);
-
-            if (result.IsCorrect)
-            {
-                HighlightSlotsCorrect();
-                DisableAllDrag();
-                if (submitButton != null) submitButton.interactable = false;
-            }
-            else if (result.ShouldAutoCorrect)
-            {
-                if (submitButton != null) submitButton.interactable = false;
-                DisableAllDrag();
-            }
-            else
-            {
-                HighlightWrongSlots(userOrder);
-            }
-        }
-
         public override void OnAnswerSubmitted()
         {
-            OnSubmitClicked();
+            // Sequential ordering validates on each drop; no full-question submit.
         }
 
         private void ResetAll()

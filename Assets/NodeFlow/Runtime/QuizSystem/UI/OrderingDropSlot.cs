@@ -12,6 +12,7 @@ namespace QuizSystem
         private OrderingUI orderingUI;
         private Image slotImage;
         private Color defaultColor;
+        [HideInInspector] public bool isLocked = false;
 
         public bool IsOccupied => occupant != null;
 
@@ -26,8 +27,17 @@ namespace QuizSystem
 
         public void OnDrop(PointerEventData eventData)
         {
+            if (isLocked) return;
+
             var dragItem = eventData.pointerDrag?.GetComponent<OrderingDragItem>();
             if (dragItem == null) return;
+
+            // Only allow drops into the current active slot
+            if (orderingUI != null && orderingUI.currentSlotIndex != slotIndex)
+            {
+                // Let the item snap back; do not accept it
+                return;
+            }
 
             // If this slot already has an item, send it home first
             if (occupant != null && occupant != dragItem)
