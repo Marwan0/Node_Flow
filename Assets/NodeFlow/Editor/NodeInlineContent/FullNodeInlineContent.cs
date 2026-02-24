@@ -140,41 +140,11 @@ namespace NodeSystem.Editor
             if (label.ToLower().Contains("duration") || label.ToLower().Contains("delay") || 
                 label.ToLower().Contains("time") || label.ToLower().Contains("second"))
             {
-                var slider = new Slider(0, 5) { value = value };
-                slider.style.flexGrow = 1;
-                slider.style.minWidth = 60;
-                slider.RegisterValueChangedCallback(evt =>
-                {
-                    field.SetValue(Node, evt.newValue);
-                    MarkDirty();
-                });
-                row.Add(slider);
-
-                var valLabel = new Label(value.ToString("F1"));
-                valLabel.style.minWidth = 30;
-                valLabel.style.color = new Color(0.6f, 0.6f, 0.6f);
-                valLabel.style.fontSize = 10;
-                slider.RegisterValueChangedCallback(evt => valLabel.text = evt.newValue.ToString("F1"));
-                row.Add(valLabel);
+                AddSliderWithField(row, value, 0f, 5f, v => { field.SetValue(Node, v); MarkDirty(); });
             }
             else if (label.ToLower().Contains("volume"))
             {
-                var slider = new Slider(0, 1) { value = value };
-                slider.style.flexGrow = 1;
-                slider.style.minWidth = 60;
-                slider.RegisterValueChangedCallback(evt =>
-                {
-                    field.SetValue(Node, evt.newValue);
-                    MarkDirty();
-                });
-                row.Add(slider);
-
-                var valLabel = new Label(value.ToString("F2"));
-                valLabel.style.minWidth = 30;
-                valLabel.style.color = new Color(0.6f, 0.6f, 0.6f);
-                valLabel.style.fontSize = 10;
-                slider.RegisterValueChangedCallback(evt => valLabel.text = evt.newValue.ToString("F2"));
-                row.Add(valLabel);
+                AddSliderWithField(row, value, 0f, 1f, v => { field.SetValue(Node, v); MarkDirty(); });
             }
             else
             {
@@ -189,6 +159,40 @@ namespace NodeSystem.Editor
             }
 
             Container.Add(row);
+        }
+
+        private void AddSliderWithField(VisualElement row, float value, float min, float max, Action<float> onChanged)
+        {
+            var slider = new Slider(min, max) { value = value };
+            slider.style.flexGrow = 1;
+            slider.style.minWidth = 60;
+            row.Add(slider);
+
+            var valueField = new FloatField() { value = value };
+            valueField.style.width = 50;
+            valueField.style.minWidth = 40;
+            valueField.style.fontSize = 10;
+            row.Add(valueField);
+
+            bool isSyncing = false;
+            slider.RegisterValueChangedCallback(evt =>
+            {
+                if (isSyncing) return;
+                isSyncing = true;
+                valueField.SetValueWithoutNotify(evt.newValue);
+                onChanged(evt.newValue);
+                isSyncing = false;
+            });
+            valueField.RegisterValueChangedCallback(evt =>
+            {
+                if (isSyncing) return;
+                isSyncing = true;
+                float clamped = Mathf.Clamp(evt.newValue, min, max);
+                slider.SetValueWithoutNotify(clamped);
+                valueField.SetValueWithoutNotify(clamped);
+                onChanged(clamped);
+                isSyncing = false;
+            });
         }
 
         private void DrawIntField(string label, FieldInfo field, int value)

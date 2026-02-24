@@ -128,24 +128,94 @@ namespace NodeSystem.Editor
 
             // Settings
             CreateLabel("Settings", true);
-            
-            var volumeSlider = new Slider("Volume", 0f, 1f) { value = _node.volume };
-            volumeSlider.RegisterValueChangedCallback(evt =>
-            {
-                _node.volume = evt.newValue;
-                MarkDirty();
-            });
-            volumeSlider.style.marginBottom = 5;
-            Container.Add(volumeSlider);
 
-            var pitchSlider = new Slider("Pitch", 0.5f, 2f) { value = _node.pitch };
-            pitchSlider.RegisterValueChangedCallback(evt =>
+            // Volume: slider + editable field
+            var volRow = new VisualElement();
+            volRow.style.flexDirection = FlexDirection.Row;
+            volRow.style.alignItems = Align.Center;
+            volRow.style.marginBottom = 5;
+
+            var volLabel = new Label("Volume");
+            volLabel.style.minWidth = 60;
+            volRow.Add(volLabel);
+
+            var volumeSlider = new Slider(0f, 1f) { value = _node.volume };
+            volumeSlider.style.flexGrow = 1;
+            volRow.Add(volumeSlider);
+
+            var volField = new FloatField() { value = _node.volume };
+            volField.style.width = 50;
+            volField.style.minWidth = 40;
+            volRow.Add(volField);
+
             {
-                _node.pitch = evt.newValue;
-                MarkDirty();
-            });
-            pitchSlider.style.marginBottom = 5;
-            Container.Add(pitchSlider);
+                bool isSyncing = false;
+                volumeSlider.RegisterValueChangedCallback(evt =>
+                {
+                    if (isSyncing) return;
+                    isSyncing = true;
+                    _node.volume = evt.newValue;
+                    volField.SetValueWithoutNotify(evt.newValue);
+                    MarkDirty();
+                    isSyncing = false;
+                });
+                volField.RegisterValueChangedCallback(evt =>
+                {
+                    if (isSyncing) return;
+                    isSyncing = true;
+                    float clamped = Mathf.Clamp(evt.newValue, 0f, 1f);
+                    _node.volume = clamped;
+                    volumeSlider.SetValueWithoutNotify(clamped);
+                    volField.SetValueWithoutNotify(clamped);
+                    MarkDirty();
+                    isSyncing = false;
+                });
+            }
+            Container.Add(volRow);
+
+            // Pitch: slider + editable field
+            var pitchRow = new VisualElement();
+            pitchRow.style.flexDirection = FlexDirection.Row;
+            pitchRow.style.alignItems = Align.Center;
+            pitchRow.style.marginBottom = 5;
+
+            var pitchLabel = new Label("Pitch");
+            pitchLabel.style.minWidth = 60;
+            pitchRow.Add(pitchLabel);
+
+            var pitchSlider = new Slider(0.5f, 2f) { value = _node.pitch };
+            pitchSlider.style.flexGrow = 1;
+            pitchRow.Add(pitchSlider);
+
+            var pitchField = new FloatField() { value = _node.pitch };
+            pitchField.style.width = 50;
+            pitchField.style.minWidth = 40;
+            pitchRow.Add(pitchField);
+
+            {
+                bool isSyncing = false;
+                pitchSlider.RegisterValueChangedCallback(evt =>
+                {
+                    if (isSyncing) return;
+                    isSyncing = true;
+                    _node.pitch = evt.newValue;
+                    pitchField.SetValueWithoutNotify(evt.newValue);
+                    MarkDirty();
+                    isSyncing = false;
+                });
+                pitchField.RegisterValueChangedCallback(evt =>
+                {
+                    if (isSyncing) return;
+                    isSyncing = true;
+                    float clamped = Mathf.Clamp(evt.newValue, 0.5f, 2f);
+                    _node.pitch = clamped;
+                    pitchSlider.SetValueWithoutNotify(clamped);
+                    pitchField.SetValueWithoutNotify(clamped);
+                    MarkDirty();
+                    isSyncing = false;
+                });
+            }
+            Container.Add(pitchRow);
 
             CreateToggle("Wait For Completion", _node.waitForCompletion, v => _node.waitForCompletion = v);
         }

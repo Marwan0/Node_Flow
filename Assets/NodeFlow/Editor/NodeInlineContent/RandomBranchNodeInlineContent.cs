@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.UIElements;
+using UnityEditor.UIElements;
 using NodeSystem.Nodes;
 
 namespace NodeSystem.Editor
@@ -64,19 +65,50 @@ namespace NodeSystem.Editor
 
                 branchEntries.Add((cn.Guid, pctLabel));
 
-                // Slider
+                // Slider row with editable value field
                 var capturedGuid = cn.Guid;
+                var sliderRow = new VisualElement();
+                sliderRow.style.flexDirection = FlexDirection.Row;
+                sliderRow.style.alignItems = Align.Center;
+                sliderRow.style.marginTop = 0;
+                sliderRow.style.marginBottom = 2;
+
                 var slider = new Slider(0f, 10f) { value = w };
-                slider.style.marginTop = 0;
-                slider.style.marginBottom = 2;
+                slider.style.flexGrow = 1;
                 slider.style.height = 14;
+                sliderRow.Add(slider);
+
+                var valueField = new FloatField() { value = w };
+                valueField.style.width = 50;
+                valueField.style.minWidth = 40;
+                valueField.style.fontSize = 10;
+                sliderRow.Add(valueField);
+
+                bool isSyncing = false;
                 slider.RegisterValueChangedCallback(evt =>
                 {
+                    if (isSyncing) return;
+                    isSyncing = true;
+                    valueField.SetValueWithoutNotify(evt.newValue);
                     node.SetWeight(capturedGuid, evt.newValue);
                     MarkDirty();
                     UpdateAllPercentages(node, branchEntries);
+                    isSyncing = false;
                 });
-                Container.Add(slider);
+                valueField.RegisterValueChangedCallback(evt =>
+                {
+                    if (isSyncing) return;
+                    isSyncing = true;
+                    float clamped = Mathf.Clamp(evt.newValue, 0f, 10f);
+                    slider.SetValueWithoutNotify(clamped);
+                    valueField.SetValueWithoutNotify(clamped);
+                    node.SetWeight(capturedGuid, clamped);
+                    MarkDirty();
+                    UpdateAllPercentages(node, branchEntries);
+                    isSyncing = false;
+                });
+
+                Container.Add(sliderRow);
             }
 
             // Initial percentage calculation

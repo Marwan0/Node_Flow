@@ -43,11 +43,11 @@ Special cases
 - SubGraphNode temporarily switches the runner to a sub-graph, then restores.
 
 Key files
-- Assets/Scripts/NodeSystem/Core/NodeGraph.cs
-- Assets/Scripts/NodeSystem/Core/NodeData.cs
-- Assets/Scripts/NodeSystem/Core/ConnectionData.cs
-- Assets/Scripts/NodeSystem/Core/NodeGraphRunner.cs
-- Assets/Scripts/NodeSystem/Editor/NodeGraphEditorWindow.cs
-- Assets/Scripts/NodeSystem/Editor/NodeGraphView.cs
-- Assets/Scripts/NodeSystem/Editor/NodeView.cs
-- Assets/Scripts/NodeSystem/Editor/NodeSearchWindow.cs
+- Assets/NodeFlow/Runtime/Core/NodeGraph.cs
+- Assets/NodeFlow/Runtime/Core/NodeData.cs
+- Assets/NodeFlow/Runtime/Core/ConnectionData.cs
+- Assets/NodeFlow/Runtime/Core/NodeGraphRunner.cs
+- Assets/NodeFlow/Editor/NodeGraphEditorWindow.cs
+- Assets/NodeFlow/Editor/NodeGraphView.cs
+- Assets/NodeFlow/Editor/NodeView.cs
+- Assets/NodeFlow/Editor/NodeSearchWindow.cs

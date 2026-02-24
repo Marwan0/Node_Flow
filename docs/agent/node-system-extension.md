@@ -4,7 +4,7 @@ Goal
 - Add new node types and integrate them into the editor and runtime.
 
 1. Create a new node
-- File: Assets/Scripts/NodeSystem/Nodes/YourNode.cs
+- File: Assets/NodeFlow/Runtime/Nodes/YourNode.cs
 - Inherit NodeData, mark [Serializable].
 - Override Name, Color, Category.
 - Define ports in GetInputPorts / GetOutputPorts.
@@ -12,7 +12,7 @@ Goal
 
 2. Branching or special routing
 - If the node changes the next port based on state, add handling in:
-  - Assets/Scripts/NodeSystem/Core/NodeGraphRunner.cs (OnNodeComplete).
+  - Assets/NodeFlow/Runtime/Core/NodeGraphRunner.cs (OnNodeComplete).
 - Example patterns:
   - Conditional: output port depends on State Completed vs Failed.
   - RandomBranch: uses SelectedNodeGuid to execute only one node.
@@ -20,13 +20,13 @@ Goal
 
 3. Inline editor UI
 - Optional: create inline content for custom fields.
-- File: Assets/Scripts/NodeSystem/Editor/NodeInlineContent/YourNodeInlineContent.cs
+- File: Assets/NodeFlow/Editor/NodeInlineContent/YourNodeInlineContent.cs
 - Register in NodeInlineContentFactory static constructor.
 - Use MarkDirty() when data changes, RequestRefresh() when layout changes.
 
 4. Inspector UI
 - Optional: add a custom inspector panel.
-- File: Assets/Scripts/NodeSystem/Editor/NodeInspector/YourNodeInspector.cs
+- File: Assets/NodeFlow/Editor/NodeInspector/YourNodeInspector.cs
 - Register in NodeInspectorFactory.
 
 5. Assets and UnityEvents

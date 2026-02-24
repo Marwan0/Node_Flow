@@ -23,7 +23,7 @@ MonoBehaviour:
   explanation: Polar Bear->Arctic, Camel->Desert, Penguin->Antarctica
   customUIPrefab: {fileID: 0}
   leftColumnItems:
-  - label: Polar Bear
+  - label: Polar Bearrrrr
     icon: {fileID: 21300000, guid: 2fadd18e4b1391e42b5aa2fffbbc42fb, type: 3}
   - label: Camel
     icon: {fileID: 21300000, guid: e83b585bb7a35bc47b778056e549716f, type: 3}
@@ -36,6 +36,6 @@ MonoBehaviour:
     icon: {fileID: 21300000, guid: 200c70d390d204444a5eb6ce2258cafb, type: 3}
   - label: Antarctica
     icon: {fileID: 21300000, guid: 229f9dceb220b4b438a10fb0a3285237, type: 3}
-  _connectionKeys: 000000000200000001000000
-  _connectionValues: 000000000200000001000000
+  _connectionKeys: 000000000100000002000000
+  _connectionValues: 010000000100000000000000
   maxAttemptsPerConnection: 2

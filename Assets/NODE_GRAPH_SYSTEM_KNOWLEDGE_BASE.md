@@ -297,21 +297,21 @@ Debug.LogError($"No UI prefab found. Please assign {fieldName} in {componentName
 ## File Locations
 
 ### Core System
-- `Scripts/NodeSystem/Core/NodeGraph.cs` - Graph storage and management
-- `Scripts/NodeSystem/Core/NodeGraphRunner.cs` - Runtime executor
-- `Scripts/NodeSystem/Core/NodeData.cs` - Base node class
-- `Scripts/NodeSystem/Core/ConnectionData.cs` - Connection representation
+- `NodeFlow/Runtime/Core/NodeGraph.cs` - Graph storage and management
+- `NodeFlow/Runtime/Core/NodeGraphRunner.cs` - Runtime executor
+- `NodeFlow/Runtime/Core/NodeData.cs` - Base node class
+- `NodeFlow/Runtime/Core/ConnectionData.cs` - Connection representation
 
 ### Quiz Nodes
-- `Scripts/NodeSystem/Nodes/Quiz/LoadQuestionNode.cs` - Question loading with asset reference support
-- `Scripts/NodeSystem/Nodes/PlaySoundNode.cs` - Audio playback with asset reference support
+- `NodeFlow/Runtime/Nodes/Quiz/LoadQuestionNode.cs` - Question loading with asset reference support
+- `NodeFlow/Runtime/Nodes/PlaySoundNode.cs` - Audio playback with asset reference support
 
 ### Editor
-- `Scripts/NodeSystem/Editor/NodeInlineContent/LoadQuestionNodeInlineContent.cs` - Editor UI for LoadQuestionNode
-- `Scripts/NodeSystem/Editor/NodeInlineContent/PlaySoundNodeInlineContent.cs` - Editor UI for PlaySoundNode
+- `NodeFlow/Editor/NodeInlineContent/LoadQuestionNodeInlineContent.cs` - Editor UI for LoadQuestionNode
+- `NodeFlow/Editor/NodeInlineContent/PlaySoundNodeInlineContent.cs` - Editor UI for PlaySoundNode
 
 ### UI System
-- `Scripts/UI/QuizManager.cs` - Question UI management with prefab fallbacks
+- `NodeFlow/Runtime/QuizSystem/UI/QuizManager.cs` - Question UI management with prefab fallbacks
 
 ---
 

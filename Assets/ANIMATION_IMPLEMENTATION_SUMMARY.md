@@ -7,7 +7,7 @@ Animation system has been successfully integrated into the Quiz System using DOT
 ## What Was Implemented
 
 ### 1. **Animation Helper Utilities** ✅
-**File:** `Scripts/Animations/QuizAnimationHelper.cs`
+**File:** `NodeFlow/Runtime/QuizSystem/Animations/QuizAnimationHelper.cs`
 
 A comprehensive utility class providing reusable animation methods:
 - **Fade in/out** - For smooth transitions
@@ -19,7 +19,7 @@ A comprehensive utility class providing reusable animation methods:
 - **Text reveal** - For hint panel animations
 
 ### 2. **QuizManager Transitions** ✅
-**File:** `Scripts/UI/QuizManager.cs`
+**File:** `NodeFlow/Runtime/QuizSystem/UI/QuizManager.cs`
 
 Added smooth transition system between questions:
 - **Fade transitions** - Elegant fade in/out
@@ -35,7 +35,7 @@ Added smooth transition system between questions:
 - Automatic CanvasGroup setup for fade transitions
 
 ### 3. **QuestionUI Feedback Animations** ✅
-**File:** `Scripts/UI/QuestionUI.cs`
+**File:** `NodeFlow/Runtime/QuizSystem/UI/QuestionUI.cs`
 
 Base class now includes feedback animations:
 - **Correct answer** - Subtle scale bounce
@@ -51,7 +51,7 @@ Base class now includes feedback animations:
 - Smooth hint text reveal
 
 ### 4. **MultipleChoiceUI Enhanced Animations** ✅
-**File:** `Scripts/UI/MultipleChoiceUI.cs`
+**File:** `NodeFlow/Runtime/QuizSystem/UI/MultipleChoiceUI.cs`
 
 Enhanced animations specifically for multiple choice questions:
 - **Staggered button entrance** - Buttons appear one by one with cascading effect
@@ -147,12 +147,12 @@ Button 3 Appears (0.2s) → Button 4 Appears (0.3s)
 ## Files Created/Modified
 
 ### Created:
-- `Scripts/Animations/QuizAnimationHelper.cs` - Animation utility class
+- `NodeFlow/Runtime/QuizSystem/Animations/QuizAnimationHelper.cs` - Animation utility class
 
 ### Modified:
-- `Scripts/UI/QuizManager.cs` - Added transition system
-- `Scripts/UI/QuestionUI.cs` - Added feedback animations
-- `Scripts/UI/MultipleChoiceUI.cs` - Added button entrance and enhanced feedback
+- `NodeFlow/Runtime/QuizSystem/UI/QuizManager.cs` - Added transition system
+- `NodeFlow/Runtime/QuizSystem/UI/QuestionUI.cs` - Added feedback animations
+- `NodeFlow/Runtime/QuizSystem/UI/MultipleChoiceUI.cs` - Added button entrance and enhanced feedback
 
 ## Next Steps (Optional Enhancements)
 

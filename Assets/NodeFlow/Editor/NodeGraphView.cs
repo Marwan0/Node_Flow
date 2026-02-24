@@ -74,7 +74,7 @@ namespace NodeSystem.Editor
 
             // Load stylesheet
             var styleSheet = AssetDatabase.LoadAssetAtPath<StyleSheet>(
-                "Assets/Scripts/NodeSystem/Editor/NodeGraphStyles.uss");
+                "Assets/NodeFlow/Editor/NodeGraphStyles.uss");
             if (styleSheet != null)
             {
                 styleSheets.Add(styleSheet);

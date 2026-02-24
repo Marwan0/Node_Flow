@@ -29,7 +29,7 @@ Every custom node must:
 
 ### Step 1: Create the Node Class
 
-Create a new C# file in `Assets/Scripts/NodeSystem/Nodes/`:
+Create a new C# file in `Assets/NodeFlow/Runtime/Nodes/`:
 
 ```csharp
 using System;
@@ -163,7 +163,7 @@ namespace NodeSystem.Editor
 
 ### Step 5: Register Custom Inline Content (if created)
 
-In `Assets/Scripts/NodeSystem/Editor/NodeInlineContent/NodeInlineContentFactory.cs`, add:
+In `Assets/NodeFlow/Editor/NodeInlineContent/NodeInlineContentFactory.cs`, add:
 
 ```csharp
 // In the static constructor
@@ -693,8 +693,8 @@ protected override void OnExecute()
 
 ## Testing Your Node
 
-1. **Create the node class** in `Assets/Scripts/NodeSystem/Nodes/`
-2. **Create inline content** (if needed) in `Assets/Scripts/NodeSystem/Editor/NodeInlineContent/`
+1. **Create the node class** in `Assets/NodeFlow/Runtime/Nodes/`
+2. **Create inline content** (if needed) in `Assets/NodeFlow/Editor/NodeInlineContent/`
 3. **Register inline content** in `NodeInlineContentFactory.cs`
 4. **Open the Node Graph Editor**
 5. **Right-click** in the graph view

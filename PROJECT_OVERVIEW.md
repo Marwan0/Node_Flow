@@ -21,7 +21,7 @@ You can think of each `NodeGraph` as a **visual script** describing how a quiz (
 
 ### 2.1 `NodeGraph` (asset)
 
-File: `Assets/Scripts/NodeSystem/Core/NodeGraph.cs`
+File: `Assets/NodeFlow/Runtime/Core/NodeGraph.cs`
 
 - `ScriptableObject` that stores:
   - **Nodes**: list of `NodeData` instances (serialized as JSON).
@@ -39,7 +39,7 @@ File: `Assets/Scripts/NodeSystem/Core/NodeGraph.cs`
 
 ### 2.2 `NodeData` (base class)
 
-File: `Assets/Scripts/NodeSystem/Core/NodeData.cs`
+File: `Assets/NodeFlow/Runtime/Core/NodeData.cs`
 
 - Abstract base class for all node types.
 - Key fields:
@@ -74,7 +74,7 @@ At edit time, Unity’s GraphView `Port` objects mirror these `PortData` definit
 
 ### 3.1 `NodeGraphEditorWindow`
 
-File: `Assets/Scripts/NodeSystem/Editor/NodeGraphEditorWindow.cs`
+File: `Assets/NodeFlow/Editor/NodeGraphEditorWindow.cs`
 
 - Main editor window for editing graphs.
 - Responsibilities:
@@ -87,7 +87,7 @@ File: `Assets/Scripts/NodeSystem/Editor/NodeGraphEditorWindow.cs`
 
 ### 3.2 `NodeGraphView`
 
-File: `Assets/Scripts/NodeSystem/Editor/NodeGraphView.cs`
+File: `Assets/NodeFlow/Editor/NodeGraphView.cs`
 
 - Core GraphView implementation.
 - Key responsibilities:
@@ -110,8 +110,8 @@ File: `Assets/Scripts/NodeSystem/Editor/NodeGraphView.cs`
 
 ### 3.3 `NodeView` and `NodeViewOdin`
 
-File: `Assets/Scripts/NodeSystem/Editor/NodeView.cs`  
-File: `Assets/Scripts/NodeSystem/Editor/NodeViewOdin.cs`
+File: `Assets/NodeFlow/Editor/NodeView.cs`  
+File: `Assets/NodeFlow/Editor/NodeViewOdin.cs`
 
 - Visual representation of a single `NodeData`.
 - Responsible for:
@@ -126,7 +126,7 @@ File: `Assets/Scripts/NodeSystem/Editor/NodeViewOdin.cs`
 
 ### 3.4 Node inline content
 
-Folder: `Assets/Scripts/NodeSystem/Editor/NodeInlineContent/`
+Folder: `Assets/NodeFlow/Editor/NodeInlineContent/`
 
 - `NodeInlineContentBase` is a helper for building small UI blocks embedded inside nodes (sliders, text fields, toggles, etc.).
 - Each node type can have a custom inline content class (e.g. `RandomBranchNodeInlineContent`, `LoopNodeInlineContent`).
@@ -138,7 +138,7 @@ Folder: `Assets/Scripts/NodeSystem/Editor/NodeInlineContent/`
 
 ### 3.5 Styles and UX (`NodeGraphStyles.uss`)
 
-File: `Assets/Scripts/NodeSystem/Editor/NodeGraphStyles.uss`
+File: `Assets/NodeFlow/Editor/NodeGraphStyles.uss`
 
 - Defines the overall look & feel:
   - Node background colors, header styles.
@@ -149,7 +149,7 @@ File: `Assets/Scripts/NodeSystem/Editor/NodeGraphStyles.uss`
 
 ### 3.6 Custom edges: `DoozyStyleEdge` / `DoozyStyleEdgeControl`
 
-File: `Assets/Scripts/NodeSystem/Editor/DoozyStyleEdge.cs`
+File: `Assets/NodeFlow/Editor/DoozyStyleEdge.cs`
 
 - Subclasses GraphView `Edge` and `EdgeControl` to emulate Doozy Nody’s style:
   - Smooth bezier curves with adjusted tangents.
@@ -163,7 +163,7 @@ File: `Assets/Scripts/NodeSystem/Editor/DoozyStyleEdge.cs`
 
 ## 4. Runtime execution (`NodeGraphRunner`)
 
-File: `Assets/Scripts/NodeSystem/Core/NodeGraphRunner.cs`
+File: `Assets/NodeFlow/Runtime/Core/NodeGraphRunner.cs`
 
 `NodeGraphRunner` is a MonoBehaviour that executes a `NodeGraph` at runtime:
 
@@ -204,7 +204,7 @@ Below are the most important custom node types. (There are additional utility no
 
 ### 5.2 `DebugLogNode` (renamed “Log Message”)
 
-File: `Assets/Scripts/NodeSystem/Nodes/DebugLogNode.cs`
+File: `Assets/NodeFlow/Runtime/Nodes/DebugLogNode.cs`
 
 - Logs a configured message to the Unity console when executed.
 - Category: `Utility`, name shown as “Log Message”.
@@ -217,7 +217,7 @@ File: `Assets/Scripts/NodeSystem/Nodes/DebugLogNode.cs`
 
 ### 5.4 `WaitForAllNode` (synchronization)
 
-File: `Assets/Scripts/NodeSystem/Nodes/WaitForAllNode.cs`
+File: `Assets/NodeFlow/Runtime/Nodes/WaitForAllNode.cs`
 
 Concept: **“Wait until all upstream branches have completed, then continue.”**
 
@@ -236,7 +236,7 @@ Concept: **“Wait until all upstream branches have completed, then continue.”
 
 ### 5.5 `RandomBranchNode` (weighted random)
 
-File: `Assets/Scripts/NodeSystem/Nodes/RandomBranchNode.cs`  
+File: `Assets/NodeFlow/Runtime/Nodes/RandomBranchNode.cs`  
 Inline UI: `RandomBranchNodeInlineContent.cs`
 
 Concept: **“Pick exactly one of the connected branches, using weights.”**
@@ -278,7 +278,7 @@ File: `RandomBranchNodeInlineContent.cs`
 
 ### 5.6 `LoopNode`
 
-File: `Assets/Scripts/NodeSystem/Nodes/LoopNode.cs`  
+File: `Assets/NodeFlow/Runtime/Nodes/LoopNode.cs`  
 Inline UI: `LoopNodeInlineContent.cs`
 
 Concept: **“Run the loop body multiple times.”**
@@ -299,7 +299,7 @@ Concept: **“Run the loop body multiple times.”**
 
 ### 5.7 Math utility nodes
 
-These nodes live in `Assets/Scripts/NodeSystem/Nodes/` and provide reusable math and randomization building blocks. All of them:
+These nodes live in `Assets/NodeFlow/Runtime/Nodes/` and provide reusable math and randomization building blocks. All of them:
 
 - Have a single `Execute` input and a single `Next` output.
 - Read/write **graph variables** via `NodeGraph.GetVariable` / `GetOrCreateVariable`.
@@ -307,7 +307,7 @@ These nodes live in `Assets/Scripts/NodeSystem/Nodes/` and provide reusable math
 
 #### 5.7.1 `MathOperationNode`
 
-File: `Assets/Scripts/NodeSystem/Nodes/MathOperationNode.cs`
+File: `Assets/NodeFlow/Runtime/Nodes/MathOperationNode.cs`
 
 - Concept: **“Compute A (op) B and store it in a variable.”**
 - Configuration:
@@ -327,7 +327,7 @@ File: `Assets/Scripts/NodeSystem/Nodes/MathOperationNode.cs`
 
 #### 5.7.2 `RandomFloatNode`
 
-File: `Assets/Scripts/NodeSystem/Nodes/RandomFloatNode.cs`
+File: `Assets/NodeFlow/Runtime/Nodes/RandomFloatNode.cs`
 
 - Concept: **“Generate a random float in a range and store it in a variable.”**
 - Configuration:
@@ -340,7 +340,7 @@ File: `Assets/Scripts/NodeSystem/Nodes/RandomFloatNode.cs`
 
 #### 5.7.3 `RandomIntNode`
 
-File: `Assets/Scripts/NodeSystem/Nodes/RandomIntNode.cs`
+File: `Assets/NodeFlow/Runtime/Nodes/RandomIntNode.cs`
 
 - Concept: **“Generate a random integer in a range and store it in a variable.”**
 - Configuration:
@@ -388,7 +388,7 @@ The graph editor visualizes runtime execution to make debugging and UX better:
 To add a new node type:
 
 1. **Create a `NodeData` subclass**
-   - In `Assets/Scripts/NodeSystem/Nodes/`:
+   - In `Assets/NodeFlow/Runtime/Nodes/`:
      - Inherit from `NodeData`.
      - Override `Name`, `Color`, `Category`.
      - Implement `GetInputPorts()` / `GetOutputPorts()`.
@@ -411,7 +411,7 @@ Once this is done, your node will appear in the node search window and can be us
 
 ## 8. OmniEvent system (Events 2.0)
 
-**Location:** `Assets/Scripts/OmniEvent/`  
+**Location:** `Assets/OmniEvent/`  
 **Purpose:** A replacement for Unity’s `UnityEvent` that supports **multiple arguments (0–4)** and **complex types** (Vector3, Color, Lists, enums, etc.) in the Inspector and at runtime.
 
 ### 8.1 Core types

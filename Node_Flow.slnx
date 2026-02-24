@@ -3,7 +3,6 @@
   <Project Path="Unity.RenderPipelines.GPUDriven.Runtime.csproj" />
   <Project Path="Unity.PlasticSCM.Editor.csproj" />
   <Project Path="MCPForUnity.Editor.csproj" />
-  <Project Path="Assembly-CSharp.csproj" />
   <Project Path="Unity.ShaderGraph.Editor.csproj" />
   <Project Path="Unity.RenderPipelines.Core.Runtime.csproj" />
   <Project Path="Unity.Mathematics.csproj" />
@@ -21,6 +20,7 @@
   <Project Path="Unity.VisualScripting.Flow.Editor.csproj" />
   <Project Path="Unity.VisualStudio.Editor.csproj" />
   <Project Path="Unity.InputSystem.csproj" />
+  <Project Path="Assembly-CSharp.csproj" />
   <Project Path="PPv2URPConverters.csproj" />
   <Project Path="Unity.Searcher.Editor.csproj" />
   <Project Path="UnityEditor.TestRunner.csproj" />

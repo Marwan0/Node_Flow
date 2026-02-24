@@ -192,19 +192,36 @@ namespace NodeSystem.Editor
             var slider = new Slider(min, max) { value = value };
             slider.style.flexGrow = 1;
             slider.style.minWidth = 60;
-            slider.RegisterValueChangedCallback(evt =>
-            {
-                onChanged(evt.newValue);
-                MarkDirty();
-            });
             row.Add(slider);
 
-            var valueLabel = new Label(value.ToString("F1"));
-            valueLabel.style.minWidth = 25;
-            valueLabel.style.color = new Color(0.7f, 0.7f, 0.7f);
-            valueLabel.style.fontSize = 10;
-            slider.RegisterValueChangedCallback(evt => valueLabel.text = evt.newValue.ToString("F1"));
-            row.Add(valueLabel);
+            var valueField = new FloatField() { value = value };
+            valueField.style.width = 50;
+            valueField.style.minWidth = 40;
+            valueField.style.fontSize = 10;
+            row.Add(valueField);
+
+            // Bidirectional sync: slider ↔ field
+            bool isSyncing = false;
+            slider.RegisterValueChangedCallback(evt =>
+            {
+                if (isSyncing) return;
+                isSyncing = true;
+                valueField.SetValueWithoutNotify(evt.newValue);
+                onChanged(evt.newValue);
+                MarkDirty();
+                isSyncing = false;
+            });
+            valueField.RegisterValueChangedCallback(evt =>
+            {
+                if (isSyncing) return;
+                isSyncing = true;
+                float clamped = Mathf.Clamp(evt.newValue, min, max);
+                slider.SetValueWithoutNotify(clamped);
+                valueField.SetValueWithoutNotify(clamped);
+                onChanged(clamped);
+                MarkDirty();
+                isSyncing = false;
+            });
 
             Container.Add(row);
             return slider;

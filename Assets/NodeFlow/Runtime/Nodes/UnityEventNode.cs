@@ -46,6 +46,6 @@ namespace NodeSystem.Nodes
         }
     }
 
-    // NodeEventHolder has been moved to its own file in Assets/Scripts/NodeSystem/Components/NodeEventHolder.cs
+    // NodeEventHolder has been moved to its own file in Assets/NodeFlow/Runtime/Components/NodeEventHolder.cs
 }
 

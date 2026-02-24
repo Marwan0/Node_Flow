@@ -1,6 +1,6 @@
 ---
 description: Node system - always use drag-and-drop for GameObject/script/component references
-globs: Assets/Scripts/NodeSystem/**/*.cs
+globs: Assets/NodeFlow/**/*.cs
 alwaysApply: false
 ---
 
