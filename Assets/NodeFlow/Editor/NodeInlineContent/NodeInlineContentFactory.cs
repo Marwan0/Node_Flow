@@ -58,7 +58,7 @@ namespace NodeSystem.Editor
             Register<Nodes.DebugLogNode, DebugLogNodeInlineContent>();
             
             // Quiz nodes
-            Register<Nodes.Quiz.ShowQuestionNode, ShowQuestionNodeInlineContent>();
+
             Register<Nodes.Quiz.CheckAnswerNode, CheckAnswerNodeInlineContent>();
             Register<Nodes.Quiz.LoadQuestionNode, LoadQuestionNodeInlineContent>();
             Register<Nodes.Quiz.ScoreNode, ScoreNodeInlineContent>();

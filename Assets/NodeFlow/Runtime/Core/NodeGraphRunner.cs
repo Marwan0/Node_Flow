@@ -486,7 +486,7 @@ namespace NodeSystem
                 outputPort = completedNode.State == NodeState.Completed ? "passed" : "failed";
                 completedNode.State = NodeState.Completed;
             }
-            else if (completedNode is Nodes.Quiz.LoadQuestionNode || completedNode is Nodes.Quiz.ShowQuestionNode)
+            else if (completedNode is Nodes.Quiz.LoadQuestionNode)
             {
                 // Question nodes: Fire correct/incorrect based on answer, AND fire complete
                 string resultPort = completedNode.State == NodeState.Failed ? "incorrect" : "correct";
