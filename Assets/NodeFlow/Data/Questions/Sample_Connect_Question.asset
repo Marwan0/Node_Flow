@@ -19,7 +19,7 @@ MonoBehaviour:
   - Camels are adapted to dry, hot environments
   - Penguins live in the southernmost continent
   maxAttempts: 3
-  points: 50
+  points: 100
   explanation: Polar Bear->Arctic, Camel->Desert, Penguin->Antarctica
   customUIPrefab: {fileID: 0}
   leftColumnItems:

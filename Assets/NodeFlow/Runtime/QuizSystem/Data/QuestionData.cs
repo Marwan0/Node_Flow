@@ -21,7 +21,7 @@ namespace QuizSystem
         public int maxAttempts = 3;
 
         [Header("Scoring")]
-        [Range(0, 100)]
+        [Range(0, 1000)]
         [Tooltip("Points awarded for correct answer")]
         public int points = 10;
 
