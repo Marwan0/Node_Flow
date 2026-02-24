@@ -1,6 +1,7 @@
 #if UNITY_EDITOR
 using UnityEngine;
 using NodeSystem.Nodes.Quiz;
+using QuizSystem;
 
 namespace NodeSystem.Editor
 {
@@ -27,8 +28,24 @@ namespace NodeSystem.Editor
                 CreateFloatField("Duration (s)", node.timerDuration, v => node.timerDuration = Mathf.Max(10f, v));
             }
 
-            // QuizManager path
-            CreateTextField(node.quizManagerPath, v => node.quizManagerPath = v, "QuizManager path");
+            // QuizManager - drag & drop reference with path fallback
+            // Try to resolve current reference from path if not set
+            if (node.quizManagerObject == null && !string.IsNullOrEmpty(node.quizManagerPath))
+            {
+                var found = GameObject.Find(node.quizManagerPath);
+                if (found != null && found.GetComponent<QuizManager>() != null)
+                    node.quizManagerObject = found;
+            }
+
+            CreateObjectField<GameObject>("", node.quizManagerObject, go =>
+            {
+                node.quizManagerObject = go;
+                // Sync the fallback path from the assigned object
+                if (go != null)
+                    node.quizManagerPath = go.name;
+                else
+                    node.quizManagerPath = "";
+            });
         }
     }
 }

@@ -24,6 +24,11 @@ namespace NodeSystem.Nodes.Quiz
         [SerializeField]
         public float timerDuration = 300f; // 5 minutes
 
+        /// <summary>Direct scene reference (set via drag-and-drop in editor)</summary>
+        [NonSerialized]
+        public GameObject quizManagerObject;
+
+        /// <summary>Fallback path used at runtime when the direct reference is null</summary>
         [SerializeField]
         public string quizManagerPath = "QuizManager";
 
@@ -59,20 +64,22 @@ namespace NodeSystem.Nodes.Quiz
                 state.StartTimer(timerDuration);
             }
 
-            // Optionally initialize QuizManager
-            if (!string.IsNullOrEmpty(quizManagerPath))
+            // Resolve QuizManager: direct reference first, then fallback to path
+            GameObject managerObj = quizManagerObject;
+            if (managerObj == null && !string.IsNullOrEmpty(quizManagerPath))
             {
-                var managerObj = GameObject.Find(quizManagerPath);
-                if (managerObj != null)
+                managerObj = GameObject.Find(quizManagerPath);
+            }
+
+            if (managerObj != null)
+            {
+                var manager = managerObj.GetComponent<QuizManager>();
+                if (manager != null)
                 {
-                    var manager = managerObj.GetComponent<QuizManager>();
-                    if (manager != null)
+                    // Sync total questions from QuizManager if not manually set
+                    if (totalQuestions <= 0 && manager.questions.Count > 0)
                     {
-                        // Sync total questions from QuizManager if not manually set
-                        if (totalQuestions <= 0 && manager.questions.Count > 0)
-                        {
-                            state.totalQuestions = manager.questions.Count;
-                        }
+                        state.totalQuestions = manager.questions.Count;
                     }
                 }
             }
