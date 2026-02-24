@@ -16,6 +16,10 @@ namespace QuizSystem
         [Tooltip("Hints shown for each wrong attempt (one per attempt)")]
         public string[] hints = new string[3];
 
+        [Range(0, 10)]
+        [Tooltip("Show hints starting from this wrong attempt (0 = never auto-show hints, 1 = immediately, 2 = after 2nd wrong, etc.)")]
+        public int showHintAfterAttempt = 1;
+
         [Range(1, 10)]
         [Tooltip("Maximum number of attempts before auto-correct")]
         public int maxAttempts = 3;

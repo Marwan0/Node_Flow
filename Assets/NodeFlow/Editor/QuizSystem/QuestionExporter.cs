@@ -96,6 +96,13 @@ namespace QuizSystem
                     entry.orderedItems = ord.items?.ToArray();
                     entry.shuffleItems = ord.shuffleItems;
                     entry.allowPartialCredit = ord.allowPartialCredit;
+                    if (ord.alternativeOrders != null && ord.alternativeOrders.Count > 0)
+                    {
+                        entry.alternativeOrders = ord.alternativeOrders
+                            .Where(a => a?.order != null)
+                            .Select(a => a.order.ToArray())
+                            .ToArray();
+                    }
                     break;
 
                 case HotspotQuestionData hs:

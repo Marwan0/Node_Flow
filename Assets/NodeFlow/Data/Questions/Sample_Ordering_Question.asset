@@ -1,0 +1,39 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b00f7a313658ea5408988b1dba533b36, type: 3}
+  m_Name: Sample_Ordering_Question
+  m_EditorClassIdentifier: 
+  questionText: 'Form a correct sentence:'
+  questionType: 6
+  hints:
+  - The sentence ends with 'can swim'
+  - Two names are connected by 'and'
+  - Either name can come first
+  showHintAfterAttempt: 1
+  maxAttempts: 3
+  points: 50
+  explanation: Both 'Marwan and Ali can swim' and 'Ali and Marwan can swim' are correct.
+  customUIPrefab: {fileID: 0}
+  items:
+  - Marwan
+  - and
+  - Ali
+  - can
+  - swim
+  shuffleItems: 1
+  allowPartialCredit: 1
+  validationMode: 0
+  correctOrder: 
+  alternativeOrders:
+  - order: 0200000001000000000000000300000004000000
+  enforceStartIndex: 0
+  requiredStartIndex: 0

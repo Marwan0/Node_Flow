@@ -86,6 +86,11 @@ namespace NodeSystem.Nodes.Quiz
         [Tooltip("Enable animations")]
         public bool enableAnimations = true;
 
+        [Header("Hints")]
+        [SerializeField]
+        [Tooltip("Show hints on wrong attempts for this question")]
+        public bool showHints = true;
+
         [NonSerialized]
         private QuizManager _quizManager;
 
@@ -256,10 +261,11 @@ namespace NodeSystem.Nodes.Quiz
             if (layoutOverridePrefab != null)
                 _quizManager.SetUIPrefabOverrideForLoad(questionIndex, layoutOverridePrefab);
 
-            // Set animations IMMEDIATELY before loading question (synchronously)
+            // Set animations and hints IMMEDIATELY before loading question (synchronously)
             if (QuizState.Instance != null)
             {
                 QuizState.Instance.SetAnswerAnimations(_answerAnimations);
+                QuizState.Instance.showHints = showHints;
             }
 
             // Show THIS question immediately when this node runs (avoids wrong order when

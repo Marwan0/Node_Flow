@@ -197,13 +197,6 @@ namespace NodeSystem.Editor
                 MarkDirty();
             });
 
-            CreateToggle("Wait for Answer", node.waitForAnswer, v => node.waitForAnswer = v);
-            CreateToggle("Track in State", node.trackInQuizState, v => node.trackInQuizState = v);
-
-            // === STEP 4: Answer Animation Settings ===
-            AddSeparator("Answer Animations");
-            CreateLabel("One animation applies to all answers with staggered delay:", new Color(0.8f, 0.8f, 0.8f));
-            
             // Get the node from graph to ensure we're modifying the correct instance
             var graph = GetNodeGraph();
             LoadQuestionNode graphNode = null;
@@ -214,6 +207,20 @@ namespace NodeSystem.Editor
             
             // Always use the graph's node instance if available (this is what gets serialized)
             var nodeToModify = graphNode ?? node;
+
+            CreateToggle("Wait for Answer", node.waitForAnswer, v => node.waitForAnswer = v);
+            CreateToggle("Track in State", node.trackInQuizState, v => node.trackInQuizState = v);
+            CreateToggle("Show Hints", node.showHints, v => {
+                if (graph != null) Undo.RecordObject(graph, "Change Show Hints");
+                nodeToModify.showHints = v;
+                if (node != nodeToModify) node.showHints = v;
+                if (graph != null) { graph.SaveToJson(); EditorUtility.SetDirty(graph); }
+                MarkDirty();
+            });
+
+            // === STEP 4: Answer Animation Settings ===
+            AddSeparator("Answer Animations");
+            CreateLabel("One animation applies to all answers with staggered delay:", new Color(0.8f, 0.8f, 0.8f));
             
             CreateToggle("Enable Animations", nodeToModify.enableAnimations, v => {
                 if (graph != null) Undo.RecordObject(graph, "Change Enable Animations");
@@ -372,6 +379,12 @@ namespace NodeSystem.Editor
                 if (maxAttemptsPerConnectionProp != null)
                 {
                     EditorGUILayout.PropertyField(maxAttemptsPerConnectionProp, new GUIContent("Max Attempts Per Connection"));
+                }
+
+                var showHintAfterAttemptProp1 = _serializedQuestion.FindProperty("showHintAfterAttempt");
+                if (showHintAfterAttemptProp1 != null)
+                {
+                    EditorGUILayout.PropertyField(showHintAfterAttemptProp1, new GUIContent("Hint After Attempt", "0 = never, 1 = first wrong, 2 = second wrong, etc."));
                 }
 
                 // Draw hints array
@@ -634,6 +647,12 @@ namespace NodeSystem.Editor
                 if (maxAttemptsPerConnectionProp != null)
                 {
                     EditorGUILayout.PropertyField(maxAttemptsPerConnectionProp, new GUIContent("Max Attempts Per Connection"));
+                }
+
+                var showHintAfterProp = _serializedQuestion.FindProperty("showHintAfterAttempt");
+                if (showHintAfterProp != null)
+                {
+                    EditorGUILayout.PropertyField(showHintAfterProp, new GUIContent("Hint After Attempt", "0 = never, 1 = first wrong, 2 = second wrong, etc."));
                 }
 
                 if (_showExtendedQuestionFields)

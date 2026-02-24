@@ -1,0 +1,41 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8273f7378b91c474e819dcd9a9517747, type: 3}
+  m_Name: Sample_Connect_Question 00
+  m_EditorClassIdentifier: Assembly-CSharp::QuizSystem.ConnectQuestionData
+  questionText: 'Connect the animals with their habitats:'
+  questionType: 2
+  hints:
+  - Polar bears live in cold, icy regions
+  - Camels are adapted to dry, hot environments
+  - Penguins live in the southernmost continent
+  maxAttempts: 3
+  points: 50
+  explanation: Polar Bear->Arctic, Camel->Desert, Penguin->Antarctica
+  customUIPrefab: {fileID: 0}
+  leftColumnItems:
+  - label: Polar Bearrrrr
+    icon: {fileID: 21300000, guid: 2fadd18e4b1391e42b5aa2fffbbc42fb, type: 3}
+  - label: Camel
+    icon: {fileID: 21300000, guid: e83b585bb7a35bc47b778056e549716f, type: 3}
+  - label: Penguin
+    icon: {fileID: 21300000, guid: 7e26ef45ca0a901409dbd89cbfc00eb0, type: 3}
+  rightColumnItems:
+  - label: Arctic
+    icon: {fileID: 21300000, guid: 01c7cf4e78f483646ad79f76622dfa05, type: 3}
+  - label: Desert
+    icon: {fileID: 21300000, guid: 200c70d390d204444a5eb6ce2258cafb, type: 3}
+  - label: Antarctica
+    icon: {fileID: 21300000, guid: 229f9dceb220b4b438a10fb0a3285237, type: 3}
+  _connectionKeys: 000000000100000002000000
+  _connectionValues: 000000000100000002000000
+  maxAttemptsPerConnection: 2

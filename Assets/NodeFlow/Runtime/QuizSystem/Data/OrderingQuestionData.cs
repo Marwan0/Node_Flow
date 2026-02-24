@@ -3,6 +3,13 @@ using UnityEngine;
 
 namespace QuizSystem
 {
+    [System.Serializable]
+    public class AlternativeOrder
+    {
+        [Tooltip("An alternative valid ordering of item indices.")]
+        public List<int> order = new List<int>();
+    }
+
     [CreateAssetMenu(fileName = "OrderingQuestion", menuName = "Quiz System/Ordering Question")]
     public class OrderingQuestionData : QuestionData
     {
@@ -30,6 +37,11 @@ namespace QuizSystem
         [Tooltip("Expected original-item indices in required order. Must contain each item index exactly once.")]
         public List<int> correctOrder = new List<int>();
 
+        [Header("Alternative Valid Orders")]
+        [Tooltip("Additional orderings that are also accepted as correct. Each entry is a full sequence of item indices.")]
+        public List<AlternativeOrder> alternativeOrders = new List<AlternativeOrder>();
+
+        [Header("Start Enforcement")]
         [Tooltip("Require the arranged sequence to start from this item index.")]
         public bool enforceStartIndex = false;
 
@@ -41,6 +53,8 @@ namespace QuizSystem
         {
             questionType = QuestionType.Ordering;
         }
+
+        // ───────────────────── context menu helpers ─────────────────────
 
         [ContextMenu("Add Item")]
         private void AddItem()
@@ -81,6 +95,9 @@ namespace QuizSystem
             correctOrder = generated;
         }
 
+        // ───────────────────── public API ─────────────────────
+
+        /// <summary>Returns the primary expected order (natural or custom).</summary>
         public List<int> GetExpectedOrder()
         {
             int count = items != null ? items.Count : 0;
@@ -95,6 +112,24 @@ namespace QuizSystem
                 return naturalOrder;
 
             return new List<int>(correctOrder);
+        }
+
+        /// <summary>Returns all valid orders: primary + alternatives.</summary>
+        public List<List<int>> GetAllValidOrders()
+        {
+            int count = items != null ? items.Count : 0;
+            var result = new List<List<int>> { GetExpectedOrder() };
+
+            if (alternativeOrders != null)
+            {
+                foreach (var alt in alternativeOrders)
+                {
+                    if (alt != null && IsValidCustomOrder(alt.order, count))
+                        result.Add(new List<int>(alt.order));
+                }
+            }
+
+            return result;
         }
 
         public bool IsValidCustomOrder(IReadOnlyList<int> order, int itemCount)
@@ -123,6 +158,9 @@ namespace QuizSystem
             return userOrder[0] == requiredStartIndex;
         }
 
+        /// <summary>
+        /// Returns true if the user order matches the primary order OR any alternative order.
+        /// </summary>
         public bool IsOrderCorrect(List<int> userOrder)
         {
             if (userOrder == null || userOrder.Count != items.Count)
@@ -130,16 +168,18 @@ namespace QuizSystem
             if (!HasRequiredStart(userOrder))
                 return false;
 
-            var expectedOrder = GetExpectedOrder();
-            for (int i = 0; i < userOrder.Count; i++)
+            foreach (var validOrder in GetAllValidOrders())
             {
-                if (userOrder[i] != expectedOrder[i])
-                    return false;
+                if (MatchesOrder(userOrder, validOrder))
+                    return true;
             }
 
-            return true;
+            return false;
         }
 
+        /// <summary>
+        /// Returns partial credit as the best match across all valid orders (0..1).
+        /// </summary>
         public float GetPartialCredit(List<int> userOrder)
         {
             if (userOrder == null || userOrder.Count != items.Count)
@@ -148,16 +188,34 @@ namespace QuizSystem
             if (enforceStartIndex && !HasRequiredStart(userOrder))
                 return 0f;
 
-            var expectedOrder = GetExpectedOrder();
-            int correctPositions = 0;
-            for (int i = 0; i < userOrder.Count; i++)
+            float best = 0f;
+            foreach (var validOrder in GetAllValidOrders())
             {
-                if (userOrder[i] == expectedOrder[i])
-                    correctPositions++;
+                int correctPositions = 0;
+                for (int i = 0; i < userOrder.Count; i++)
+                {
+                    if (userOrder[i] == validOrder[i])
+                        correctPositions++;
+                }
+
+                float credit = (float)correctPositions / items.Count;
+                if (credit > best)
+                    best = credit;
             }
 
-            return (float)correctPositions / items.Count;
+            return best;
+        }
+
+        // ───────────────────── private ─────────────────────
+
+        private static bool MatchesOrder(List<int> a, List<int> b)
+        {
+            if (a.Count != b.Count) return false;
+            for (int i = 0; i < a.Count; i++)
+            {
+                if (a[i] != b[i]) return false;
+            }
+            return true;
         }
     }
 }
-

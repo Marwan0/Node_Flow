@@ -60,6 +60,10 @@ namespace QuizSystem
         public bool quizActive = false;
         public bool quizCompleted = false;
 
+        [Header("Hints")]
+        [Tooltip("Whether to show hints on wrong attempts (set by StartQuizNode)")]
+        public bool showHints = true;
+
         [Header("QuizManager Reference")]
         [Tooltip("Set by StartQuizNode so all quiz nodes can share the same QuizManager")]
         [NonSerialized]
@@ -226,6 +230,7 @@ namespace QuizSystem
             timerActive = false;
             quizActive = false;
             quizCompleted = false;
+            showHints = true;
             quizManagerRef = null;
             // Don't clear currentAnswerAnimations here - they're per-question settings
             // and should persist until the next question sets new ones

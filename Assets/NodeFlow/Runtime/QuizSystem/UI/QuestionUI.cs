@@ -12,6 +12,8 @@ namespace QuizSystem
         [SerializeField] protected TextMeshProUGUI hintText;
         [SerializeField] protected TextMeshProUGUI attemptCounterText;
         [SerializeField] protected GameObject hintPanel;
+        [Tooltip("Clickable hint button (optional - reveals hint on click)")]
+        [SerializeField] protected Button hintButton;
         [Tooltip("Submit button (optional - not needed for question types that auto-submit like Multiple Choice)")]
         [SerializeField] protected Button submitButton;
 
@@ -28,6 +30,50 @@ namespace QuizSystem
         protected QuizManager quizManager;
         protected RectTransform hintPanelRectTransform;
         protected CanvasGroup hintPanelCanvasGroup;
+
+        /// <summary>
+        /// Whether hints are globally enabled (set by LoadQuestionNode via QuizState).
+        /// </summary>
+        protected bool HintsEnabled
+        {
+            get
+            {
+                if (QuizState.Instance != null) return QuizState.Instance.showHints;
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Whether a hint should be displayed right now, based on global toggle
+        /// and the per-question showHintAfterAttempt threshold.
+        /// </summary>
+        protected bool ShouldShowHintNow()
+        {
+            if (!HintsEnabled) return false;
+            if (currentQuestion == null) return false;
+            int threshold = currentQuestion.showHintAfterAttempt;
+            if (threshold <= 0) return false; // 0 = never auto-show hints for this question
+            if (validator == null) return threshold <= 1;
+            return validator.GetCurrentAttempt() >= threshold;
+        }
+
+        /// <summary>
+        /// Returns the appropriate hint string for the current attempt, remapped so that
+        /// hints[0] is always the first hint shown (even if display starts on a later attempt).
+        /// Returns null when no hint is available.
+        /// </summary>
+        protected string GetHintForCurrentAttempt()
+        {
+            if (currentQuestion == null || currentQuestion.hints == null || currentQuestion.hints.Length == 0)
+                return null;
+            int threshold = Mathf.Max(1, currentQuestion.showHintAfterAttempt);
+            int attempt = validator != null ? validator.GetCurrentAttempt() : 1;
+            int hintIndex = attempt - threshold;
+            if (hintIndex < 0) return null;
+            hintIndex = Mathf.Min(hintIndex, currentQuestion.hints.Length - 1);
+            string hint = currentQuestion.hints[hintIndex];
+            return string.IsNullOrEmpty(hint) ? null : hint;
+        }
 
         public virtual void Initialize(QuestionData question, IQuestionValidator questionValidator, QuizManager manager)
         {
@@ -48,6 +94,15 @@ namespace QuizSystem
                 {
                     hintPanelCanvasGroup = hintPanel.AddComponent<CanvasGroup>();
                 }
+            }
+
+            // Setup hint button (toggles hint panel visibility on click)
+            if (hintButton != null)
+            {
+                hintButton.onClick.RemoveAllListeners();
+                if (HintsEnabled)
+                    hintButton.onClick.AddListener(OnHintButtonClicked);
+                hintButton.gameObject.SetActive(false); // hidden until first qualifying wrong attempt
             }
 
             UpdateAttemptCounter();
@@ -111,6 +166,26 @@ namespace QuizSystem
                 hintPanel.SetActive(false);
         }
 
+        /// <summary>
+        /// Called when the hint button is clicked. Toggles hint panel visibility.
+        /// Override in subclasses for custom hint button behavior.
+        /// </summary>
+        protected virtual void OnHintButtonClicked()
+        {
+            if (hintPanel == null) return;
+
+            if (hintPanel.activeSelf)
+            {
+                HideHint();
+            }
+            else
+            {
+                string hint = GetHintForCurrentAttempt();
+                if (!string.IsNullOrEmpty(hint))
+                    ShowHint(hint);
+            }
+        }
+
         protected virtual void UpdateAttemptCounter()
         {
             if (attemptCounterText != null && validator != null)
@@ -135,7 +210,13 @@ namespace QuizSystem
                 }
                 else
                 {
-                    ShowHint(result.Message);
+                    // Only show hint if global toggle is on AND per-question threshold is met
+                    if (ShouldShowHintNow())
+                    {
+                        string hint = GetHintForCurrentAttempt();
+                        ShowHint(!string.IsNullOrEmpty(hint) ? hint : result.Message);
+                        if (hintButton != null) hintButton.gameObject.SetActive(true);
+                    }
                     OnWrongAnswer();
                 }
             }
@@ -195,12 +276,19 @@ namespace QuizSystem
         protected virtual void OnAutoCorrect()
         {
             Debug.Log("Auto-correct triggered - user exhausted all attempts.");
-            ShowHint($"Correct answer: {GetCorrectAnswerDisplay()}");
-            if (!string.IsNullOrEmpty(currentQuestion.explanation))
+
+            // Only show correct-answer hint if hints are globally enabled
+            if (HintsEnabled)
             {
-                ShowHint($"{hintText.text}\n\nExplanation: {currentQuestion.explanation}");
+                ShowHint($"Correct answer: {GetCorrectAnswerDisplay()}");
+                if (!string.IsNullOrEmpty(currentQuestion.explanation))
+                {
+                    ShowHint($"{hintText.text}\n\nExplanation: {currentQuestion.explanation}");
+                }
             }
-            
+
+            if (hintButton != null) hintButton.gameObject.SetActive(false);
+
             // User exhausted all attempts without getting the correct answer
             // Pass false since they didn't actually answer correctly
             quizManager?.OnQuestionAnswered(false, 0, currentQuestion);

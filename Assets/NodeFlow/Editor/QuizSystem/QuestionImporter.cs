@@ -156,6 +156,15 @@ namespace QuizSystem
                         : new List<string>();
                     ord.shuffleItems = entry.shuffleItems;
                     ord.allowPartialCredit = entry.allowPartialCredit;
+                    if (entry.alternativeOrders != null)
+                    {
+                        ord.alternativeOrders = new List<AlternativeOrder>();
+                        foreach (var altArr in entry.alternativeOrders)
+                        {
+                            if (altArr != null)
+                                ord.alternativeOrders.Add(new AlternativeOrder { order = new List<int>(altArr) });
+                        }
+                    }
                     question = ord;
                     break;
 

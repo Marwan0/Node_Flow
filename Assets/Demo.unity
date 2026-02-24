@@ -668,16 +668,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c07d708d9c357d34ba5b44c471475b4d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::QuizSystem.QuizManager
-  questions:
-  - {fileID: 11400000, guid: e20d2ae4f2ea32a48a546350a4f65a88, type: 2}
-  - {fileID: 11400000, guid: d90b1bccfb259594880e6ee76df8899f, type: 2}
-  - {fileID: 11400000, guid: 9efd769281792b64cbc5202450743d7e, type: 2}
+  questions: []
   shuffleQuestions: 0
   questionContainer: {fileID: 636541995}
   trueFalseUIPrefab: {fileID: 0}
   fillInTheBlankUIPrefab: {fileID: 0}
   multiSelectUIPrefab: {fileID: 0}
-  orderingUIPrefab: {fileID: 0}
+  orderingUIPrefab: {fileID: 2689483236617707794, guid: 0a730fa4a82685147a59b2761e82b066, type: 3}
   hotspotUIPrefab: {fileID: 0}
   sliderUIPrefab: {fileID: 0}
   audioUIPrefab: {fileID: 0}

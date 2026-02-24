@@ -51,8 +51,9 @@ namespace QuizSystem
             if (orderingData == null)
                 return string.Empty;
 
-            var expected = orderingData.GetExpectedOrder();
-            return string.Join(" -> ", expected.Select(i => i.ToString()));
+            var allOrders = orderingData.GetAllValidOrders();
+            var lines = allOrders.Select(order => string.Join(" -> ", order.Select(i => i.ToString())));
+            return string.Join(" | ", lines);
         }
     }
 }

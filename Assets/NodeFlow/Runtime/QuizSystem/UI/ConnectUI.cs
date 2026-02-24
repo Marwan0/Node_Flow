@@ -88,11 +88,15 @@ namespace QuizSystem
             if (totalConnections <= 0)
                 totalConnections = connectData.leftColumnItems.Count;
 
+            // Submit button is not needed for connect questions (each connection auto-validates)
             if (submitButton != null)
             {
                 submitButton.onClick.RemoveAllListeners();
                 submitButton.gameObject.SetActive(false);
             }
+
+            // Setup hint button to toggle hint visibility on click
+            SetupHintButton();
 
             if (lineContainer != null)
             {
@@ -103,6 +107,62 @@ namespace QuizSystem
 
             RefreshItemInteractability();
             UpdateProgressText();
+        }
+
+        private void SetupHintButton()
+        {
+            if (hintButton == null) return;
+            hintButton.onClick.RemoveAllListeners();
+
+            if (HintsEnabled)
+            {
+                hintButton.onClick.AddListener(OnHintButtonClicked);
+            }
+
+            // Start hidden until first wrong attempt (or always hidden if hints disabled)
+            hintButton.gameObject.SetActive(false);
+        }
+
+        /// <summary>
+        /// Override: ConnectUI uses per-connection attempts, not the validator's counter.
+        /// </summary>
+        protected override void OnHintButtonClicked()
+        {
+            if (hintPanel == null) return;
+
+            if (hintPanel.activeSelf)
+            {
+                HideHint();
+            }
+            else
+            {
+                string hint = GetCurrentHintText();
+                if (!string.IsNullOrEmpty(hint))
+                    ShowHint(hint);
+            }
+        }
+
+        /// <summary>
+        /// Returns the appropriate hint for the current connection attempt,
+        /// respecting the per-question showHintAfterAttempt threshold.
+        /// ConnectUI tracks attempts per connection (not per question), so the
+        /// threshold is compared against attemptsForCurrentConnection.
+        /// </summary>
+        private string GetCurrentHintText()
+        {
+            if (currentQuestion == null || currentQuestion.hints == null || currentQuestion.hints.Length == 0)
+                return null;
+
+            int threshold = currentQuestion.showHintAfterAttempt;
+            if (threshold <= 0) return null; // 0 = never show hints for this question
+
+            // Remap so hints[0] is shown when the threshold attempt is reached
+            int hintIndex = attemptsForCurrentConnection - threshold;
+            if (hintIndex < 0) return null;
+            hintIndex = Mathf.Min(hintIndex, currentQuestion.hints.Length - 1);
+
+            string hint = currentQuestion.hints[hintIndex];
+            return string.IsNullOrEmpty(hint) ? null : hint;
         }
 
         private void ClearUI()
@@ -298,6 +358,11 @@ namespace QuizSystem
                 PlayCorrectAudio();
                 QuizState.Instance?.NotifyCorrectAttempt();
                 quizManager?.UpdateQuestionProgress(currentQuestion, starsCollected, totalConnections);
+
+                // Hide hint from previous wrong attempt and reset for next connection
+                HideHint();
+                if (hintButton != null) hintButton.gameObject.SetActive(false);
+
                 currentConnectionIndex++;
                 attemptsForCurrentConnection = 0;
                 RefreshItemInteractability();
@@ -314,6 +379,7 @@ namespace QuizSystem
 
                 if (attemptsForCurrentConnection >= GetMaxAttemptsPerConnection())
                 {
+                    // Auto-correct: show the correct answer and move on
                     if (connectData.correctConnections.TryGetValue(leftIdx, out int correctRight))
                     {
                         currentConnections[leftIdx] = correctRight;
@@ -324,13 +390,36 @@ namespace QuizSystem
                             CreateConnectionLine(leftItem, rightItem);
                             SetLineColor(connectionLineObjects[connectionLineObjects.Count - 1], Color.green);
                         }
+
+                        // Show the correct answer as hint (if hints enabled)
+                        if (HintsEnabled)
+                        {
+                            string correctLabel = correctRight < connectData.rightColumnItems.Count
+                                ? connectData.rightColumnItems[correctRight].label : "?";
+                            string leftLabel = leftIdx < connectData.leftColumnItems.Count
+                                ? connectData.leftColumnItems[leftIdx].label : "?";
+                            ShowHint($"{leftLabel} → {correctLabel}");
+                        }
                     }
+
+                    if (hintButton != null) hintButton.gameObject.SetActive(false);
                     currentConnectionIndex++;
                     attemptsForCurrentConnection = 0;
                     RefreshItemInteractability();
                     UpdateProgressText();
                     if (currentConnectionIndex >= totalConnections)
                         CompleteQuestion(false, GetEarnedRawQuestionPoints());
+                }
+                else
+                {
+                    // Show hint for wrong attempt (if enabled and threshold met)
+                    string hint = GetCurrentHintText(); // returns null if threshold not met or disabled
+                    if (HintsEnabled && !string.IsNullOrEmpty(hint))
+                    {
+                        ShowHint(hint);
+                        // Also show the hint button so user can toggle it
+                        if (hintButton != null) hintButton.gameObject.SetActive(true);
+                    }
                 }
             }
         }

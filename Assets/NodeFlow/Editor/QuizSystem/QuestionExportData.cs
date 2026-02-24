@@ -53,6 +53,7 @@ namespace QuizSystem
         // Ordering specific
         public string[] orderedItems;
         public bool shuffleItems;
+        public int[][] alternativeOrders;
 
         // Hotspot specific
         public string imagePath;
