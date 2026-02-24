@@ -9,9 +9,6 @@ namespace NodeSystem.Editor
         {
             var node = Node as CheckAnswerNode;
             if (node == null) return;
-
-            // Quiz manager path
-            CreateTextField(node.quizManagerPath, v => node.quizManagerPath = v, "QuizManager path...");
         }
     }
 }

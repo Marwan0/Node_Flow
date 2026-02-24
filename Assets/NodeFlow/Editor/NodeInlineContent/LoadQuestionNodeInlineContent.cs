@@ -112,7 +112,6 @@ namespace NodeSystem.Editor
 
             // === STEP 3: Node-specific options ===
             AddSeparator("Node Options");
-            CreateTextField(node.quizManagerPath, v => node.quizManagerPath = v, "QuizManager path");
 
             UnityEngine.Object currentContainer = node.questionContainerRef;
             if (currentContainer == null && !string.IsNullOrEmpty(node.questionContainerPath))
