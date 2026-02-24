@@ -151,19 +151,17 @@ namespace NodeSystem.Nodes.Quiz
                 }
             }
 
-            // Find QuizManager
-            var managerObj = GameObject.Find(quizManagerPath);
-            if (managerObj == null)
+            // Find QuizManager: use shared ref from StartQuizNode first, then fallback to path
+            _quizManager = QuizState.Instance.quizManagerRef;
+            if (_quizManager == null && !string.IsNullOrEmpty(quizManagerPath))
             {
-                Debug.LogWarning($"[LoadQuestionNode] QuizManager not found: {quizManagerPath}");
-                Complete();
-                return;
+                var managerObj = GameObject.Find(quizManagerPath);
+                if (managerObj != null)
+                    _quizManager = managerObj.GetComponent<QuizManager>();
             }
-
-            _quizManager = managerObj.GetComponent<QuizManager>();
             if (_quizManager == null)
             {
-                Debug.LogWarning($"[LoadQuestionNode] No QuizManager component on: {quizManagerPath}");
+                Debug.LogWarning($"[LoadQuestionNode] QuizManager not found. Set it on StartQuizNode or provide a path.");
                 Complete();
                 return;
             }

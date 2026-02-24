@@ -76,6 +76,9 @@ namespace NodeSystem.Nodes.Quiz
                 var manager = managerObj.GetComponent<QuizManager>();
                 if (manager != null)
                 {
+                    // Store on QuizState so all quiz nodes can use it
+                    state.quizManagerRef = manager;
+
                     // Sync total questions from QuizManager if not manually set
                     if (totalQuestions <= 0 && manager.questions.Count > 0)
                     {

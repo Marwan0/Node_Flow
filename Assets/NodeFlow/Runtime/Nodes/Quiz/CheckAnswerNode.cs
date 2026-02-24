@@ -40,27 +40,17 @@ namespace NodeSystem.Nodes.Quiz
 
         protected override void OnExecute()
         {
-            if (string.IsNullOrEmpty(quizManagerPath))
+            // Use shared ref from StartQuizNode first, then fallback to path
+            _quizManager = QuizState.Instance.quizManagerRef;
+            if (_quizManager == null && !string.IsNullOrEmpty(quizManagerPath))
             {
-                Debug.LogWarning("[CheckAnswerNode] No quiz manager path specified");
-                State = NodeState.Failed;
-                Complete();
-                return;
+                var managerObj = GameObject.Find(quizManagerPath);
+                if (managerObj != null)
+                    _quizManager = managerObj.GetComponent<QuizManager>();
             }
-
-            var managerObj = GameObject.Find(quizManagerPath);
-            if (managerObj == null)
-            {
-                Debug.LogWarning($"[CheckAnswerNode] QuizManager not found: {quizManagerPath}");
-                State = NodeState.Failed;
-                Complete();
-                return;
-            }
-
-            _quizManager = managerObj.GetComponent<QuizManager>();
             if (_quizManager == null)
             {
-                Debug.LogWarning($"[CheckAnswerNode] No QuizManager component on: {quizManagerPath}");
+                Debug.LogWarning($"[CheckAnswerNode] QuizManager not found. Set it on StartQuizNode or provide a path.");
                 State = NodeState.Failed;
                 Complete();
                 return;

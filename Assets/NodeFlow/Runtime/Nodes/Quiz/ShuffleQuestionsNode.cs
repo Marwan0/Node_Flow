@@ -37,18 +37,17 @@ namespace NodeSystem.Nodes.Quiz
 
         protected override void OnExecute()
         {
-            var managerObj = GameObject.Find(quizManagerPath);
-            if (managerObj == null)
+            // Use shared ref from StartQuizNode first, then fallback to path
+            QuizManager manager = QuizState.Instance.quizManagerRef;
+            if (manager == null && !string.IsNullOrEmpty(quizManagerPath))
             {
-                Debug.LogWarning($"[ShuffleQuestionsNode] QuizManager not found at path: {quizManagerPath}");
-                Complete();
-                return;
+                var managerObj = GameObject.Find(quizManagerPath);
+                if (managerObj != null)
+                    manager = managerObj.GetComponent<QuizManager>();
             }
-
-            var manager = managerObj.GetComponent<QuizManager>();
             if (manager == null)
             {
-                Debug.LogWarning($"[ShuffleQuestionsNode] No QuizManager on: {quizManagerPath}");
+                Debug.LogWarning($"[ShuffleQuestionsNode] QuizManager not found. Set it on StartQuizNode or provide a path.");
                 Complete();
                 return;
             }

@@ -60,6 +60,11 @@ namespace QuizSystem
         public bool quizActive = false;
         public bool quizCompleted = false;
 
+        [Header("QuizManager Reference")]
+        [Tooltip("Set by StartQuizNode so all quiz nodes can share the same QuizManager")]
+        [NonSerialized]
+        public QuizManager quizManagerRef;
+
         [Header("Answer Animations")]
         [NonSerialized]
         public NodeSystem.Nodes.Quiz.AnswerAnimationSettings[] currentAnswerAnimations = null;
@@ -221,6 +226,7 @@ namespace QuizSystem
             timerActive = false;
             quizActive = false;
             quizCompleted = false;
+            quizManagerRef = null;
             // Don't clear currentAnswerAnimations here - they're per-question settings
             // and should persist until the next question sets new ones
             // currentAnswerAnimations = null;
