@@ -31,6 +31,9 @@ namespace QuizSystem
         private int starsCollected = 0;
         private int totalSlots = 0;
 
+        // All valid orders that are still consistent with placements so far
+        private List<List<int>> candidateOrders = new List<List<int>>();
+
         // ──────────────── setup ────────────────
 
         protected override void SetupQuestion()
@@ -153,6 +156,9 @@ namespace QuizSystem
             currentSlotIndex = 0;
             attemptsForCurrentSlot = 0;
             starsCollected = 0;
+
+            // Start with all valid orders as candidates
+            candidateOrders = orderingData.GetAllValidOrders();
         }
 
         // ──────────────── drag item creation ────────────────
@@ -209,13 +215,26 @@ namespace QuizSystem
 
         private void ValidateAndApplyPlacement(OrderingDragItem item)
         {
-            var expectedOrder = orderingData.GetExpectedOrder();
-            if (expectedOrder == null || currentSlotIndex >= expectedOrder.Count) return;
+            if (candidateOrders == null || candidateOrders.Count == 0) return;
 
-            int expectedOriginalIndex = expectedOrder[currentSlotIndex];
-
-            if (item.originalIndex == expectedOriginalIndex)
+            // Check if this item is valid for currentSlotIndex across ANY remaining candidate order
+            bool isCorrect = false;
+            foreach (var order in candidateOrders)
             {
+                if (currentSlotIndex < order.Count && order[currentSlotIndex] == item.originalIndex)
+                {
+                    isCorrect = true;
+                    break;
+                }
+            }
+
+            if (isCorrect)
+            {
+                // Narrow down candidates to only those that have this item at this position
+                candidateOrders = candidateOrders.FindAll(
+                    o => currentSlotIndex < o.Count && o[currentSlotIndex] == item.originalIndex
+                );
+
                 // Correct!
                 item.LockInContainer(slotsContainer);
                 placedItems.Add(item);
@@ -247,10 +266,16 @@ namespace QuizSystem
                 int maxAttempts = orderingData.maxAttemptsPerSlot > 0 ? orderingData.maxAttemptsPerSlot : 3;
                 if (attemptsForCurrentSlot >= maxAttempts)
                 {
-                    // Auto-correct
+                    // Auto-correct: pick from first remaining candidate order
+                    int expectedOriginalIndex = candidateOrders[0][currentSlotIndex];
                     var correctItem = dragItems.Find(d => d.originalIndex == expectedOriginalIndex);
                     if (correctItem != null)
                     {
+                        // Narrow candidates to the chosen auto-correct path
+                        candidateOrders = candidateOrders.FindAll(
+                            o => currentSlotIndex < o.Count && o[currentSlotIndex] == expectedOriginalIndex
+                        );
+
                         correctItem.LockInContainer(slotsContainer);
                         placedItems.Add(correctItem);
                     }

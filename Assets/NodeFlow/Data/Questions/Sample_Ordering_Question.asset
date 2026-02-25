@@ -32,7 +32,7 @@ MonoBehaviour:
   shuffleItems: 1
   allowPartialCredit: 1
   maxAttemptsPerSlot: 3
-  validationMode: 1
+  validationMode: 0
   correctOrder: 
   alternativeOrders:
   - order: 0200000001000000000000000300000004000000
