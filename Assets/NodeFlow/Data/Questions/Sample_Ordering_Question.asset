@@ -31,7 +31,7 @@ MonoBehaviour:
   - swim
   shuffleItems: 1
   allowPartialCredit: 1
-  maxAttemptsPerSlot: 3
+  maxAttemptsPerSlot: 2
   validationMode: 0
   correctOrder: 
   alternativeOrders:

@@ -2,7 +2,6 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using DG.Tweening;
-using TMPro;
 
 namespace QuizSystem
 {
@@ -24,7 +23,6 @@ namespace QuizSystem
         private Tweener snapTween;
 
         private const float SnapBackDuration = 0.3f;
-        private const float DropDuration = 0.15f;
         private const float DragAlpha = 0.7f;
 
         public void Init(int index, OrderingUI ui, Canvas canvas)
@@ -108,6 +106,13 @@ namespace QuizSystem
             // Unity's layout group will automatically format the child since it's now parented
         }
 
+        /// <summary>Tints the item's Image component with the given color.</summary>
+        public void TintImage(Color color)
+        {
+            var img = GetComponent<Image>();
+            if (img != null) img.color = color;
+        }
+
         /// <summary>Smoothly animate back to the source container.</summary>
         public void AnimateToHome()
         {
@@ -133,7 +138,6 @@ namespace QuizSystem
                 transform.SetParent(originalParent, true);
                 transform.SetSiblingIndex(homeSiblingIndex);
                 rectTransform.anchoredPosition = homePosition;
-                orderingUI?.OnItemReturnedToSource(this);
             });
         }
 

@@ -21,6 +21,10 @@ namespace QuizSystem
         [Header("Ordering UI — Optional")]
         [SerializeField] private Button resetButton;
 
+        [Header("Ordering UI — Visuals")]
+        [Tooltip("Color applied to an item when placed correctly.")]
+        [SerializeField] private Color correctItemColor = new Color(0.3f, 0.9f, 0.3f, 1f);
+
         private Canvas rootCanvas;
         private OrderingQuestionData orderingData;
         private List<OrderingDragItem> dragItems = new List<OrderingDragItem>();
@@ -118,15 +122,8 @@ namespace QuizSystem
             dragItems.Clear();
             placedItems.Clear();
 
-            // Destroy any leftover children in slotsContainer
-            if (slotsContainer != null)
-            {
-                foreach (Transform child in slotsContainer)
-                {
-                    if (child != null && child.gameObject != null)
-                        Destroy(child.gameObject);
-                }
-            }
+            // NOTE: We do NOT destroy other children of slotsContainer so
+            // manually-placed visuals/VFX GameObjects are preserved.
         }
 
         // ──────────────── slot creation ────────────────
@@ -237,6 +234,7 @@ namespace QuizSystem
 
                 // Correct!
                 item.LockInContainer(slotsContainer);
+                item.TintImage(correctItemColor);
                 placedItems.Add(item);
 
                 starsCollected++;
@@ -313,40 +311,12 @@ namespace QuizSystem
             return Mathf.RoundToInt(currentQuestion.points * normalized);
         }
 
-        /// <summary>Called by OrderingDragItem when an item snaps back to source.</summary>
-        public void OnItemReturnedToSource(OrderingDragItem item)
-        {
-            // Nothing extra needed; slot is already cleared in AnimateToHome
-        }
-
         public override void OnAnswerSubmitted()
         {
             // Sequential ordering validates on each drop; no full-question submit.
         }
 
-        private void ResetAll()
-        {
-            foreach (var item in dragItems)
-            {
-                if (item != null)
-                    item.ReturnHomeImmediate();
-            }
-            placedItems.Clear();
-        }
-
         // ──────────────── auto-correct display ────────────────
-
-        private void DisableAllDrag()
-        {
-            foreach (var item in dragItems)
-            {
-                if (item != null)
-                {
-                    var cg = item.GetComponent<CanvasGroup>();
-                    if (cg != null) cg.blocksRaycasts = false;
-                }
-            }
-        }
 
         protected override void OnAutoCorrect()
         {
@@ -375,7 +345,7 @@ namespace QuizSystem
                 }
             }
 
-            DisableAllDrag();
+            // Items locked via LockInContainer already have blocksRaycasts = false
         }
 
         // ──────────────── correct answer text ────────────────
