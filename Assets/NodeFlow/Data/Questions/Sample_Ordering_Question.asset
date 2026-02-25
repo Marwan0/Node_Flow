@@ -24,14 +24,15 @@ MonoBehaviour:
   explanation: Both 'Marwan and Ali can swim' and 'Ali and Marwan can swim' are correct.
   customUIPrefab: {fileID: 0}
   items:
-  - Marwan
-  - and
   - Ali
+  - and
+  - Marwan
   - can
   - swim
   shuffleItems: 1
   allowPartialCredit: 1
-  validationMode: 0
+  maxAttemptsPerSlot: 3
+  validationMode: 1
   correctOrder: 
   alternativeOrders:
   - order: 0200000001000000000000000300000004000000

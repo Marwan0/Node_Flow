@@ -10,7 +10,7 @@ namespace QuizSystem
     public class OrderingDragItem : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
     {
         [HideInInspector] public int originalIndex;
-        [HideInInspector] public OrderingDropSlot currentSlot;
+        [HideInInspector] public bool isLocked = false;
 
         private Canvas rootCanvas;
         private RectTransform rectTransform;
@@ -81,57 +81,31 @@ namespace QuizSystem
         {
             canvasGroup.alpha = 1f;
 
-            // If not placed in a slot by OrderingDropSlot.OnDrop, snap back
-            if (currentSlot == null)
+            if (!isLocked)
             {
                 canvasGroup.blocksRaycasts = true;
                 AnimateToHome();
             }
             else
             {
-                // In sequential mode, it's either locked correctly or it was wrong.
-                // OrderingUI will handle raycasts. Make sure it stays false if placed.
-                canvasGroup.blocksRaycasts = true;
+                canvasGroup.blocksRaycasts = false;
             }
         }
 
         // ──────────────── placement ────────────────
 
-        /// <summary>Smoothly animate into a drop slot.</summary>
-        public void PlaceInSlot(OrderingDropSlot slot)
+        /// <summary>Locks the item into its correct sequential spot in the container.</summary>
+        public void LockInContainer(Transform container)
         {
             snapTween?.Kill();
 
-            // Vacate previous slot
-            if (currentSlot != null)
-                currentSlot.Clear();
-
-            currentSlot = slot;
-            slot.Accept(this);
-
+            isLocked = true;
             canvasGroup.alpha = 1f;
-            canvasGroup.blocksRaycasts = true;
+            canvasGroup.blocksRaycasts = false;
 
-            transform.SetParent(slot.transform, true);
-            rectTransform.DOAnchorPos(Vector2.zero, DropDuration).SetEase(Ease.OutQuad);
-
-            // Since the slot's visual Image is disabled, it has no native width.
-            // We must force the slot to have the exact layout dimensions of this dragged word.
-            var slotLe = slot.GetComponent<LayoutElement>();
-            if (slotLe == null) slotLe = slot.gameObject.AddComponent<LayoutElement>();
+            transform.SetParent(container, false);
             
-            slotLe.preferredWidth = rectTransform.rect.width;
-            slotLe.preferredHeight = rectTransform.rect.height;
-
-            // Force layout recalculations immediately to prevent items from overlapping
-            LayoutRebuilder.ForceRebuildLayoutImmediate(transform.parent as RectTransform);
-            
-            // Also rebuild the root slots container if possible to push siblings
-            var slotsContainer = slot.transform.parent as RectTransform;
-            if (slotsContainer != null)
-            {
-                LayoutRebuilder.ForceRebuildLayoutImmediate(slotsContainer);
-            }
+            // Unity's layout group will automatically format the child since it's now parented
         }
 
         /// <summary>Smoothly animate back to the source container.</summary>
@@ -139,11 +113,10 @@ namespace QuizSystem
         {
             snapTween?.Kill();
 
-            if (currentSlot != null)
-            {
-                currentSlot.Clear();
-                currentSlot = null;
-            }
+            isLocked = false;
+            
+            // Re-enable raycasts after it gets home
+            canvasGroup.blocksRaycasts = true;
 
             // Animate in root canvas to avoid LayoutGroup interference
             transform.SetParent(rootCanvas.transform, true);
@@ -169,11 +142,8 @@ namespace QuizSystem
         {
             snapTween?.Kill();
 
-            if (currentSlot != null)
-            {
-                currentSlot.Clear();
-                currentSlot = null;
-            }
+            isLocked = false;
+            canvasGroup.blocksRaycasts = true;
 
             if (placeholder != null)
             {

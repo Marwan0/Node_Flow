@@ -18,23 +18,13 @@ namespace QuizSystem
         [Header("Ordering UI — Prefabs")]
         [Tooltip("Prefab for a draggable item (needs Button/Image + child TMP_Text + CanvasGroup)")]
         [SerializeField] private GameObject dragItemPrefab;
-
-        [Tooltip("Prefab for a drop slot placeholder (needs Image + CanvasGroup)")]
-        [SerializeField] private GameObject dropSlotPrefab;
-
         [Header("Ordering UI — Optional")]
         [SerializeField] private Button resetButton;
-
-        [Header("Ordering UI — Visuals")]
-        [SerializeField] private Color slotDefaultColor = new Color(1f, 1f, 1f, 0.25f);
-        [SerializeField] private Color slotOccupiedColor = new Color(0.6f, 0.85f, 1f, 0.6f);
-        [SerializeField] private Color slotCorrectColor = new Color(0.3f, 0.9f, 0.3f, 0.7f);
-        [SerializeField] private Color slotWrongColor = new Color(0.9f, 0.3f, 0.3f, 0.7f);
 
         private Canvas rootCanvas;
         private OrderingQuestionData orderingData;
         private List<OrderingDragItem> dragItems = new List<OrderingDragItem>();
-        private List<OrderingDropSlot> dropSlots = new List<OrderingDropSlot>();
+        private List<OrderingDragItem> placedItems = new List<OrderingDragItem>();
 
         public int currentSlotIndex { get; private set; } = 0;
         private int attemptsForCurrentSlot = 0;
@@ -123,20 +113,24 @@ namespace QuizSystem
                     Destroy(item.gameObject);
             }
             dragItems.Clear();
+            placedItems.Clear();
 
-            foreach (var slot in dropSlots)
+            // Destroy any leftover children in slotsContainer
+            if (slotsContainer != null)
             {
-                if (slot != null && slot.gameObject != null)
-                    Destroy(slot.gameObject);
+                foreach (Transform child in slotsContainer)
+                {
+                    if (child != null && child.gameObject != null)
+                        Destroy(child.gameObject);
+                }
             }
-            dropSlots.Clear();
         }
 
         // ──────────────── slot creation ────────────────
 
         private void CreateDropSlots()
         {
-            if (slotsContainer == null || dropSlotPrefab == null) return;
+            if (slotsContainer == null) return;
 
             // Ensure the container itself can catch drops in the empty padding/spacing areas
             var bgGraphic = slotsContainer.GetComponent<Graphic>();
@@ -155,56 +149,10 @@ namespace QuizSystem
             }
             containerDropZone.Init(this);
 
-            for (int i = 0; i < orderingData.items.Count; i++)
-            {
-                GameObject slotObj = Instantiate(dropSlotPrefab, slotsContainer);
-                var slot = slotObj.GetComponent<OrderingDropSlot>();
-                if (slot == null)
-                    slot = slotObj.AddComponent<OrderingDropSlot>();
-
-                slot.Init(i, this);
-
-                // Hide the slot number text completely
-                var label = slotObj.GetComponentInChildren<TextMeshProUGUI>();
-                if (label != null)
-                {
-                    label.text = "";
-                    label.enabled = false;
-                }
-
-                // Hide the slot background completely so it's strictly an invisible layout gap
-                var img = slotObj.GetComponent<Image>();
-                if (img != null)
-                {
-                    img.enabled = false;
-                }
-
-                // Ensure the empty slot has a physical width/height for the LayoutGroup
-                var le = slotObj.GetComponent<LayoutElement>();
-                if (le == null) le = slotObj.AddComponent<LayoutElement>();
-                
-                if (dragItemPrefab != null)
-                {
-                    var prefabRt = dragItemPrefab.GetComponent<RectTransform>();
-                    if (prefabRt != null)
-                    {
-                        le.preferredWidth = prefabRt.rect.width;
-                        le.preferredHeight = prefabRt.rect.height;
-                    }
-                }
-
-                dropSlots.Add(slot);
-            }
             totalSlots = orderingData.items.Count;
             currentSlotIndex = 0;
             attemptsForCurrentSlot = 0;
             starsCollected = 0;
-
-            // Force layout rebuild so slots arrange themselves instantly before play begins
-            if (slotsContainer != null)
-            {
-                LayoutRebuilder.ForceRebuildLayoutImmediate(slotsContainer as RectTransform);
-            }
         }
 
         // ──────────────── drag item creation ────────────────
@@ -256,36 +204,10 @@ namespace QuizSystem
         /// <summary>Called when a drop occurs anywhere on the slots container.</summary>
         public void TryDropItemIntoCurrentSlot(OrderingDragItem item)
         {
-            if (currentSlotIndex >= 0 && currentSlotIndex < dropSlots.Count)
-            {
-                var targetSlot = dropSlots[currentSlotIndex];
-                
-                // Simulate an OnDrop on the active slot
-                if (targetSlot.occupant != null && targetSlot.occupant != item)
-                    targetSlot.occupant.AnimateToHome();
-
-                item.PlaceInSlot(targetSlot);
-                OnItemPlacedInSlot(item, targetSlot);
-            }
-            else
-            {
-                item.AnimateToHome();
-            }
+            ValidateAndApplyPlacement(item);
         }
 
-        /// <summary>Called by OrderingDropSlot when an item is dropped directly into a slot.</summary>
-        public void OnItemPlacedInSlot(OrderingDragItem item, OrderingDropSlot slot)
-        {
-            if (slot.slotIndex != currentSlotIndex)
-            {
-                item.AnimateToHome();
-                return;
-            }
-
-            ValidateAndApplyPlacement(item, slot);
-        }
-
-        private void ValidateAndApplyPlacement(OrderingDragItem item, OrderingDropSlot slot)
+        private void ValidateAndApplyPlacement(OrderingDragItem item)
         {
             var expectedOrder = orderingData.GetExpectedOrder();
             if (expectedOrder == null || currentSlotIndex >= expectedOrder.Count) return;
@@ -295,9 +217,8 @@ namespace QuizSystem
             if (item.originalIndex == expectedOriginalIndex)
             {
                 // Correct!
-                slot.SetHighlight(slotCorrectColor);
-                slot.isLocked = true;
-                item.GetComponent<CanvasGroup>().blocksRaycasts = false; // Disable dragging
+                item.LockInContainer(slotsContainer);
+                placedItems.Add(item);
 
                 starsCollected++;
                 QuizState.Instance?.NotifyCorrectAttempt();
@@ -322,7 +243,6 @@ namespace QuizSystem
 
                 // Snap item back home automatically
                 item.AnimateToHome();
-                slot.Clear();
 
                 int maxAttempts = orderingData.maxAttemptsPerSlot > 0 ? orderingData.maxAttemptsPerSlot : 3;
                 if (attemptsForCurrentSlot >= maxAttempts)
@@ -331,15 +251,8 @@ namespace QuizSystem
                     var correctItem = dragItems.Find(d => d.originalIndex == expectedOriginalIndex);
                     if (correctItem != null)
                     {
-                        correctItem.PlaceInSlot(slot);
-                        slot.SetHighlight(slotCorrectColor);
-                        slot.isLocked = true;
-                        correctItem.GetComponent<CanvasGroup>().blocksRaycasts = false;
-                    }
-
-                    if (HintsEnabled)
-                    {
-                        // Add hint logic if desired
+                        correctItem.LockInContainer(slotsContainer);
+                        placedItems.Add(correctItem);
                     }
 
                     if (hintButton != null) hintButton.gameObject.SetActive(false);
@@ -393,85 +306,10 @@ namespace QuizSystem
                 if (item != null)
                     item.ReturnHomeImmediate();
             }
-
-            foreach (var slot in dropSlots)
-            {
-                if (slot != null)
-                    slot.ResetHighlight();
-            }
+            placedItems.Clear();
         }
 
-        // ──────────────── order building ────────────────
-
-        /// <summary>
-        /// Reads the current slot occupants into a List of original item indices.
-        /// Returns null if any slot is empty.
-        /// </summary>
-        private List<int> BuildCurrentOrder()
-        {
-            var order = new List<int>(dropSlots.Count);
-            foreach (var slot in dropSlots)
-            {
-                if (!slot.IsOccupied)
-                    return null;
-                order.Add(slot.occupant.originalIndex);
-            }
-            return order;
-        }
-
-        // ──────────────── visual feedback ────────────────
-
-        private void HighlightEmptySlots()
-        {
-            foreach (var slot in dropSlots)
-            {
-                if (!slot.IsOccupied)
-                {
-                    slot.SetHighlight(slotWrongColor);
-                    if (enableFeedbackAnimations)
-                    {
-                        var rt = slot.GetComponent<RectTransform>();
-                        if (rt != null)
-                            rt.DOShakeAnchorPos(0.4f, 8f, 12, 90f, false, true);
-                    }
-                }
-            }
-        }
-
-        private void HighlightSlotsCorrect()
-        {
-            foreach (var slot in dropSlots)
-                slot.SetHighlight(slotCorrectColor);
-        }
-
-        private void HighlightWrongSlots(List<int> userOrder)
-        {
-            var allValid = orderingData.GetAllValidOrders();
-
-            // Find the best-matching valid order
-            List<int> bestOrder = allValid[0];
-            int bestMatches = 0;
-            foreach (var valid in allValid)
-            {
-                int matches = 0;
-                for (int i = 0; i < valid.Count && i < userOrder.Count; i++)
-                {
-                    if (valid[i] == userOrder[i]) matches++;
-                }
-                if (matches > bestMatches)
-                {
-                    bestMatches = matches;
-                    bestOrder = valid;
-                }
-            }
-
-            // Highlight each slot as correct or wrong compared to best match
-            for (int i = 0; i < dropSlots.Count; i++)
-            {
-                bool correct = i < userOrder.Count && i < bestOrder.Count && userOrder[i] == bestOrder[i];
-                dropSlots[i].SetHighlight(correct ? slotCorrectColor : slotWrongColor);
-            }
-        }
+        // ──────────────── auto-correct display ────────────────
 
         private void DisableAllDrag()
         {
@@ -484,8 +322,6 @@ namespace QuizSystem
                 }
             }
         }
-
-        // ──────────────── auto-correct display ────────────────
 
         protected override void OnAutoCorrect()
         {
@@ -500,21 +336,17 @@ namespace QuizSystem
             // Return all items home first (instant)
             foreach (var item in dragItems)
                 item.ReturnHomeImmediate();
+            placedItems.Clear();
 
-            // Place items into correct slots with staggered animation
-            for (int i = 0; i < expected.Count && i < dropSlots.Count; i++)
+            // Place items into correct slots container sequentially
+            for (int i = 0; i < expected.Count; i++)
             {
                 int origIdx = expected[i];
                 var item = dragItems.Find(d => d.originalIndex == origIdx);
                 if (item != null)
                 {
-                    float delay = i * 0.12f;
-                    var slot = dropSlots[i];
-                    DOVirtual.DelayedCall(delay, () =>
-                    {
-                        item.PlaceInSlot(slot);
-                        slot.SetHighlight(slotCorrectColor);
-                    });
+                    item.LockInContainer(slotsContainer);
+                    placedItems.Add(item);
                 }
             }
 
