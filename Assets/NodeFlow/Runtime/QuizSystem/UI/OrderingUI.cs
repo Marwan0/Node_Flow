@@ -164,15 +164,20 @@ namespace QuizSystem
 
                 slot.Init(i, this);
 
-                // Show the slot number
+                // Hide the slot number text completely
                 var label = slotObj.GetComponentInChildren<TextMeshProUGUI>();
                 if (label != null)
-                    label.text = $"{i + 1}.";
+                {
+                    label.text = "";
+                    label.enabled = false;
+                }
 
-                // Apply default slot color
+                // Hide the slot background completely so it's strictly an invisible layout gap
                 var img = slotObj.GetComponent<Image>();
                 if (img != null)
-                    img.color = slotDefaultColor;
+                {
+                    img.enabled = false;
+                }
 
                 dropSlots.Add(slot);
             }
