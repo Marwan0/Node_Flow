@@ -20,6 +20,9 @@ namespace QuizSystem
         private int homeSiblingIndex;
         private OrderingUI orderingUI;
 
+        private GameObject placeholder;
+        private Tweener snapTween;
+
         private const float SnapBackDuration = 0.3f;
         private const float DropDuration = 0.15f;
         private const float DragAlpha = 0.7f;
@@ -47,7 +50,20 @@ namespace QuizSystem
 
         public void OnBeginDrag(PointerEventData eventData)
         {
-            SaveHomePosition();
+            snapTween?.Kill();
+
+            if (placeholder == null)
+            {
+                placeholder = new GameObject("OrderingPlaceholder");
+                var rt = placeholder.AddComponent<RectTransform>();
+                rt.SetParent(originalParent, false);
+                rt.SetSiblingIndex(homeSiblingIndex);
+                rt.sizeDelta = rectTransform.rect.size;
+
+                var le = placeholder.AddComponent<LayoutElement>();
+                le.preferredWidth = rectTransform.rect.width;
+                le.preferredHeight = rectTransform.rect.height;
+            }
 
             canvasGroup.alpha = DragAlpha;
             canvasGroup.blocksRaycasts = false;
@@ -64,12 +80,18 @@ namespace QuizSystem
         public void OnEndDrag(PointerEventData eventData)
         {
             canvasGroup.alpha = 1f;
-            canvasGroup.blocksRaycasts = true;
 
             // If not placed in a slot by OrderingDropSlot.OnDrop, snap back
             if (currentSlot == null)
             {
+                canvasGroup.blocksRaycasts = true;
                 AnimateToHome();
+            }
+            else
+            {
+                // In sequential mode, it's either locked correctly or it was wrong.
+                // OrderingUI will handle raycasts. Make sure it stays false if placed.
+                canvasGroup.blocksRaycasts = true;
             }
         }
 
@@ -78,6 +100,8 @@ namespace QuizSystem
         /// <summary>Smoothly animate into a drop slot.</summary>
         public void PlaceInSlot(OrderingDropSlot slot)
         {
+            snapTween?.Kill();
+
             // Vacate previous slot
             if (currentSlot != null)
                 currentSlot.Clear();
@@ -95,26 +119,48 @@ namespace QuizSystem
         /// <summary>Smoothly animate back to the source container.</summary>
         public void AnimateToHome()
         {
+            snapTween?.Kill();
+
             if (currentSlot != null)
             {
                 currentSlot.Clear();
                 currentSlot = null;
             }
 
-            transform.SetParent(originalParent, true);
-            transform.SetSiblingIndex(homeSiblingIndex);
-            rectTransform.DOAnchorPos(homePosition, SnapBackDuration).SetEase(Ease.OutBack);
+            // Animate in root canvas to avoid LayoutGroup interference
+            transform.SetParent(rootCanvas.transform, true);
+            
+            Vector3 targetWorldPos = placeholder != null ? placeholder.transform.position : originalParent.TransformPoint(homePosition);
 
-            orderingUI?.OnItemReturnedToSource(this);
+            snapTween = transform.DOMove(targetWorldPos, SnapBackDuration).SetEase(Ease.OutBack).OnComplete(() =>
+            {
+                if (placeholder != null)
+                {
+                    Destroy(placeholder);
+                    placeholder = null;
+                }
+                transform.SetParent(originalParent, true);
+                transform.SetSiblingIndex(homeSiblingIndex);
+                rectTransform.anchoredPosition = homePosition;
+                orderingUI?.OnItemReturnedToSource(this);
+            });
         }
 
         /// <summary>Instantly place back home (no animation).</summary>
         public void ReturnHomeImmediate()
         {
+            snapTween?.Kill();
+
             if (currentSlot != null)
             {
                 currentSlot.Clear();
                 currentSlot = null;
+            }
+
+            if (placeholder != null)
+            {
+                Destroy(placeholder);
+                placeholder = null;
             }
 
             transform.SetParent(originalParent, true);

@@ -27,24 +27,15 @@ namespace QuizSystem
 
         public void OnDrop(PointerEventData eventData)
         {
-            if (isLocked) return;
-
             var dragItem = eventData.pointerDrag?.GetComponent<OrderingDragItem>();
             if (dragItem == null) return;
 
-            // Only allow drops into the current active slot
-            if (orderingUI != null && orderingUI.currentSlotIndex != slotIndex)
+            // In sequential mode, dropping on ANY slot (even locked ones) 
+            // should just evaluate the item for the *current active slot*.
+            if (orderingUI != null)
             {
-                // Let the item snap back; do not accept it
-                return;
+                orderingUI.TryDropItemIntoCurrentSlot(dragItem);
             }
-
-            // If this slot already has an item, send it home first
-            if (occupant != null && occupant != dragItem)
-                occupant.AnimateToHome();
-
-            dragItem.PlaceInSlot(this);
-            orderingUI?.OnItemPlacedInSlot(dragItem, this);
         }
 
         public void Accept(OrderingDragItem item)

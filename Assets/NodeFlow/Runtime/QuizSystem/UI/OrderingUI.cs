@@ -138,6 +138,23 @@ namespace QuizSystem
         {
             if (slotsContainer == null || dropSlotPrefab == null) return;
 
+            // Ensure the container itself can catch drops in the empty padding/spacing areas
+            var bgGraphic = slotsContainer.GetComponent<Graphic>();
+            if (bgGraphic == null)
+            {
+                bgGraphic = slotsContainer.gameObject.AddComponent<Image>();
+                bgGraphic.color = new Color(0, 0, 0, 0); // Transparent
+            }
+            bgGraphic.raycastTarget = true;
+
+            // Add global drop zone to the container itself
+            var containerDropZone = slotsContainer.gameObject.GetComponent<OrderingContainerDropZone>();
+            if (containerDropZone == null)
+            {
+                containerDropZone = slotsContainer.gameObject.AddComponent<OrderingContainerDropZone>();
+            }
+            containerDropZone.Init(this);
+
             for (int i = 0; i < orderingData.items.Count; i++)
             {
                 GameObject slotObj = Instantiate(dropSlotPrefab, slotsContainer);
@@ -163,6 +180,12 @@ namespace QuizSystem
             currentSlotIndex = 0;
             attemptsForCurrentSlot = 0;
             starsCollected = 0;
+
+            // Force layout rebuild so slots arrange themselves instantly before play begins
+            if (slotsContainer != null)
+            {
+                LayoutRebuilder.ForceRebuildLayoutImmediate(slotsContainer as RectTransform);
+            }
         }
 
         // ──────────────── drag item creation ────────────────
@@ -211,7 +234,27 @@ namespace QuizSystem
 
         // ──────────────── callbacks from drag/drop components ────────────────
 
-        /// <summary>Called by OrderingDropSlot when an item is dropped into a slot.</summary>
+        /// <summary>Called when a drop occurs anywhere on the slots container.</summary>
+        public void TryDropItemIntoCurrentSlot(OrderingDragItem item)
+        {
+            if (currentSlotIndex >= 0 && currentSlotIndex < dropSlots.Count)
+            {
+                var targetSlot = dropSlots[currentSlotIndex];
+                
+                // Simulate an OnDrop on the active slot
+                if (targetSlot.occupant != null && targetSlot.occupant != item)
+                    targetSlot.occupant.AnimateToHome();
+
+                item.PlaceInSlot(targetSlot);
+                OnItemPlacedInSlot(item, targetSlot);
+            }
+            else
+            {
+                item.AnimateToHome();
+            }
+        }
+
+        /// <summary>Called by OrderingDropSlot when an item is dropped directly into a slot.</summary>
         public void OnItemPlacedInSlot(OrderingDragItem item, OrderingDropSlot slot)
         {
             if (slot.slotIndex != currentSlotIndex)

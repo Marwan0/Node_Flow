@@ -579,7 +579,7 @@ MonoBehaviour:
   itemsSourceContainer: {fileID: 6857332802092503168}
   slotsContainer: {fileID: 3559520008295448550}
   dragItemPrefab: {fileID: 6826371633868030353, guid: 4972c18711e709044bed1797e0fea9e4, type: 3}
-  dropSlotPrefab: {fileID: 6826371633868030353, guid: 4972c18711e709044bed1797e0fea9e4, type: 3}
+  dropSlotPrefab: {fileID: 6826371633868030353, guid: 80227b495ab0c094da9482358cab518f, type: 3}
   resetButton: {fileID: 5311221686827777067}
   slotDefaultColor: {r: 1, g: 1, b: 1, a: 0.25}
   slotOccupiedColor: {r: 0.6, g: 0.85, b: 1, a: 0.6}
