@@ -179,6 +179,20 @@ namespace QuizSystem
                     img.enabled = false;
                 }
 
+                // Ensure the empty slot has a physical width/height for the LayoutGroup
+                var le = slotObj.GetComponent<LayoutElement>();
+                if (le == null) le = slotObj.AddComponent<LayoutElement>();
+                
+                if (dragItemPrefab != null)
+                {
+                    var prefabRt = dragItemPrefab.GetComponent<RectTransform>();
+                    if (prefabRt != null)
+                    {
+                        le.preferredWidth = prefabRt.rect.width;
+                        le.preferredHeight = prefabRt.rect.height;
+                    }
+                }
+
                 dropSlots.Add(slot);
             }
             totalSlots = orderingData.items.Count;

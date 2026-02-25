@@ -114,6 +114,24 @@ namespace QuizSystem
 
             transform.SetParent(slot.transform, true);
             rectTransform.DOAnchorPos(Vector2.zero, DropDuration).SetEase(Ease.OutQuad);
+
+            // Since the slot's visual Image is disabled, it has no native width.
+            // We must force the slot to have the exact layout dimensions of this dragged word.
+            var slotLe = slot.GetComponent<LayoutElement>();
+            if (slotLe == null) slotLe = slot.gameObject.AddComponent<LayoutElement>();
+            
+            slotLe.preferredWidth = rectTransform.rect.width;
+            slotLe.preferredHeight = rectTransform.rect.height;
+
+            // Force layout recalculations immediately to prevent items from overlapping
+            LayoutRebuilder.ForceRebuildLayoutImmediate(transform.parent as RectTransform);
+            
+            // Also rebuild the root slots container if possible to push siblings
+            var slotsContainer = slot.transform.parent as RectTransform;
+            if (slotsContainer != null)
+            {
+                LayoutRebuilder.ForceRebuildLayoutImmediate(slotsContainer);
+            }
         }
 
         /// <summary>Smoothly animate back to the source container.</summary>
