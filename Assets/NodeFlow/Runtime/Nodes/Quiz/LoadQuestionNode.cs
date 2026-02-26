@@ -103,6 +103,10 @@ namespace NodeSystem.Nodes.Quiz
         [NonSerialized]
         private AnswerAnimationSettings[] _answerAnimations;
 
+        // Tracks GUIDs of all feedback-chain nodes still running (for auto-unlock)
+        [NonSerialized]
+        private HashSet<string> _feedbackTrackedGuids = new HashSet<string>();
+
         public override string Name => "Load Question";
         public override Color Color => new Color(0.2f, 0.7f, 0.4f); // Green
         public override string Category => "Quiz";
@@ -123,6 +127,8 @@ namespace NodeSystem.Nodes.Quiz
                 new PortData("incorrect", "Incorrect", PortDirection.Output),
                 new PortData("on_correct", "On Correct Attempt", PortDirection.Output),
                 new PortData("on_wrong", "On Wrong Attempt", PortDirection.Output),
+                new PortData("on_correct_feedback", "On Correct Feedback", PortDirection.Output),
+                new PortData("on_wrong_feedback", "On Wrong Feedback", PortDirection.Output),
                 new PortData("complete", "Complete", PortDirection.Output)
             };
         }
@@ -277,6 +283,8 @@ namespace NodeSystem.Nodes.Quiz
                 QuizState.OnLastAnswerResult += OnAnswerReceived;
                 QuizState.OnCorrectAttempt += OnCorrectAttemptReceived;
                 QuizState.OnWrongAttempt += OnWrongAttemptReceived;
+                QuizState.OnCorrectAnswerFeedbackStart += OnCorrectAnswerFeedbackReceived;
+                QuizState.OnWrongAnswerFeedbackStart += OnWrongAnswerFeedbackReceived;
                 Runner?.StartCoroutine(LoadAndWaitForAnswer(questionIndex));
             }
             else
@@ -311,6 +319,8 @@ namespace NodeSystem.Nodes.Quiz
             QuizState.OnLastAnswerResult -= OnAnswerReceived;
             QuizState.OnCorrectAttempt -= OnCorrectAttemptReceived;
             QuizState.OnWrongAttempt -= OnWrongAttemptReceived;
+            QuizState.OnCorrectAnswerFeedbackStart -= OnCorrectAnswerFeedbackReceived;
+            QuizState.OnWrongAnswerFeedbackStart -= OnWrongAnswerFeedbackReceived;
 
             // Note: QuizState.RecordAnswer is now called by QuizManager.OnQuestionAnswered()
             // so we don't need to call it here anymore
@@ -351,6 +361,90 @@ namespace NodeSystem.Nodes.Quiz
                 {
                     Runner.ExecuteNode(node);
                 }
+            }
+        }
+
+        private void OnCorrectAnswerFeedbackReceived()
+        {
+            ExecuteFeedbackChain("on_correct_feedback");
+        }
+
+        private void OnWrongAnswerFeedbackReceived()
+        {
+            ExecuteFeedbackChain("on_wrong_feedback");
+        }
+
+        /// <summary>
+        /// Fires all nodes connected to the given feedback port.
+        /// Tracks every node in the chain by GUID using NodeGraphRunner.OnNodeCompleted
+        /// (a static event the runner fires AFTER setting up OnComplete — so it's never lost).
+        /// When the last tracked node finishes the UI is auto-unlocked.
+        /// </summary>
+        private void ExecuteFeedbackChain(string portId)
+        {
+            if (Runner == null || Runner.Graph == null)
+            {
+                QuizState.RequestUIUnlock();
+                return;
+            }
+
+            var feedbackNodes = Runner.Graph.GetConnectedNodes(Guid, portId);
+            if (feedbackNodes == null || feedbackNodes.Count == 0)
+            {
+                QuizState.RequestUIUnlock();
+                return;
+            }
+
+            // Build initial tracking set from the direct feedback root nodes
+            _feedbackTrackedGuids.Clear();
+            foreach (var node in feedbackNodes)
+            {
+                if (node != null)
+                    _feedbackTrackedGuids.Add(node.Guid);
+            }
+
+            // Subscribe to the STATIC runner event — fires after every node completes,
+            // is never overwritten by the runner's OnComplete = assignment.
+            NodeGraphRunner.OnNodeCompleted -= OnFeedbackChainNodeCompleted;
+            NodeGraphRunner.OnNodeCompleted += OnFeedbackChainNodeCompleted;
+
+            // Launch the root feedback nodes
+            foreach (var node in feedbackNodes)
+            {
+                Runner.ExecuteNode(node);
+            }
+        }
+
+        private void OnFeedbackChainNodeCompleted(NodeGraphRunner runner, NodeData completedNode)
+        {
+            // Only care about nodes in our feedback chain, on our runner
+            if (runner != Runner) return;
+            if (!_feedbackTrackedGuids.Remove(completedNode.Guid)) return;
+
+            // Add any downstream nodes to keep tracking the full chain
+            if (Runner?.Graph != null)
+            {
+                // Check all output ports for downstream connections
+                foreach (var port in completedNode.GetOutputPorts())
+                {
+                    var downstream = Runner.Graph.GetConnectedNodes(completedNode.Guid, port.id);
+                    if (downstream != null)
+                    {
+                        foreach (var dn in downstream)
+                        {
+                            if (dn != null)
+                                _feedbackTrackedGuids.Add(dn.Guid);
+                        }
+                    }
+                }
+            }
+
+            // When all tracked nodes are done — the whole chain has finished
+            if (_feedbackTrackedGuids.Count == 0)
+            {
+                NodeGraphRunner.OnNodeCompleted -= OnFeedbackChainNodeCompleted;
+                // Auto-unlock (idempotent guard in QuizState prevents double-fire)
+                QuizState.RequestUIUnlock();
             }
         }
 
@@ -408,6 +502,11 @@ namespace NodeSystem.Nodes.Quiz
             QuizState.OnLastAnswerResult -= OnAnswerReceived;
             QuizState.OnCorrectAttempt -= OnCorrectAttemptReceived;
             QuizState.OnWrongAttempt -= OnWrongAttemptReceived;
+            QuizState.OnCorrectAnswerFeedbackStart -= OnCorrectAnswerFeedbackReceived;
+            QuizState.OnWrongAnswerFeedbackStart -= OnWrongAnswerFeedbackReceived;
+            // Clean up feedback chain tracking
+            NodeGraphRunner.OnNodeCompleted -= OnFeedbackChainNodeCompleted;
+            _feedbackTrackedGuids.Clear();
         }
     }
 }

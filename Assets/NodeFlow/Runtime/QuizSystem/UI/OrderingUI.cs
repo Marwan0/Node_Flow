@@ -256,7 +256,14 @@ namespace QuizSystem
             {
                 // Wrong!
                 attemptsForCurrentSlot++;
+
+                // Lock and notify feedback — unlock immediately (no finalize yet, user retries)
+                LockUI();
                 QuizState.Instance?.NotifyWrongAttempt();
+                bool hasFeedbackListeners = QuizState.Instance != null &&
+                    QuizState.Instance.NotifyWrongAnswerFeedback();
+                if (!hasFeedbackListeners)
+                    UnlockUI();
 
                 // Snap item back home automatically
                 item.AnimateToHome();
@@ -301,7 +308,7 @@ namespace QuizSystem
 
         private void CompleteQuestion(bool allCorrect, int points)
         {
-            quizManager?.OnQuestionAnswered(allCorrect, points, currentQuestion);
+            FinalizeQuestion(allCorrect, points);
         }
 
         private int GetEarnedRawQuestionPoints()
@@ -314,6 +321,28 @@ namespace QuizSystem
         public override void OnAnswerSubmitted()
         {
             // Sequential ordering validates on each drop; no full-question submit.
+        }
+
+        public override void LockUI()
+        {
+            base.LockUI(); // handles CanvasGroup on root (blocks non-drag UI elements)
+            // Also disable drag directly on each item — they may be reparented to the root
+            // canvas during OnBeginDrag and would escape the root CanvasGroup lock.
+            foreach (var item in dragItems)
+            {
+                if (item != null) item.dragEnabled = false;
+            }
+        }
+
+        public override void UnlockUI()
+        {
+            base.UnlockUI(); // restores root CanvasGroup
+            foreach (var item in dragItems)
+            {
+                // Only re-enable drag on items that aren't permanently locked into a slot
+                if (item != null && !item.isLocked)
+                    item.dragEnabled = true;
+            }
         }
 
         // ──────────────── auto-correct display ────────────────

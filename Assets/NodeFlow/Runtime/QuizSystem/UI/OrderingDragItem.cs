@@ -11,6 +11,12 @@ namespace QuizSystem
         [HideInInspector] public int originalIndex;
         [HideInInspector] public bool isLocked = false;
 
+        /// <summary>
+        /// Set to false to prevent the user from starting new drags.
+        /// Used by OrderingUI.LockUI() during answer feedback.
+        /// </summary>
+        [HideInInspector] public bool dragEnabled = true;
+
         private Canvas rootCanvas;
         private RectTransform rectTransform;
         private CanvasGroup canvasGroup;
@@ -46,8 +52,18 @@ namespace QuizSystem
 
         // ──────────────── drag callbacks ────────────────
 
+        private bool _isDragCancelled = false;
+
         public void OnBeginDrag(PointerEventData eventData)
         {
+            // Honour the lock — cancel drag immediately if disabled
+            if (!dragEnabled)
+            {
+                _isDragCancelled = true;
+                return;
+            }
+
+            _isDragCancelled = false;
             snapTween?.Kill();
 
             if (placeholder == null)
@@ -72,11 +88,18 @@ namespace QuizSystem
 
         public void OnDrag(PointerEventData eventData)
         {
+            if (_isDragCancelled) return;
             rectTransform.anchoredPosition += eventData.delta / rootCanvas.scaleFactor;
         }
 
         public void OnEndDrag(PointerEventData eventData)
         {
+            if (_isDragCancelled)
+            {
+                _isDragCancelled = false;
+                return;
+            }
+
             canvasGroup.alpha = 1f;
 
             if (!isLocked)

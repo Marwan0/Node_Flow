@@ -31,6 +31,12 @@ namespace QuizSystem
         protected RectTransform hintPanelRectTransform;
         protected CanvasGroup hintPanelCanvasGroup;
 
+        // Used for UI lock/unlock during answer feedback
+        private CanvasGroup _uiLockCanvasGroup;
+        private bool _isLocked = false;
+        // Action deferred until after feedback chain completes (e.g. quizManager.OnQuestionAnswered)
+        private System.Action _pendingOnAnswered;
+
         /// <summary>
         /// Whether hints are globally enabled (set by LoadQuestionNode via QuizState).
         /// </summary>
@@ -107,10 +113,51 @@ namespace QuizSystem
 
             UpdateAttemptCounter();
             SetupQuestion();
+
+            // Subscribe to unlock event so this UI can be re-enabled when feedback chain finishes
+            QuizState.OnUIUnlockRequested += UnlockUI;
+        }
+
+        protected virtual void OnDestroy()
+        {
+            QuizState.OnUIUnlockRequested -= UnlockUI;
         }
 
         protected abstract void SetupQuestion();
         public abstract void OnAnswerSubmitted();
+
+        /// <summary>
+        /// The single correct way for any QuestionUI subclass to complete the question.
+        /// Locks the UI, fires the appropriate feedback event (correct or wrong),
+        /// and defers quizManager.OnQuestionAnswered until after the feedback chain finishes.
+        /// Use this instead of calling quizManager.OnQuestionAnswered directly.
+        /// </summary>
+        protected void FinalizeQuestion(bool wasCorrect, int points)
+        {
+            // Lock UI immediately
+            LockUI();
+
+            // Store the deferred completion call
+            _pendingOnAnswered = () => quizManager?.OnQuestionAnswered(wasCorrect, points, currentQuestion);
+
+            // Animate
+            if (enableFeedbackAnimations)
+            {
+                if (wasCorrect) AnimateCorrectAnswer();
+                else AnimateWrongAnswer();
+            }
+
+            // Fire feedback event — auto-unlock if nothing is connected
+            bool hasFeedbackListeners = QuizState.Instance != null &&
+                (wasCorrect
+                    ? QuizState.Instance.NotifyCorrectAnswerFeedback()
+                    : QuizState.Instance.NotifyWrongAnswerFeedback());
+
+            if (!hasFeedbackListeners)
+            {
+                UnlockUI(); // also fires _pendingOnAnswered
+            }
+        }
 
         protected virtual void ShowHint(string hint)
         {
@@ -227,29 +274,92 @@ namespace QuizSystem
             Debug.Log("Correct answer!");
             if (submitButton != null)
                 submitButton.interactable = false;
-            
+
+            // Lock UI immediately so user cannot re-submit during feedback
+            LockUI();
+
             // Animate correct answer feedback
             if (enableFeedbackAnimations)
             {
                 AnimateCorrectAnswer();
             }
-            
-            quizManager?.OnQuestionAnswered(true, currentQuestion.points, currentQuestion);
+
+            // Defer OnQuestionAnswered until after all feedback nodes finish
+            _pendingOnAnswered = () => quizManager?.OnQuestionAnswered(true, currentQuestion.points, currentQuestion);
+
+            // Notify quiz system — if no feedback nodes are wired, unlock (and fire pending) right away
+            bool hasFeedbackListeners = QuizState.Instance != null &&
+                QuizState.Instance.NotifyCorrectAnswerFeedback();
+            if (!hasFeedbackListeners)
+            {
+                UnlockUI();
+            }
         }
 
         protected virtual void OnWrongAnswer()
         {
             Debug.Log("Wrong answer. Try again.");
 
+            // Lock UI so user cannot spam answers during feedback
+            LockUI();
+
             // Animate wrong answer feedback
             if (enableFeedbackAnimations)
             {
                 AnimateWrongAnswer();
             }
-            
+
             // Notify QuizState of wrong attempt (for VFX/sounds via node system)
-            // This does NOT complete the question - user can still try again
+            // This does NOT complete the question - user can still try again after feedback
             QuizState.Instance?.NotifyWrongAttempt();
+
+            // Fire feedback nodes — if nothing is wired, unlock immediately
+            bool hasFeedbackListeners = QuizState.Instance != null &&
+                QuizState.Instance.NotifyWrongAnswerFeedback();
+            if (!hasFeedbackListeners)
+            {
+                UnlockUI();
+            }
+        }
+
+        /// <summary>
+        /// Locks all interaction on this question UI.
+        /// Called automatically when an answer is submitted.
+        /// </summary>
+        public virtual void LockUI()
+        {
+            if (_isLocked) return;
+            _isLocked = true;
+
+            // Lazily acquire or create a CanvasGroup on this object for blocking input
+            if (_uiLockCanvasGroup == null)
+                _uiLockCanvasGroup = GetComponent<CanvasGroup>() ?? gameObject.AddComponent<CanvasGroup>();
+
+            _uiLockCanvasGroup.interactable = false;
+            _uiLockCanvasGroup.blocksRaycasts = false;
+            Debug.Log("[QuestionUI] UI locked");
+        }
+
+        /// <summary>
+        /// Unlocks interaction on this question UI.
+        /// Called by QuizState.OnUIUnlockRequested (from UnlockQuizUINode or auto-unlock).
+        /// </summary>
+        public virtual void UnlockUI()
+        {
+            if (!_isLocked) return;
+            _isLocked = false;
+
+            if (_uiLockCanvasGroup != null)
+            {
+                _uiLockCanvasGroup.interactable = true;
+                _uiLockCanvasGroup.blocksRaycasts = true;
+            }
+            Debug.Log("[QuestionUI] UI unlocked");
+
+            // Fire any deferred action (e.g. quizManager.OnQuestionAnswered) now that feedback is done
+            var pending = _pendingOnAnswered;
+            _pendingOnAnswered = null;
+            pending?.Invoke();
         }
 
         protected virtual void AnimateCorrectAnswer()
@@ -277,6 +387,9 @@ namespace QuizSystem
         {
             Debug.Log("Auto-correct triggered - user exhausted all attempts.");
 
+            // Lock UI so user cannot interact while feedback plays
+            LockUI();
+
             // Only show correct-answer hint if hints are globally enabled
             if (HintsEnabled)
             {
@@ -289,9 +402,16 @@ namespace QuizSystem
 
             if (hintButton != null) hintButton.gameObject.SetActive(false);
 
-            // User exhausted all attempts without getting the correct answer
-            // Pass false since they didn't actually answer correctly
-            quizManager?.OnQuestionAnswered(false, 0, currentQuestion);
+            // Defer OnQuestionAnswered until after feedback chain finishes
+            _pendingOnAnswered = () => quizManager?.OnQuestionAnswered(false, 0, currentQuestion);
+
+            // Notify quiz system — reuse wrong feedback event (all attempts exhausted = wrong outcome)
+            bool hasFeedbackListeners = QuizState.Instance != null &&
+                QuizState.Instance.NotifyWrongAnswerFeedback();
+            if (!hasFeedbackListeners)
+            {
+                UnlockUI();
+            }
         }
 
         protected abstract string GetCorrectAnswerDisplay();

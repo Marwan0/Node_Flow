@@ -254,6 +254,7 @@ GameObject:
   - component: {fileID: 798208837586146816}
   - component: {fileID: 4642424203774707126}
   - component: {fileID: 8023666521619421069}
+  - component: {fileID: 7888879015273264182}
   m_Layer: 5
   m_Name: MultipleChoiceUI
   m_TagString: Untagged
@@ -338,6 +339,7 @@ MonoBehaviour:
   hintText: {fileID: 8366697553536939096}
   attemptCounterText: {fileID: 5989995013101643429}
   hintPanel: {fileID: 5150631238754156362}
+  hintButton: {fileID: 0}
   submitButton: {fileID: 0}
   enableFeedbackAnimations: 0
   feedbackDuration: 0.5
@@ -354,6 +356,18 @@ MonoBehaviour:
   enableButtonEntrance: 1
   buttonStaggerDelay: 0.1
   buttonEntranceDuration: 0.3
+--- !u!225 &7888879015273264182
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1647681409039264732}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &1780189712999211209
 GameObject:
   m_ObjectHideFlags: 0

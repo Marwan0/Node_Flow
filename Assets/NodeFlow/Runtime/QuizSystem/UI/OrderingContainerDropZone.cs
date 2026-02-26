@@ -19,6 +19,9 @@ namespace QuizSystem
             var dragItem = eventData.pointerDrag?.GetComponent<OrderingDragItem>();
             if (dragItem == null) return;
 
+            // Ignore drops from items whose drag was cancelled by the lock
+            if (!dragItem.dragEnabled) return;
+
             // Forward the drop to the current active slot in OrderingUI
             orderingUI.TryDropItemIntoCurrentSlot(dragItem);
         }

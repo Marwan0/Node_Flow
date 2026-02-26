@@ -374,7 +374,15 @@ namespace QuizSystem
             {
                 attemptsForCurrentConnection++;
                 PlayWrongAudio();
+
+                // Lock UI and fire feedback chain; unlock when done so user can retry
+                LockUI();
                 QuizState.Instance?.NotifyWrongAttempt();
+                bool hasFeedbackListeners = QuizState.Instance != null &&
+                    QuizState.Instance.NotifyWrongAnswerFeedback();
+                if (!hasFeedbackListeners)
+                    UnlockUI();
+
                 UpdateProgressText();
 
                 if (attemptsForCurrentConnection >= GetMaxAttemptsPerConnection())
@@ -434,7 +442,7 @@ namespace QuizSystem
         {
             if (submitButton != null)
                 submitButton.gameObject.SetActive(false);
-            quizManager?.OnQuestionAnswered(allCorrect, points, currentQuestion);
+            FinalizeQuestion(allCorrect, points);
         }
 
         private int GetEarnedRawQuestionPoints()

@@ -34,6 +34,17 @@ namespace QuizSystem
         public static event Action OnQuizCompleted;
         public static event Action<float> OnTimerTick; // remainingTime
 
+        /// <summary>Fires after the UI is locked on a correct answer. Connect feedback nodes here.</summary>
+        public static event Action OnCorrectAnswerFeedbackStart;
+        /// <summary>Fires after the UI is locked on a wrong answer. Connect feedback nodes here.</summary>
+        public static event Action OnWrongAnswerFeedbackStart;
+        /// <summary>Fires when feedback nodes finish and the UI should be unlocked.</summary>
+        public static event Action OnUIUnlockRequested;
+
+        // === UI Lock State ===
+        /// <summary>Whether the quiz UI is currently locked (during answer feedback).</summary>
+        public static bool UILocked { get; private set; } = false;
+
         // === State Properties ===
         [Header("Quiz Progress")]
         public int totalQuestions = 0;
@@ -155,6 +166,47 @@ namespace QuizSystem
             Debug.Log("[QuizState] Correct attempt");
         }
 
+        /// <summary>
+        /// Called by QuestionUI after locking on a correct answer.
+        /// Fires OnCorrectAnswerFeedbackStart so LoadQuestionNode can run feedback nodes.
+        /// Returns true if any listeners are registered (so UI knows to wait for explicit unlock).
+        /// </summary>
+        public bool NotifyCorrectAnswerFeedback()
+        {
+            UILocked = true;
+            bool hasListeners = OnCorrectAnswerFeedbackStart != null;
+            OnCorrectAnswerFeedbackStart?.Invoke();
+            Debug.Log("[QuizState] Correct answer feedback started (UI locked)");
+            return hasListeners;
+        }
+
+        /// <summary>
+        /// Called by QuestionUI after locking on a wrong answer.
+        /// Fires OnWrongAnswerFeedbackStart so LoadQuestionNode can run feedback nodes.
+        /// Returns true if any listeners are registered (so UI knows to wait for explicit unlock).
+        /// </summary>
+        public bool NotifyWrongAnswerFeedback()
+        {
+            UILocked = true;
+            bool hasListeners = OnWrongAnswerFeedbackStart != null;
+            OnWrongAnswerFeedbackStart?.Invoke();
+            Debug.Log("[QuizState] Wrong answer feedback started (UI locked)");
+            return hasListeners;
+        }
+
+        /// <summary>
+        /// Called by UnlockQuizUINode (or immediately if no feedback nodes are connected)
+        /// to re-enable quiz UI interaction.
+        /// </summary>
+        public static void RequestUIUnlock()
+        {
+            // Guard: only unlock once per lock cycle
+            if (!UILocked) return;
+            UILocked = false;
+            OnUIUnlockRequested?.Invoke();
+            Debug.Log("[QuizState] UI unlock requested");
+        }
+
         public void AddScore(int points)
         {
             currentScore += points;
@@ -232,6 +284,7 @@ namespace QuizSystem
             quizCompleted = false;
             showHints = true;
             quizManagerRef = null;
+            UILocked = false;
             // Don't clear currentAnswerAnimations here - they're per-question settings
             // and should persist until the next question sets new ones
             // currentAnswerAnimations = null;
