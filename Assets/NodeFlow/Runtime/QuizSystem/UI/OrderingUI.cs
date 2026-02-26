@@ -171,11 +171,22 @@ namespace QuizSystem
 
             if (orderingData.shuffleItems)
             {
-                for (int i = 0; i < indices.Count; i++)
+                var validOrders = orderingData.GetAllValidOrders();
+                int attempts = 0;
+                const int maxAttempts = 50;
+
+                do
                 {
-                    int j = Random.Range(i, indices.Count);
-                    (indices[i], indices[j]) = (indices[j], indices[i]);
+                    // Fisher-Yates shuffle
+                    for (int i = 0; i < indices.Count; i++)
+                    {
+                        int j = Random.Range(i, indices.Count);
+                        (indices[i], indices[j]) = (indices[j], indices[i]);
+                    }
+                    attempts++;
                 }
+                // Keep reshuffling while the result matches ANY valid order
+                while (attempts < maxAttempts && IsValidOrder(indices, validOrders));
             }
 
             foreach (int origIdx in indices)
@@ -316,6 +327,25 @@ namespace QuizSystem
             if (totalSlots <= 0 || currentQuestion == null) return 0;
             float normalized = Mathf.Clamp01((float)starsCollected / totalSlots);
             return Mathf.RoundToInt(currentQuestion.points * normalized);
+        }
+
+        /// <summary>
+        /// Returns true if the given index list exactly matches any of the valid orders.
+        /// Used by CreateDragItems to reject shuffles that are already in a correct order.
+        /// </summary>
+        private static bool IsValidOrder(List<int> indices, List<List<int>> validOrders)
+        {
+            foreach (var order in validOrders)
+            {
+                if (order.Count != indices.Count) continue;
+                bool match = true;
+                for (int i = 0; i < indices.Count; i++)
+                {
+                    if (indices[i] != order[i]) { match = false; break; }
+                }
+                if (match) return true;
+            }
+            return false;
         }
 
         public override void OnAnswerSubmitted()
