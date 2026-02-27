@@ -115,7 +115,7 @@ namespace NodeSystem.Nodes.Quiz
         {
             return new List<PortData>
             {
-                new PortData("input", "Execute", PortDirection.Input)
+                new PortData("input", "Execute", PortDirection.Input, PortCapacity.Single, "Loads the question and starts execution flow.")
             };
         }
 
@@ -123,13 +123,13 @@ namespace NodeSystem.Nodes.Quiz
         {
             return new List<PortData>
             {
-                new PortData("correct", "Correct", PortDirection.Output),
-                new PortData("incorrect", "Incorrect", PortDirection.Output),
-                new PortData("on_correct", "On Correct Attempt", PortDirection.Output),
-                new PortData("on_wrong", "On Wrong Attempt", PortDirection.Output),
-                new PortData("on_correct_feedback", "On Correct Feedback", PortDirection.Output),
-                new PortData("on_wrong_feedback", "On Wrong Feedback", PortDirection.Output),
-                new PortData("complete", "Complete", PortDirection.Output)
+                new PortData("correct", "Correct", PortDirection.Output, PortCapacity.Multi, "Fires when the question is finally answered correctly."),
+                new PortData("incorrect", "Incorrect", PortDirection.Output, PortCapacity.Multi, "Fires when the question is finally answered incorrectly."),
+                new PortData("on_correct", "On Correct Attempt", PortDirection.Output, PortCapacity.Multi, "Fires on every correct partial action (e.g. correct pair in Connect)."),
+                new PortData("on_wrong", "On Wrong Attempt", PortDirection.Output, PortCapacity.Multi, "Fires on every wrong partial action or attempt."),
+                new PortData("on_correct_feedback", "On Correct Feedback", PortDirection.Output, PortCapacity.Multi, "Starts the feedback chain for a correct answer."),
+                new PortData("on_wrong_feedback", "On Wrong Feedback", PortDirection.Output, PortCapacity.Multi, "Starts the feedback chain for a wrong answer."),
+                new PortData("complete", "Complete", PortDirection.Output, PortCapacity.Multi, "Fires when the node finishes execution (regardless of result).")
             };
         }
 

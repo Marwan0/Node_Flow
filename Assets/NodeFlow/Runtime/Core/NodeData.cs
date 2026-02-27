@@ -42,14 +42,16 @@ namespace NodeSystem
     {
         public string id;
         public string name;
+        public string description;
         public PortDirection direction;
         public PortCapacity capacity;
 
-        public PortData(string id, string name, PortDirection direction, PortCapacity capacity = PortCapacity.Single)
+        public PortData(string id, string name, PortDirection direction, PortCapacity capacity = PortCapacity.Single, string description = "")
         {
             this.id = id;
             this.name = name;
             this.direction = direction;
+            this.description = description;
             
             // Smart default: Output ports allow multiple connections (one-to-many)
             // Input ports are single by default (many-to-one)
@@ -156,29 +158,51 @@ namespace NodeSystem
         }
 
         /// <summary>
-        /// Returns description text for editor UI. Falls back to port summary when no custom description is provided.
+        /// Returns description text for editor UI. Formats a multi-line summary including node description and port details.
         /// </summary>
         public string GetHintText()
         {
+            var sb = new System.Text.StringBuilder();
+
+            // 1. Node Title & Category
+            sb.AppendLine($"{Name} ({Category} Node)");
+
+            // 2. Main Description
             if (!string.IsNullOrWhiteSpace(Description))
             {
-                return Description.Trim();
+                sb.AppendLine();
+                sb.AppendLine(Description.Trim());
             }
 
-            var inputNames = GetInputPorts()?
-                .Where(p => p != null && !string.IsNullOrWhiteSpace(p.name))
-                .Select(p => p.name.Trim())
-                .ToList() ?? new List<string>();
+            // 3. Input Ports
+            var inputs = GetInputPorts();
+            if (inputs != null && inputs.Count > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine("INPUTS:");
+                foreach (var port in inputs)
+                {
+                    string info = string.IsNullOrWhiteSpace(port.description) ? "Executes node logic" : port.description;
+                    string capacity = port.capacity == PortCapacity.Multi ? " [Multi]" : "";
+                    sb.AppendLine($"• {port.name}: {info}{capacity}");
+                }
+            }
 
-            var outputNames = GetOutputPorts()?
-                .Where(p => p != null && !string.IsNullOrWhiteSpace(p.name))
-                .Select(p => p.name.Trim())
-                .ToList() ?? new List<string>();
+            // 4. Output Ports
+            var outputs = GetOutputPorts();
+            if (outputs != null && outputs.Count > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine("OUTPUTS:");
+                foreach (var port in outputs)
+                {
+                    string info = string.IsNullOrWhiteSpace(port.description) ? "Flow continues here" : port.description;
+                    string capacity = port.capacity == PortCapacity.Multi ? " [Multi]" : "";
+                    sb.AppendLine($"• {port.name}: {info}{capacity}");
+                }
+            }
 
-            var inputSummary = inputNames.Count > 0 ? string.Join(", ", inputNames) : "None";
-            var outputSummary = outputNames.Count > 0 ? string.Join(", ", outputNames) : "None";
-
-            return $"{Name}: {Category} node. Inputs: {inputSummary}. Outputs: {outputSummary}.";
+            return sb.ToString().Trim();
         }
 
         /// <summary>Execute the node (called by runner)</summary>

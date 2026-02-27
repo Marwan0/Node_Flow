@@ -24,7 +24,7 @@ namespace NodeSystem.Nodes.Quiz
         {
             return new List<PortData>
             {
-                new PortData("input", "Execute", PortDirection.Input)
+                new PortData("input", "Execute", PortDirection.Input, PortCapacity.Single, "Triggers the UI unlock logic.")
             };
         }
 
@@ -32,7 +32,7 @@ namespace NodeSystem.Nodes.Quiz
         {
             return new List<PortData>
             {
-                new PortData("output", "Done", PortDirection.Output)
+                new PortData("output", "Done", PortDirection.Output, PortCapacity.Multi, "Fires after the UI unlock request is sent.")
             };
         }
 

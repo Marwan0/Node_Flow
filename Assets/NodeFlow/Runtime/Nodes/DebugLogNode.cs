@@ -26,7 +26,7 @@ namespace NodeSystem.Nodes
         {
             return new List<PortData>
             {
-                new PortData("input", "Execute", PortDirection.Input)
+                new PortData("input", "Execute", PortDirection.Input, PortCapacity.Single, "Triggers the logging action.")
             };
         }
 
@@ -34,7 +34,7 @@ namespace NodeSystem.Nodes
         {
             return new List<PortData>
             {
-                new PortData("output", "Next", PortDirection.Output)
+                new PortData("output", "Next", PortDirection.Output, PortCapacity.Multi, "Fires after the message is logged.")
             };
         }
 
