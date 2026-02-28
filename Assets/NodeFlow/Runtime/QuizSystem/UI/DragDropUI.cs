@@ -51,6 +51,7 @@ namespace QuizSystem
         private DragItemUI currentlyDragging = null;
         private DropZoneUI currentlyHoveredZone = null;
         private bool _lastDropWasWrong = false;
+        private HashSet<int> _correctZoneIndices = new HashSet<int>(); // zones with correct items
         
         private Canvas rootCanvas;
 
@@ -79,6 +80,7 @@ namespace QuizSystem
             currentlyHoveredZone = null;
             correctCount = 0;
             totalItems = ddData.dragItems.Count;
+            _correctZoneIndices.Clear();
 
             // No submit button needed — validation happens live on each drop
             if (submitButton != null)
@@ -309,11 +311,14 @@ namespace QuizSystem
         {
             currentlyDragging = null;
 
-            // Clear hover state
+            // Clear hover state — but don't reset correct zones
             if (currentlyHoveredZone != null && currentlyHoveredZone.dropZoneObject != null)
             {
-                Image img = currentlyHoveredZone.dropZoneObject.GetComponent<Image>();
-                if (img != null) img.color = defaultZoneColor;
+                if (!_correctZoneIndices.Contains(currentlyHoveredZone.zoneIndex))
+                {
+                    Image img = currentlyHoveredZone.dropZoneObject.GetComponent<Image>();
+                    if (img != null) img.color = defaultZoneColor;
+                }
                 currentlyHoveredZone = null;
             }
 
@@ -389,6 +394,7 @@ namespace QuizSystem
 
                 // Score and progress
                 correctCount++;
+                _correctZoneIndices.Add(dropIndex);
                 QuizState.Instance?.NotifyCorrectAttempt();
                 quizManager?.UpdateQuestionProgress(currentQuestion, correctCount, totalItems);
 
@@ -432,12 +438,17 @@ namespace QuizSystem
 
             if (newHoveredZone != currentlyHoveredZone)
             {
+                // Restore previous zone color (but not if it's a correct zone — keep it green)
                 if (currentlyHoveredZone != null && currentlyHoveredZone.dropZoneObject != null)
                 {
-                    Image oldImg = currentlyHoveredZone.dropZoneObject.GetComponent<Image>();
-                    if (oldImg != null) oldImg.color = defaultZoneColor;
+                    if (!_correctZoneIndices.Contains(currentlyHoveredZone.zoneIndex))
+                    {
+                        Image oldImg = currentlyHoveredZone.dropZoneObject.GetComponent<Image>();
+                        if (oldImg != null) oldImg.color = defaultZoneColor;
+                    }
                 }
                 
+                // Highlight new zone (even correct zones get hover feedback)
                 if (newHoveredZone != null && newHoveredZone.dropZoneObject != null)
                 {
                     Image newImg = newHoveredZone.dropZoneObject.GetComponent<Image>();
