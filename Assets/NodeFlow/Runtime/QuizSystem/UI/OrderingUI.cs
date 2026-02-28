@@ -27,8 +27,8 @@ namespace QuizSystem
 
         private Canvas rootCanvas;
         private OrderingQuestionData orderingData;
-        private List<OrderingDragItem> dragItems = new List<OrderingDragItem>();
-        private List<OrderingDragItem> placedItems = new List<OrderingDragItem>();
+        private List<QuizDragItem> dragItems = new List<QuizDragItem>();
+        private List<QuizDragItem> placedItems = new List<QuizDragItem>();
 
         public int currentSlotIndex { get; private set; } = 0;
         private int attemptsForCurrentSlot = 0;
@@ -193,11 +193,11 @@ namespace QuizSystem
             {
                 GameObject itemObj = Instantiate(dragItemPrefab, itemsSourceContainer);
 
-                var dragItem = itemObj.GetComponent<OrderingDragItem>();
+                var dragItem = itemObj.GetComponent<QuizDragItem>();
                 if (dragItem == null)
-                    dragItem = itemObj.AddComponent<OrderingDragItem>();
+                    dragItem = itemObj.AddComponent<QuizDragItem>();
 
-                dragItem.Init(origIdx, this, rootCanvas);
+                dragItem.Init(origIdx, rootCanvas);
 
                 var label = itemObj.GetComponentInChildren<TextMeshProUGUI>();
                 if (label != null)
@@ -216,12 +216,12 @@ namespace QuizSystem
         // ──────────────── callbacks from drag/drop components ────────────────
 
         /// <summary>Called when a drop occurs anywhere on the slots container.</summary>
-        public void TryDropItemIntoCurrentSlot(OrderingDragItem item)
+        public void TryDropItemIntoCurrentSlot(QuizDragItem item)
         {
             ValidateAndApplyPlacement(item);
         }
 
-        private void ValidateAndApplyPlacement(OrderingDragItem item)
+        private void ValidateAndApplyPlacement(QuizDragItem item)
         {
             if (candidateOrders == null || candidateOrders.Count == 0) return;
 
@@ -229,7 +229,7 @@ namespace QuizSystem
             bool isCorrect = false;
             foreach (var order in candidateOrders)
             {
-                if (currentSlotIndex < order.Count && order[currentSlotIndex] == item.originalIndex)
+                if (currentSlotIndex < order.Count && order[currentSlotIndex] == item.itemIndex)
                 {
                     isCorrect = true;
                     break;
@@ -240,11 +240,11 @@ namespace QuizSystem
             {
                 // Narrow down candidates to only those that have this item at this position
                 candidateOrders = candidateOrders.FindAll(
-                    o => currentSlotIndex < o.Count && o[currentSlotIndex] == item.originalIndex
+                    o => currentSlotIndex < o.Count && o[currentSlotIndex] == item.itemIndex
                 );
 
                 // Correct!
-                item.LockInContainer(slotsContainer);
+                item.LockInPlace(slotsContainer);
                 item.TintImage(correctItemColor);
                 placedItems.Add(item);
 
@@ -284,7 +284,7 @@ namespace QuizSystem
                 {
                     // Auto-correct: pick from first remaining candidate order
                     int expectedOriginalIndex = candidateOrders[0][currentSlotIndex];
-                    var correctItem = dragItems.Find(d => d.originalIndex == expectedOriginalIndex);
+                    var correctItem = dragItems.Find(d => d.itemIndex == expectedOriginalIndex);
                     if (correctItem != null)
                     {
                         // Narrow candidates to the chosen auto-correct path
@@ -292,7 +292,7 @@ namespace QuizSystem
                             o => currentSlotIndex < o.Count && o[currentSlotIndex] == expectedOriginalIndex
                         );
 
-                        correctItem.LockInContainer(slotsContainer);
+                        correctItem.LockInPlace(slotsContainer);
                         placedItems.Add(correctItem);
                     }
 
@@ -396,10 +396,10 @@ namespace QuizSystem
             for (int i = 0; i < expected.Count; i++)
             {
                 int origIdx = expected[i];
-                var item = dragItems.Find(d => d.originalIndex == origIdx);
+                var item = dragItems.Find(d => d.itemIndex == origIdx);
                 if (item != null)
                 {
-                    item.LockInContainer(slotsContainer);
+                    item.LockInPlace(slotsContainer);
                     placedItems.Add(item);
                 }
             }

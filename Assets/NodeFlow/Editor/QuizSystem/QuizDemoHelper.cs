@@ -200,29 +200,29 @@ namespace QuizSystem
             EnsurePath();
 
             var q = ScriptableObject.CreateInstance<DragDropQuestionData>();
-            q.questionText = "Match the countries with their capitals:";
+            q.questionText = "Match the cities with their countries:";
 
-            q.dragItems.Add(new DragDropQuestionData.DragItem { label = "France" });
-            q.dragItems.Add(new DragDropQuestionData.DragItem { label = "Germany" });
-            q.dragItems.Add(new DragDropQuestionData.DragItem { label = "Spain" });
+            q.dragItems.Add(new DragDropQuestionData.DragItem { label = "Paris" });
+            q.dragItems.Add(new DragDropQuestionData.DragItem { label = "Berlin" });
+            q.dragItems.Add(new DragDropQuestionData.DragItem { label = "Madrid" });
 
-            q.dropZones.Add(new DragDropQuestionData.DropZone { label = "Paris" });
-            q.dropZones.Add(new DragDropQuestionData.DropZone { label = "Berlin" });
-            q.dropZones.Add(new DragDropQuestionData.DropZone { label = "Madrid" });
+            q.dropZones.Add(new DragDropQuestionData.DropZone { label = "France" });
+            q.dropZones.Add(new DragDropQuestionData.DropZone { label = "Germany" });
+            q.dropZones.Add(new DragDropQuestionData.DropZone { label = "Spain" });
 
-            q.correctPairings[0] = 0;
-            q.correctPairings[1] = 1;
-            q.correctPairings[2] = 2;
+            q.correctPairings.Add(new DragDropQuestionData.Pairing { dragIndex = 0, dropIndex = 0 });
+            q.correctPairings.Add(new DragDropQuestionData.Pairing { dragIndex = 1, dropIndex = 1 });
+            q.correctPairings.Add(new DragDropQuestionData.Pairing { dragIndex = 2, dropIndex = 2 });
 
             q.hints = new string[]
             {
-                "France's capital is known for the Eiffel Tower",
-                "Germany's capital starts with B",
-                "Spain's capital is in the center of the country"
+                "Paris is known for the Eiffel Tower",
+                "Berlin starts with B",
+                "Madrid is in the center of the country"
             };
             q.maxAttempts = 3;
             q.points = 15;
-            q.explanation = "France->Paris, Germany->Berlin, Spain->Madrid";
+            q.explanation = "Paris->France, Berlin->Germany, Madrid->Spain";
 
             SaveAndSelect(q, "Sample_DragDrop_Question");
         }

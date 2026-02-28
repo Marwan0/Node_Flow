@@ -4,7 +4,7 @@ using UnityEngine;
 namespace QuizSystem
 {
     [CreateAssetMenu(fileName = "DragDropQuestion", menuName = "Quiz System/Drag & Drop Question")]
-    public class DragDropQuestionData : QuestionData, ISerializationCallbackReceiver
+    public class DragDropQuestionData : QuestionData
     {
         [System.Serializable]
         public class DragItem
@@ -34,39 +34,22 @@ namespace QuizSystem
         [Tooltip("List of drop zones")]
         public List<DropZone> dropZones = new List<DropZone>();
 
-        [Header("Correct Pairings")]
-        [Tooltip("Maps drag item index to correct drop zone index")]
-        [HideInInspector]
-        public Dictionary<int, int> correctPairings = new Dictionary<int, int>();
+        [System.Serializable]
+        public class Pairing
+        {
+            [Tooltip("Index of the Drag Item")]
+            public int dragIndex;
+            [Tooltip("Index of the Drop Zone")]
+            public int dropIndex;
+        }
 
-        // Serializable backing fields for the dictionary
-        [SerializeField] private List<int> _pairingKeys = new List<int>();
-        [SerializeField] private List<int> _pairingValues = new List<int>();
+        [Header("Correct Pairings")]
+        [Tooltip("List of valid drag-to-drop pairings")]
+        public List<Pairing> correctPairings = new List<Pairing>();
 
         private void OnEnable()
         {
             questionType = QuestionType.DragDrop;
-        }
-
-        public void OnBeforeSerialize()
-        {
-            _pairingKeys.Clear();
-            _pairingValues.Clear();
-            foreach (var kvp in correctPairings)
-            {
-                _pairingKeys.Add(kvp.Key);
-                _pairingValues.Add(kvp.Value);
-            }
-        }
-
-        public void OnAfterDeserialize()
-        {
-            correctPairings = new Dictionary<int, int>();
-            for (int i = 0; i < Mathf.Min(_pairingKeys.Count, _pairingValues.Count); i++)
-            {
-                if (!correctPairings.ContainsKey(_pairingKeys[i]))
-                    correctPairings[_pairingKeys[i]] = _pairingValues[i];
-            }
         }
     }
 }

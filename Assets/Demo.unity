@@ -600,7 +600,7 @@ GameObject:
   - component: {fileID: 678953030}
   - component: {fileID: 678953031}
   m_Layer: 0
-  m_Name: GameObject
+  m_Name: NodeManager
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

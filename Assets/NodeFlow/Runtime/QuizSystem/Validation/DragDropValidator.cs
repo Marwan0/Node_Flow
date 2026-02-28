@@ -15,41 +15,48 @@ namespace QuizSystem
         {
             if (answer is Dictionary<int, int> userPairings)
             {
-                // Check if all correct pairings are present and correct
-                bool allCorrect = true;
-                int correctCount = 0;
-                int totalPairings = dragDropData.correctPairings.Count;
-
-                foreach (var correctPairing in dragDropData.correctPairings)
+                // Find all drag items that HAVE a correct destination
+                HashSet<int> requiredDragItems = new HashSet<int>();
+                foreach (var pairing in dragDropData.correctPairings)
                 {
-                    if (userPairings.ContainsKey(correctPairing.Key))
-                    {
-                        if (userPairings[correctPairing.Key] == correctPairing.Value)
-                        {
-                            correctCount++;
-                        }
-                        else
-                        {
-                            allCorrect = false;
-                        }
-                    }
-                    else
+                    requiredDragItems.Add(pairing.dragIndex);
+                }
+
+                bool allCorrect = true;
+                
+                // 1. Check if the user placed every required item
+                foreach (int requiredItem in requiredDragItems)
+                {
+                    if (!userPairings.ContainsKey(requiredItem))
                     {
                         allCorrect = false;
+                        break;
                     }
                 }
 
-                // Check for extra incorrect pairings
+                if (!allCorrect) return HandleWrongAnswer();
+
+                // 2. Check if every pairing the user made is valid
                 foreach (var userPairing in userPairings)
                 {
-                    if (!dragDropData.correctPairings.ContainsKey(userPairing.Key) ||
-                        dragDropData.correctPairings[userPairing.Key] != userPairing.Value)
+                    bool pairingIsValid = false;
+                    foreach (var correctPairing in dragDropData.correctPairings)
+                    {
+                        if (correctPairing.dragIndex == userPairing.Key && correctPairing.dropIndex == userPairing.Value)
+                        {
+                            pairingIsValid = true;
+                            break;
+                        }
+                    }
+
+                    if (!pairingIsValid)
                     {
                         allCorrect = false;
+                        break;
                     }
                 }
 
-                if (allCorrect && userPairings.Count == totalPairings)
+                if (allCorrect)
                 {
                     return new ValidationResult(true, "All pairings are correct!");
                 }

@@ -15,9 +15,8 @@ namespace QuizSystem
             serializedObject.Update();
             var data = (DragDropQuestionData)target;
 
-            // Draw all default fields EXCEPT the hidden dictionary backing lists
-            DrawPropertiesExcluding(serializedObject,
-                "_pairingKeys", "_pairingValues", "correctPairings");
+            // Draw all default fields EXCEPT the hand-drawn list
+            DrawPropertiesExcluding(serializedObject, "correctPairings");
 
             EditorGUILayout.Space(5);
 
@@ -47,35 +46,38 @@ namespace QuizSystem
                 return;
             }
 
-            // Get the backing lists via SerializedProperty
-            var keysProp = serializedObject.FindProperty("_pairingKeys");
-            var valuesProp = serializedObject.FindProperty("_pairingValues");
+            // Get the backing list via SerializedProperty
+            var pairingsProp = serializedObject.FindProperty("correctPairings");
 
-            int count = Mathf.Min(keysProp.arraySize, valuesProp.arraySize);
+            int count = pairingsProp.arraySize;
             int removeIndex = -1;
 
             for (int i = 0; i < count; i++)
             {
+                var pairingProp = pairingsProp.GetArrayElementAtIndex(i);
+                var dragProp = pairingProp.FindPropertyRelative("dragIndex");
+                var dropProp = pairingProp.FindPropertyRelative("dropIndex");
+
                 EditorGUILayout.BeginHorizontal();
 
                 // Drag item dropdown
-                int dragIdx = keysProp.GetArrayElementAtIndex(i).intValue;
+                int dragIdx = dragProp.intValue;
                 dragIdx = Mathf.Clamp(dragIdx, 0, dragLabels.Length - 1);
                 int newDrag = EditorGUILayout.Popup(dragIdx, dragLabels, GUILayout.MinWidth(80));
                 if (newDrag != dragIdx)
                 {
-                    keysProp.GetArrayElementAtIndex(i).intValue = newDrag;
+                    dragProp.intValue = newDrag;
                 }
 
                 EditorGUILayout.LabelField("→", GUILayout.Width(20));
 
                 // Drop zone dropdown
-                int dropIdx = valuesProp.GetArrayElementAtIndex(i).intValue;
+                int dropIdx = dropProp.intValue;
                 dropIdx = Mathf.Clamp(dropIdx, 0, dropLabels.Length - 1);
                 int newDrop = EditorGUILayout.Popup(dropIdx, dropLabels, GUILayout.MinWidth(80));
                 if (newDrop != dropIdx)
                 {
-                    valuesProp.GetArrayElementAtIndex(i).intValue = newDrop;
+                    dropProp.intValue = newDrop;
                 }
 
                 // Remove button
@@ -90,8 +92,7 @@ namespace QuizSystem
             // Handle removal
             if (removeIndex >= 0)
             {
-                keysProp.DeleteArrayElementAtIndex(removeIndex);
-                valuesProp.DeleteArrayElementAtIndex(removeIndex);
+                pairingsProp.DeleteArrayElementAtIndex(removeIndex);
                 serializedObject.ApplyModifiedProperties();
                 EditorUtility.SetDirty(target);
             }
@@ -100,32 +101,10 @@ namespace QuizSystem
             EditorGUILayout.Space(2);
             if (GUILayout.Button("+ Add Pairing"))
             {
-                // Find the next unused drag index
-                HashSet<int> usedDrag = new HashSet<int>();
-                for (int i = 0; i < keysProp.arraySize; i++)
-                    usedDrag.Add(keysProp.GetArrayElementAtIndex(i).intValue);
-
-                int nextDrag = 0;
-                for (int i = 0; i < dragLabels.Length; i++)
-                {
-                    if (!usedDrag.Contains(i)) { nextDrag = i; break; }
-                }
-
-                // Find the next unused drop index
-                HashSet<int> usedDrop = new HashSet<int>();
-                for (int i = 0; i < valuesProp.arraySize; i++)
-                    usedDrop.Add(valuesProp.GetArrayElementAtIndex(i).intValue);
-
-                int nextDrop = 0;
-                for (int i = 0; i < dropLabels.Length; i++)
-                {
-                    if (!usedDrop.Contains(i)) { nextDrop = i; break; }
-                }
-
-                keysProp.arraySize++;
-                valuesProp.arraySize++;
-                keysProp.GetArrayElementAtIndex(keysProp.arraySize - 1).intValue = nextDrag;
-                valuesProp.GetArrayElementAtIndex(valuesProp.arraySize - 1).intValue = nextDrop;
+                pairingsProp.arraySize++;
+                var newElement = pairingsProp.GetArrayElementAtIndex(pairingsProp.arraySize - 1);
+                newElement.FindPropertyRelative("dragIndex").intValue = 0;
+                newElement.FindPropertyRelative("dropIndex").intValue = 0;
                 serializedObject.ApplyModifiedProperties();
                 EditorUtility.SetDirty(target);
             }
@@ -135,12 +114,12 @@ namespace QuizSystem
             {
                 if (GUILayout.Button("Auto-Map 1:1 (Drag[0]→Drop[0], Drag[1]→Drop[1], ...)"))
                 {
-                    keysProp.arraySize = dragLabels.Length;
-                    valuesProp.arraySize = dragLabels.Length;
+                    pairingsProp.arraySize = dragLabels.Length;
                     for (int i = 0; i < dragLabels.Length; i++)
                     {
-                        keysProp.GetArrayElementAtIndex(i).intValue = i;
-                        valuesProp.GetArrayElementAtIndex(i).intValue = i;
+                        var element = pairingsProp.GetArrayElementAtIndex(i);
+                        element.FindPropertyRelative("dragIndex").intValue = i;
+                        element.FindPropertyRelative("dropIndex").intValue = i;
                     }
                     serializedObject.ApplyModifiedProperties();
                     EditorUtility.SetDirty(target);

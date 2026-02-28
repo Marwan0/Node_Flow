@@ -16,7 +16,7 @@ namespace QuizSystem
         {
             if (orderingUI == null) return;
 
-            var dragItem = eventData.pointerDrag?.GetComponent<OrderingDragItem>();
+            var dragItem = eventData.pointerDrag?.GetComponent<QuizDragItem>();
             if (dragItem == null) return;
 
             // Ignore drops from items whose drag was cancelled by the lock

@@ -260,12 +260,16 @@ namespace QuizSystem
                     {
                         dd.dropZones = new List<DragDropQuestionData.DropZone>();
                     }
-                    dd.correctPairings = new Dictionary<int, int>();
+                    dd.correctPairings = new List<DragDropQuestionData.Pairing>();
                     if (entry.correctPairings != null)
                     {
                         foreach (var p in entry.correctPairings)
                         {
-                            dd.correctPairings[p.sourceIndex] = p.targetIndex;
+                            dd.correctPairings.Add(new DragDropQuestionData.Pairing 
+                            { 
+                                dragIndex = p.sourceIndex, 
+                                dropIndex = p.targetIndex 
+                            });
                         }
                     }
                     question = dd;

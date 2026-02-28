@@ -175,8 +175,8 @@ namespace QuizSystem
                     {
                         entry.correctPairings = dd.correctPairings.Select(p => new ExportPairing
                         {
-                            sourceIndex = p.Key,
-                            targetIndex = p.Value
+                            sourceIndex = p.dragIndex,
+                            targetIndex = p.dropIndex
                         }).ToArray();
                     }
                     break;
