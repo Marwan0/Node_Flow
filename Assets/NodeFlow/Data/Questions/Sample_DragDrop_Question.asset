@@ -20,7 +20,7 @@ MonoBehaviour:
   - Madrid is in the center of the country
   - Egypt ya 7ywan
   showHintAfterAttempt: 1
-  maxAttempts: 3
+  maxAttempts: 2
   points: 50
   explanation: Paris->France, Berlin->Germany, Madrid->Spain
   customUIPrefab: {fileID: 0}
@@ -51,3 +51,7 @@ MonoBehaviour:
     dropIndex: 1
   - dragIndex: 2
     dropIndex: 2
+  - dragIndex: 3
+    dropIndex: 3
+  - dragIndex: 4
+    dropIndex: 3

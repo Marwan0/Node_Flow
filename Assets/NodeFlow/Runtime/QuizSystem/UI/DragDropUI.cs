@@ -58,6 +58,7 @@ namespace QuizSystem
         // Live scoring state
         private int correctCount = 0;
         private int totalItems = 0;
+        private Dictionary<int, int> _wrongAttemptsPerItem = new Dictionary<int, int>(); // dragIndex -> wrong drop count
 
         protected override void SetupQuestion()
         {
@@ -81,6 +82,7 @@ namespace QuizSystem
             correctCount = 0;
             totalItems = ddData.dragItems.Count;
             _correctZoneIndices.Clear();
+            _wrongAttemptsPerItem.Clear();
 
             // No submit button needed — validation happens live on each drop
             if (submitButton != null)
@@ -333,12 +335,25 @@ namespace QuizSystem
                 if (_lastDropWasWrong)
                 {
                     _lastDropWasWrong = false;
+
+                    // Track wrong attempts per item
+                    if (!_wrongAttemptsPerItem.ContainsKey(itemUI.itemIndex))
+                        _wrongAttemptsPerItem[itemUI.itemIndex] = 0;
+                    _wrongAttemptsPerItem[itemUI.itemIndex]++;
+
                     LockUI();
                     QuizState.Instance?.NotifyWrongAttempt();
                     bool hasFeedbackListeners = QuizState.Instance != null &&
                         QuizState.Instance.NotifyWrongAnswerFeedback();
                     if (!hasFeedbackListeners)
                         UnlockUI();
+
+                    // Auto-place after max wrong attempts
+                    int maxAttempts = ddData.maxAttempts > 0 ? ddData.maxAttempts : 3;
+                    if (_wrongAttemptsPerItem[itemUI.itemIndex] >= maxAttempts)
+                    {
+                        AutoPlaceItem(itemUI);
+                    }
                 }
             }
         }
@@ -521,32 +536,101 @@ namespace QuizSystem
         protected override void OnAutoCorrect()
         {
             base.OnAutoCorrect();
-            currentPairings.Clear();
-            HashSet<int> processedDrags = new HashSet<int>();
-            foreach (var correctPairing in ddData.correctPairings)
-            {
-                if (processedDrags.Contains(correctPairing.dragIndex)) continue;
-                processedDrags.Add(correctPairing.dragIndex);
-                
-                currentPairings[correctPairing.dragIndex] = correctPairing.dropIndex;
+            AutoPlaceAllRemaining();
+        }
 
-                DragItemUI itemUI = dragItemUIs.Find(x => x.itemIndex == correctPairing.dragIndex);
-                DropZoneUI zoneUI = dropZoneUIs.Find(x => x.zoneIndex == correctPairing.dropIndex);
+        /// <summary>Auto-place a single item into its correct zone after max wrong attempts.</summary>
+        private void AutoPlaceItem(DragItemUI itemUI)
+        {
+            // Find the correct pairing for this drag item
+            var pairing = ddData.correctPairings.Find(cp => cp.dragIndex == itemUI.itemIndex);
+            if (pairing == null) return;
+
+            DropZoneUI zoneUI = dropZoneUIs.Find(z => z.zoneIndex == pairing.dropIndex);
+            if (zoneUI == null) return;
+
+            // Record pairing and place
+            currentPairings[itemUI.itemIndex] = pairing.dropIndex;
+
+            // Kill any running tween (e.g. AnimateToHome) so its OnComplete won't snap back
+            itemUI.dragObject.transform.DOKill();
+            
+            itemUI.dragItem.CreatePlaceholderAndLift();
+            
+            // Lock handles state, but we manually reparent and animate to avoid jumping
+            itemUI.dragItem.isLocked = true;
+            itemUI.dragObject.GetComponent<CanvasGroup>().blocksRaycasts = false;
+            
+            itemUI.dragObject.transform.SetParent(zoneUI.dropZoneObject.transform, true);
+            
+            LayoutElement le = itemUI.dragObject.GetComponent<LayoutElement>();
+            if (le != null) le.ignoreLayout = false;
+            
+            LayoutRebuilder.ForceRebuildLayoutImmediate(zoneUI.dropZoneObject.GetComponent<RectTransform>());
+            var layoutGroup = zoneUI.dropZoneObject.GetComponent<LayoutGroup>();
+            if (layoutGroup == null)
+            {
+                itemUI.dragObject.transform.DOLocalMove(Vector3.zero, 0.2f).SetEase(Ease.OutBack);
+            }
+
+            // Visual feedback
+            Image itemImage = itemUI.dragObject.GetComponent<Image>();
+            Image zoneImage = zoneUI.dropZoneObject.GetComponent<Image>();
+            if (itemImage != null) itemImage.color = Color.green;
+            if (zoneImage != null) zoneImage.color = Color.green;
+
+            correctCount++;
+            _correctZoneIndices.Add(pairing.dropIndex);
+            quizManager?.UpdateQuestionProgress(currentQuestion, correctCount, totalItems);
+
+            if (correctCount >= totalItems)
+            {
+                FinalizeQuestion(false, 0); // auto-corrected = no points
+            }
+        }
+
+        /// <summary>Auto-place all remaining items (for full OnAutoCorrect from base).</summary>
+        private void AutoPlaceAllRemaining()
+        {
+            HashSet<int> processedDrags = new HashSet<int>(currentPairings.Keys);
+            foreach (var cp in ddData.correctPairings)
+            {
+                if (processedDrags.Contains(cp.dragIndex)) continue;
+                processedDrags.Add(cp.dragIndex);
+
+                DragItemUI itemUI = dragItemUIs.Find(x => x.itemIndex == cp.dragIndex);
+                DropZoneUI zoneUI = dropZoneUIs.Find(x => x.zoneIndex == cp.dropIndex);
 
                 if (itemUI != null && zoneUI != null)
                 {
-                    itemUI.dragItem.DestroyPlaceholder();
-                    itemUI.dragObject.transform.SetParent(zoneUI.dropZoneObject.transform, false);
+                    currentPairings[cp.dragIndex] = cp.dropIndex;
+
+                    // Kill any running tween (e.g. AnimateToHome) so its OnComplete won't snap back
+                    itemUI.dragObject.transform.DOKill();
+                    
+                    itemUI.dragItem.CreatePlaceholderAndLift();
+                    
+                    itemUI.dragItem.isLocked = true;
+                    itemUI.dragObject.GetComponent<CanvasGroup>().blocksRaycasts = false;
+                    
+                    itemUI.dragObject.transform.SetParent(zoneUI.dropZoneObject.transform, true);
+
                     LayoutElement le = itemUI.dragObject.GetComponent<LayoutElement>();
                     if (le != null) le.ignoreLayout = false;
                     
+                    LayoutRebuilder.ForceRebuildLayoutImmediate(zoneUI.dropZoneObject.GetComponent<RectTransform>());
+                    var layoutGroup = zoneUI.dropZoneObject.GetComponent<LayoutGroup>();
+                    if (layoutGroup == null)
+                    {
+                        itemUI.dragObject.transform.DOLocalMove(Vector3.zero, 0.2f).SetEase(Ease.OutBack);
+                    }
+
                     Image itemImage = itemUI.dragObject.GetComponent<Image>();
                     Image zoneImage = zoneUI.dropZoneObject.GetComponent<Image>();
                     if (itemImage != null) itemImage.color = Color.green;
                     if (zoneImage != null) zoneImage.color = Color.green;
                 }
             }
-            UpdateVisualFeedback();
         }
 
         protected override string GetCorrectAnswerDisplay()

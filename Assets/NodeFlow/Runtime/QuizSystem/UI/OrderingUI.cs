@@ -292,7 +292,20 @@ namespace QuizSystem
                             o => currentSlotIndex < o.Count && o[currentSlotIndex] == expectedOriginalIndex
                         );
 
-                        correctItem.LockInPlace(slotsContainer);
+                        correctItem.CreatePlaceholderAndLift();
+                        
+                        // Lock state but animate manually so it doesn't jump
+                        correctItem.isLocked = true;
+                        correctItem.GetComponent<CanvasGroup>().blocksRaycasts = false;
+                        
+                        correctItem.transform.SetParent(slotsContainer, true);
+                        
+                        var le = correctItem.GetComponent<LayoutElement>();
+                        if (le != null) le.ignoreLayout = false;
+                        
+                        LayoutRebuilder.ForceRebuildLayoutImmediate(slotsContainer.GetComponent<RectTransform>());
+                        correctItem.transform.DOLocalMove(Vector3.zero, 0.2f).SetEase(Ease.OutBack);
+                        
                         placedItems.Add(correctItem);
                     }
 
@@ -387,24 +400,34 @@ namespace QuizSystem
         {
             var expected = orderingData.GetExpectedOrder();
 
-            // Return all items home first (instant)
+            // Return any mid-drag items home first (instant)
             foreach (var item in dragItems)
                 item.ReturnHomeImmediate();
             placedItems.Clear();
 
-            // Place items into correct slots container sequentially
+            // Place items into correct slots — create placeholders to preserve source layout
             for (int i = 0; i < expected.Count; i++)
             {
                 int origIdx = expected[i];
                 var item = dragItems.Find(d => d.itemIndex == origIdx);
                 if (item != null)
-                {
-                    item.LockInPlace(slotsContainer);
+                    // Create a placeholder so the source container doesn't resize
+                    item.CreatePlaceholderAndLift();
+                    
+                    // Lock state but animate manually so it doesn't jump
+                    item.isLocked = true;
+                    item.GetComponent<CanvasGroup>().blocksRaycasts = false;
+                    
+                    item.transform.SetParent(slotsContainer, true);
+                    
+                    var le = item.GetComponent<LayoutElement>();
+                    if (le != null) le.ignoreLayout = false;
+                    
+                    LayoutRebuilder.ForceRebuildLayoutImmediate(slotsContainer.GetComponent<RectTransform>());
+                    item.transform.DOLocalMove(Vector3.zero, 0.2f).SetEase(Ease.OutBack);
+                    
                     placedItems.Add(item);
-                }
             }
-
-            // Items locked via LockInContainer already have blocksRaycasts = false
         }
 
         // ──────────────── correct answer text ────────────────

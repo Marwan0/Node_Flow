@@ -182,6 +182,44 @@ namespace QuizSystem
 
         // ──────────────── public API ────────────────
 
+        /// <summary>
+        /// Creates a placeholder at the item's home slot so the source container
+        /// doesn't resize, then marks the item as ignoring layout.
+        /// Used by auto-correct flows that move items without a user drag.
+        /// </summary>
+        public void CreatePlaceholderAndLift()
+        {
+            if (placeholder == null)
+            {
+                placeholder = new GameObject("QuizPlaceholder");
+                var rt = placeholder.AddComponent<RectTransform>();
+                rt.SetParent(homeParent, false);
+                rt.SetSiblingIndex(homeSiblingIndex);
+                rt.sizeDelta = rectTransform.rect.size;
+
+                var le = placeholder.AddComponent<LayoutElement>();
+                LayoutElement itemLe = GetComponent<LayoutElement>();
+                if (itemLe != null)
+                {
+                    le.preferredWidth = itemLe.preferredWidth >= 0 ? itemLe.preferredWidth : rectTransform.rect.width;
+                    le.preferredHeight = itemLe.preferredHeight >= 0 ? itemLe.preferredHeight : rectTransform.rect.height;
+                    le.minWidth = itemLe.minWidth;
+                    le.minHeight = itemLe.minHeight;
+                    le.flexibleWidth = itemLe.flexibleWidth;
+                    le.flexibleHeight = itemLe.flexibleHeight;
+                }
+                else
+                {
+                    le.preferredWidth = rectTransform.rect.width;
+                    le.preferredHeight = rectTransform.rect.height;
+                }
+            }
+
+            // Ignore layout so the item can be reparented freely
+            var layoutElement = GetComponent<LayoutElement>();
+            if (layoutElement != null) layoutElement.ignoreLayout = true;
+        }
+
         /// <summary>Smoothly animate back to the home position in the source container.</summary>
         public void AnimateToHome()
         {
