@@ -304,7 +304,7 @@ namespace QuizSystem
                         if (le != null) le.ignoreLayout = false;
                         
                         LayoutRebuilder.ForceRebuildLayoutImmediate(slotsContainer.GetComponent<RectTransform>());
-                        correctItem.transform.DOLocalMove(Vector3.zero, 0.2f).SetEase(Ease.OutBack);
+                        // Removed DOLocalMove(Vector3.zero) - let LayoutGroup handle positioning
                         
                         placedItems.Add(correctItem);
                     }
@@ -424,7 +424,7 @@ namespace QuizSystem
                     if (le != null) le.ignoreLayout = false;
                     
                     LayoutRebuilder.ForceRebuildLayoutImmediate(slotsContainer.GetComponent<RectTransform>());
-                    item.transform.DOLocalMove(Vector3.zero, 0.2f).SetEase(Ease.OutBack);
+                    // Removed DOLocalMove(Vector3.zero) - let LayoutGroup handle positioning
                     
                     placedItems.Add(item);
             }

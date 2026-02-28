@@ -410,8 +410,13 @@ namespace QuizSystem
                 // Score and progress
                 correctCount++;
                 _correctZoneIndices.Add(dropIndex);
+                
+                // Only notify success for manual drops
                 QuizState.Instance?.NotifyCorrectAttempt();
                 quizManager?.UpdateQuestionProgress(currentQuestion, correctCount, totalItems);
+
+                // Disable zone if it has received all its correct items
+                CheckAndDisableZone(zoneUI);
 
                 // Check if all items are correctly placed
                 if (correctCount >= totalItems)
@@ -446,6 +451,10 @@ namespace QuizSystem
                 var zoneUI = dropZoneUIs.Find(z => z.dropZoneObject == result.gameObject || result.gameObject.transform.IsChildOf(z.dropZoneObject.transform));
                 if (zoneUI != null)
                 {
+                    // Don't highlight if the zone is disabled
+                    CanvasGroup cg = zoneUI.dropZoneObject.GetComponent<CanvasGroup>();
+                    if (cg != null && !cg.blocksRaycasts) continue;
+
                     newHoveredZone = zoneUI;
                     break;
                 }
@@ -581,7 +590,11 @@ namespace QuizSystem
 
             correctCount++;
             _correctZoneIndices.Add(pairing.dropIndex);
-            quizManager?.UpdateQuestionProgress(currentQuestion, correctCount, totalItems);
+            
+            // NOTE: We do NOT call NotifyCorrectAttempt here because this is auto-placement.
+            // We also skip progress update if the user didn't earn it, but keep internal count.
+            
+            CheckAndDisableZone(zoneUI);
 
             if (correctCount >= totalItems)
             {
@@ -629,7 +642,32 @@ namespace QuizSystem
                     Image zoneImage = zoneUI.dropZoneObject.GetComponent<Image>();
                     if (itemImage != null) itemImage.color = Color.green;
                     if (zoneImage != null) zoneImage.color = Color.green;
+
+                    CheckAndDisableZone(zoneUI);
                 }
+            }
+        }
+
+        private void CheckAndDisableZone(DropZoneUI zoneUI)
+        {
+            if (zoneUI == null || zoneUI.dropZoneObject == null) return;
+
+            // Count how many items SHOULD be in this zone
+            int requiredCount = 0;
+            foreach (var cp in ddData.correctPairings)
+                if (cp.dropIndex == zoneUI.zoneIndex) requiredCount++;
+
+            // Count how many correct items are CURRENTLY in this zone
+            int currentCountInZone = 0;
+            foreach (var p in currentPairings)
+                if (p.Value == zoneUI.zoneIndex) currentCountInZone++;
+
+            if (currentCountInZone >= requiredCount)
+            {
+                // Disable the zone so it doesn't accept more highlights or drops
+                CanvasGroup cg = zoneUI.dropZoneObject.GetComponent<CanvasGroup>();
+                if (cg == null) cg = zoneUI.dropZoneObject.AddComponent<CanvasGroup>();
+                cg.blocksRaycasts = false;
             }
         }
 
