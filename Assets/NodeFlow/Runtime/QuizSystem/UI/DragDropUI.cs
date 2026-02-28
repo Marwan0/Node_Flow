@@ -50,8 +50,13 @@ namespace QuizSystem
         private Dictionary<int, int> currentPairings = new Dictionary<int, int>(); // drag item index -> drop zone index
         private DragItemUI currentlyDragging = null;
         private DropZoneUI currentlyHoveredZone = null;
+        private bool _lastDropWasWrong = false;
         
         private Canvas rootCanvas;
+
+        // Live scoring state
+        private int correctCount = 0;
+        private int totalItems = 0;
 
         protected override void SetupQuestion()
         {
@@ -72,6 +77,12 @@ namespace QuizSystem
             currentPairings.Clear();
             currentlyDragging = null;
             currentlyHoveredZone = null;
+            correctCount = 0;
+            totalItems = ddData.dragItems.Count;
+
+            // No submit button needed — validation happens live on each drop
+            if (submitButton != null)
+                submitButton.gameObject.SetActive(false);
         }
 
         private void ClearUI()
@@ -306,61 +317,91 @@ namespace QuizSystem
                 currentlyHoveredZone = null;
             }
 
-            // If it wasn't dropped into a valid zone (OnDrop would have set the pairing)
+            // If it wasn't dropped into a correct zone, snap back and fire feedback
             if (!currentPairings.ContainsKey(itemUI.itemIndex))
             {
-                if (snapBackOnInvalidDrop)
+                // Always snap back first (this works even while UI is locked)
+                itemUI.dragItem.AnimateToHome();
+
+                // If this was an actual drop onto a wrong zone (not just released in empty space),
+                // lock the UI and fire wrong-answer feedback
+                if (_lastDropWasWrong)
                 {
-                    itemUI.dragItem.AnimateToHome();
-                }
-                else
-                {
-                    itemUI.dragItem.DestroyPlaceholder();
-                    LayoutElement le = itemUI.dragObject.GetComponent<LayoutElement>();
-                    if (le != null) le.ignoreLayout = false;
+                    _lastDropWasWrong = false;
+                    LockUI();
+                    QuizState.Instance?.NotifyWrongAttempt();
+                    bool hasFeedbackListeners = QuizState.Instance != null &&
+                        QuizState.Instance.NotifyWrongAnswerFeedback();
+                    if (!hasFeedbackListeners)
+                        UnlockUI();
                 }
             }
         }
 
         private void OnDrop(DropZoneUI zoneUI, PointerEventData eventData)
         {
-            if (currentlyDragging != null)
-            {
-                // Record the drop
-                currentPairings[currentlyDragging.itemIndex] = zoneUI.zoneIndex;
+            if (currentlyDragging == null) return;
 
-                // Clean up placeholder and parent to the drop zone
-                currentlyDragging.dragItem.DestroyPlaceholder();
+            int dragIndex = currentlyDragging.itemIndex;
+            int dropIndex = zoneUI.zoneIndex;
+
+            // Check if this is a correct pairing
+            bool isCorrect = false;
+            foreach (var cp in ddData.correctPairings)
+            {
+                if (cp.dragIndex == dragIndex && cp.dropIndex == dropIndex)
+                {
+                    isCorrect = true;
+                    break;
+                }
+            }
+
+            if (isCorrect)
+            {
+                // Record the correct pairing
+                currentPairings[dragIndex] = dropIndex;
+
+                // Mark as locked so OnEndDrag won't snap it back
+                currentlyDragging.dragItem.isLocked = true;
+
+                // Parent to the drop zone (keep world pos so it doesn't jump)
                 currentlyDragging.dragObject.transform.SetParent(zoneUI.dropZoneObject.transform, true);
 
                 LayoutElement le = currentlyDragging.dragObject.GetComponent<LayoutElement>();
                 if (le != null) le.ignoreLayout = false;
 
-                // Restore raycast blocking so it can be picked up again
                 CanvasGroup cg = currentlyDragging.dragObject.GetComponent<CanvasGroup>();
-                if (cg != null) cg.blocksRaycasts = true;
+                if (cg != null) { cg.blocksRaycasts = false; cg.alpha = 1f; }
 
-                // Animate drop if smooth snapping enabled
-                if (enableSmoothSnapping)
+                // Animate to the zone's center, then let layout take over
+                LayoutRebuilder.ForceRebuildLayoutImmediate(zoneUI.dropZoneObject.GetComponent<RectTransform>());
+                var layoutGroup = zoneUI.dropZoneObject.GetComponent<LayoutGroup>();
+                if (layoutGroup == null)
                 {
-                    LayoutRebuilder.ForceRebuildLayoutImmediate(zoneUI.dropZoneObject.GetComponent<RectTransform>());
-                    
-                    var layoutGroup = zoneUI.dropZoneObject.GetComponent<LayoutGroup>();
-                    if (layoutGroup == null)
-                    {
-                        currentlyDragging.dragObject.transform.DOLocalMove(Vector3.zero, 0.2f).SetEase(Ease.OutBack);
-                    }
-                }
-                else
-                {
-                    var layoutGroup = zoneUI.dropZoneObject.GetComponent<LayoutGroup>();
-                    if (layoutGroup == null)
-                    {
-                        currentlyDragging.dragObject.transform.localPosition = Vector3.zero;
-                    }
+                    currentlyDragging.dragObject.transform.DOLocalMove(Vector3.zero, 0.2f).SetEase(Ease.OutBack);
                 }
 
-                UpdateVisualFeedback();
+                // Visual feedback
+                Image itemImage = currentlyDragging.dragObject.GetComponent<Image>();
+                Image zoneImage = zoneUI.dropZoneObject.GetComponent<Image>();
+                if (itemImage != null) itemImage.color = Color.green;
+                if (zoneImage != null) zoneImage.color = Color.green;
+
+                // Score and progress
+                correctCount++;
+                QuizState.Instance?.NotifyCorrectAttempt();
+                quizManager?.UpdateQuestionProgress(currentQuestion, correctCount, totalItems);
+
+                // Check if all items are correctly placed
+                if (correctCount >= totalItems)
+                {
+                    FinalizeQuestion(true, currentQuestion.points);
+                }
+            }
+            else
+            {
+                // Wrong drop — flag it so OnItemDropped can fire feedback after snap-back
+                _lastDropWasWrong = true;
             }
         }
 
@@ -443,11 +484,7 @@ namespace QuizSystem
 
         public override void OnAnswerSubmitted()
         {
-            if (submitButton != null)
-                submitButton.interactable = false;
-
-            var result = validator.ValidateAnswer(currentPairings);
-            HandleValidationResult(result);
+            // Live validation handles scoring per-drop; no batch submit needed.
         }
 
         protected override void OnWrongAnswer()

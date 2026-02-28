@@ -437,6 +437,36 @@ namespace NodeSystem.Nodes.Quiz
                         }
                     }
                 }
+
+                // If the completed node is a SendSignalNode, follow the wireless link:
+                // ReceiveSignalNodes complete synchronously BEFORE SendSignalNode (because
+                // BroadcastSignal is called before Complete()), so we can't track them —
+                // their completion event has already fired. Instead, track their DOWNSTREAM
+                // nodes which are the ones still running (e.g. PlaySoundNode).
+                if (completedNode is NodeSystem.Nodes.SendSignalNode sendSignal
+                    && !string.IsNullOrEmpty(sendSignal.signalId))
+                {
+                    foreach (var node in Runner.Graph.Nodes)
+                    {
+                        if (node is NodeSystem.Nodes.ReceiveSignalNode recv
+                            && recv.signalId == sendSignal.signalId)
+                        {
+                            // Add the receiver's downstream nodes to tracking
+                            foreach (var recvPort in recv.GetOutputPorts())
+                            {
+                                var recvDownstream = Runner.Graph.GetConnectedNodes(recv.Guid, recvPort.id);
+                                if (recvDownstream != null)
+                                {
+                                    foreach (var dn in recvDownstream)
+                                    {
+                                        if (dn != null)
+                                            _feedbackTrackedGuids.Add(dn.Guid);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             // When all tracked nodes are done — the whole chain has finished

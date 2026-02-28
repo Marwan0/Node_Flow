@@ -408,6 +408,7 @@ GameObject:
   - component: {fileID: 5114350161159887941}
   - component: {fileID: 5693720167306627688}
   - component: {fileID: 6821055423222053344}
+  - component: {fileID: -4654701580288893065}
   m_Layer: 5
   m_Name: Drag_Frop_Questions
   m_TagString: Untagged
@@ -518,6 +519,18 @@ MonoBehaviour:
   snapBackOnInvalidDrop: 1
   defaultZoneColor: {r: 1, g: 1, b: 1, a: 1}
   hoverZoneColor: {r: 0.8, g: 0.9, b: 1, a: 1}
+--- !u!225 &-4654701580288893065
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2488658687208128685}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 1
 --- !u!1 &4872393351047760377
 GameObject:
   m_ObjectHideFlags: 0
