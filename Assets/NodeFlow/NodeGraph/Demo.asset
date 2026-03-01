@@ -14,44 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NodeSystem.NodeGraph
   graphName: New Graph
   description: 
-  _jsonData: '{"nodes":[{"typeName":"NodeSystem.Nodes.StartNode, Assembly-CSharp,
-    Version=0.0.0.0, Culture=neutral, PublicKeyToken=null","json":"{\"_guid\":\"f321247a-a7f8-401f-8526-0a2bacce8526\",\"_position\":{\"x\":-1510.0,\"y\":-602.0},\"_groupId\":\"\",\"hasBreakpoint\":false,\"displayLabel\":\"\"}"},{"typeName":"NodeSystem.Nodes.Quiz.StartQuizNode,
-    Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null","json":"{\"_guid\":\"50cd9a6c-5b51-4d9a-bf8b-38901c107d35\",\"_position\":{\"x\":-1244.0,\"y\":-569.0},\"_groupId\":\"\",\"hasBreakpoint\":false,\"displayLabel\":\"\",\"totalQuestions\":3,\"maxScore\":150,\"startTimer\":false,\"timerDuration\":300.0,\"quizManagerPath\":\"QuizManager\"}"},{"typeName":"NodeSystem.Nodes.PlaySoundNode,
-    Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null","json":"{\"_guid\":\"4f8f5d1b-1e99-4ea3-8a5c-09282ff715e3\",\"_position\":{\"x\":3162.0009765625,\"y\":-1296.8914794921875},\"_groupId\":\"87408b03-d560-4d04-80ea-91b7b852dd6f\",\"hasBreakpoint\":false,\"displayLabel\":\"\",\"audioClipRef\":{\"instanceID\":50318},\"audioClipPath\":\"Assets/Doozy/Examples/Sounds/SFX/Alerts/African
-    Notification.mp3\",\"playMode\":0,\"audioSourcePath\":\"\",\"volume\":1.0,\"pitch\":1.0,\"waitForCompletion\":false,\"loop\":false}"},{"typeName":"NodeSystem.Nodes.PlaySoundNode,
-    Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null","json":"{\"_guid\":\"4497d6f2-318a-4441-8081-4d6976207541\",\"_position\":{\"x\":3162.0009765625,\"y\":-970.8914794921875},\"_groupId\":\"87408b03-d560-4d04-80ea-91b7b852dd6f\",\"hasBreakpoint\":false,\"displayLabel\":\"\",\"audioClipRef\":{\"instanceID\":50320},\"audioClipPath\":\"Assets/Doozy/Examples/Sounds/SFX/Alerts/Confirmation
-    Tone.mp3\",\"playMode\":0,\"audioSourcePath\":\"\",\"volume\":1.0,\"pitch\":1.0,\"waitForCompletion\":false,\"loop\":false}"},{"typeName":"NodeSystem.Nodes.Quiz.LoadQuestionNode,
-    Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null","json":"{\"_guid\":\"a8ef3254-cdcc-4ee9-8f28-c10c01239742\",\"_position\":{\"x\":1572.4791259765625,\"y\":-943.0},\"_groupId\":\"fc0bdc97-b9f8-42ce-bd5e-0d365113cb60\",\"hasBreakpoint\":false,\"displayLabel\":\"\",\"questionRef\":{\"instanceID\":49908},\"questionAssetPath\":\"Assets/Data/Questions/Sample_MultipleChoice_Question.asset\",\"quizManagerPath\":\"QuizManager\",\"questionContainerRef\":{\"instanceID\":50196},\"layoutOverridePrefab\":{\"instanceID\":50292},\"layoutOverridePrefabPath\":\"Assets/Prefabs/MultipleChoiceUI.prefab\",\"questionContainerPath\":\"QuestionContainerCanvas/QustionContainer
-    (1)\",\"waitForAnswer\":true,\"trackInQuizState\":true,\"animationType\":1,\"animationDuration\":0.30000001192092898,\"staggerDelay\":0.10000000149011612,\"easeType\":27,\"scaleMultiplier\":1.0,\"slideDistance\":100.0,\"enableAnimations\":true,\"showHints\":true}"},{"typeName":"NodeSystem.Nodes.Quiz.LoadQuestionNode,
-    Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null","json":"{\"_guid\":\"df520e02-e9be-42c4-a5f0-46390016b09c\",\"_position\":{\"x\":245.128662109375,\"y\":-848.6350708007813},\"_groupId\":\"5dd1a8f2-3cd2-4c36-bfaa-41e7309fe61f\",\"hasBreakpoint\":false,\"displayLabel\":\"\",\"questionRef\":{\"instanceID\":50036},\"questionAssetPath\":\"Assets/NodeFlow/Data/Questions/Sample_Ordering_Question.asset\",\"quizManagerPath\":\"QuizManagerr\",\"questionContainerRef\":{\"instanceID\":50234},\"layoutOverridePrefab\":{\"instanceID\":50290},\"layoutOverridePrefabPath\":\"Assets/Prefabs/Ordering_Q/OrderQuestion.prefab\",\"questionContainerPath\":\"QuestionContainerCanvas/QustionContainer\",\"waitForAnswer\":true,\"trackInQuizState\":true,\"animationType\":1,\"animationDuration\":0.30000001192092898,\"staggerDelay\":0.10000000149011612,\"easeType\":27,\"scaleMultiplier\":1.0,\"slideDistance\":100.0,\"enableAnimations\":true,\"showHints\":true}"},{"typeName":"NodeSystem.Nodes.SendSignalNode,
-    Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null","json":"{\"_guid\":\"8554ca45-58b4-484d-a447-96ba0f816d58\",\"_position\":{\"x\":2195.47900390625,\"y\":-918.0},\"_groupId\":\"fc0bdc97-b9f8-42ce-bd5e-0d365113cb60\",\"hasBreakpoint\":false,\"displayLabel\":\"\",\"signalId\":\"win\"}"},{"typeName":"NodeSystem.Nodes.ReceiveSignalNode,
-    Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null","json":"{\"_guid\":\"4028db10-d034-48e3-a713-342d76c777ee\",\"_position\":{\"x\":2733.0009765625,\"y\":-1243.8914794921875},\"_groupId\":\"87408b03-d560-4d04-80ea-91b7b852dd6f\",\"hasBreakpoint\":false,\"displayLabel\":\"\",\"signalId\":\"win\"}"},{"typeName":"NodeSystem.Nodes.SendSignalNode,
-    Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null","json":"{\"_guid\":\"7375d0f9-2042-47b3-8152-39d3c0cd1d4c\",\"_position\":{\"x\":2143.0,\"y\":-457.0},\"_groupId\":\"fc0bdc97-b9f8-42ce-bd5e-0d365113cb60\",\"hasBreakpoint\":false,\"displayLabel\":\"\",\"signalId\":\"lose\"}"},{"typeName":"NodeSystem.Nodes.ReceiveSignalNode,
-    Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null","json":"{\"_guid\":\"a6109561-d5a6-4eff-b01e-a0fca3c93f67\",\"_position\":{\"x\":2757.0009765625,\"y\":-1076.8914794921875},\"_groupId\":\"87408b03-d560-4d04-80ea-91b7b852dd6f\",\"hasBreakpoint\":false,\"displayLabel\":\"\",\"signalId\":\"lose\"}"},{"typeName":"NodeSystem.Nodes.SendSignalNode,
-    Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null","json":"{\"_guid\":\"ffe43fdc-b952-46e8-afe7-5212f430babc\",\"_position\":{\"x\":717.0,\"y\":-903.0},\"_groupId\":\"5dd1a8f2-3cd2-4c36-bfaa-41e7309fe61f\",\"hasBreakpoint\":false,\"displayLabel\":\"\",\"signalId\":\"win\"}"},{"typeName":"NodeSystem.Nodes.SendSignalNode,
-    Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null","json":"{\"_guid\":\"17ec7f7b-c9dd-4bf6-a9bc-6168b3ffa571\",\"_position\":{\"x\":717.0,\"y\":-445.0},\"_groupId\":\"5dd1a8f2-3cd2-4c36-bfaa-41e7309fe61f\",\"hasBreakpoint\":false,\"displayLabel\":\"\",\"signalId\":\"lose\"}"},{"typeName":"NodeSystem.Nodes.SendSignalNode,
-    Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null","json":"{\"_guid\":\"b4a36b9d-11b7-4f9e-8708-d271f75e694f\",\"_position\":{\"x\":730.0,\"y\":-768.0},\"_groupId\":\"5dd1a8f2-3cd2-4c36-bfaa-41e7309fe61f\",\"hasBreakpoint\":false,\"displayLabel\":\"\",\"signalId\":\"Score\"}"},{"typeName":"NodeSystem.Nodes.SendSignalNode,
-    Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null","json":"{\"_guid\":\"35fd1e1d-87d0-4065-9696-012fb49a127f\",\"_position\":{\"x\":2182.47900390625,\"y\":-782.0},\"_groupId\":\"fc0bdc97-b9f8-42ce-bd5e-0d365113cb60\",\"hasBreakpoint\":false,\"displayLabel\":\"\",\"signalId\":\"Score\"}"},{"typeName":"NodeSystem.Nodes.Quiz.ScoreProgressBarNode,
-    Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null","json":"{\"_guid\":\"304a1e53-b68b-4af3-a9b6-7c3d8af1ce27\",\"_position\":{\"x\":3162.0009765625,\"y\":-875.8914794921875},\"_groupId\":\"87408b03-d560-4d04-80ea-91b7b852dd6f\",\"hasBreakpoint\":false,\"displayLabel\":\"\",\"targetRef\":{\"instanceID\":50270},\"targetPath\":\"QuestionContainerCanvas/Slider\",\"valueSource\":0,\"valueVariableName\":\"\",\"useQuizRange\":true,\"minLiteral\":0.0,\"minVariableName\":\"\",\"maxLiteral\":100.0,\"maxVariableName\":\"\",\"animateFill\":true,\"animationDuration\":0.30000001192092898,\"liveUpdateFromScoreEvents\":true}"},{"typeName":"NodeSystem.Nodes.ReceiveSignalNode,
-    Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null","json":"{\"_guid\":\"f22a23c5-5765-4170-9087-1e94c0c3cc8e\",\"_position\":{\"x\":2757.0009765625,\"y\":-943.8914794921875},\"_groupId\":\"87408b03-d560-4d04-80ea-91b7b852dd6f\",\"hasBreakpoint\":false,\"displayLabel\":\"\",\"signalId\":\"Score\"}"},{"typeName":"NodeSystem.Nodes.Quiz.LoadQuestionNode,
-    Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null","json":"{\"_guid\":\"9b53af3e-429e-49c7-b1cf-5185cf57ee33\",\"_position\":{\"x\":-833.0,\"y\":-1182.0},\"_groupId\":\"a9a2add4-9e4c-40e8-98a0-2adf8f372fe5\",\"hasBreakpoint\":false,\"displayLabel\":\"\",\"questionRef\":{\"instanceID\":49896},\"questionAssetPath\":\"Assets/NodeFlow/Data/Questions/Sample_DragDrop_Question.asset\",\"quizManagerPath\":\"QuizManagerr\",\"questionContainerRef\":{\"instanceID\":50196},\"layoutOverridePrefab\":{\"instanceID\":51002},\"layoutOverridePrefabPath\":\"Assets/Prefabs/DragDrop_Q/Drag_Drop_Questions.prefab\",\"questionContainerPath\":\"QuestionContainerCanvas/QustionContainer
-    (1)\",\"waitForAnswer\":true,\"trackInQuizState\":true,\"animationType\":1,\"animationDuration\":0.30000001192092898,\"staggerDelay\":0.10000000149011612,\"easeType\":27,\"scaleMultiplier\":1.0,\"slideDistance\":100.0,\"enableAnimations\":true,\"showHints\":true}"},{"typeName":"NodeSystem.Nodes.SendSignalNode,
-    Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null","json":"{\"_guid\":\"751f4337-7fff-48bb-a459-d803e8a401c1\",\"_position\":{\"x\":-361.0,\"y\":-1237.0},\"_groupId\":\"a9a2add4-9e4c-40e8-98a0-2adf8f372fe5\",\"hasBreakpoint\":false,\"displayLabel\":\"\",\"signalId\":\"win\"}"},{"typeName":"NodeSystem.Nodes.SendSignalNode,
-    Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null","json":"{\"_guid\":\"1cf0610b-89bb-4b72-adfa-7ee6c3c1978f\",\"_position\":{\"x\":-333.0,\"y\":-822.0},\"_groupId\":\"a9a2add4-9e4c-40e8-98a0-2adf8f372fe5\",\"hasBreakpoint\":false,\"displayLabel\":\"\",\"signalId\":\"lose\"}"},{"typeName":"NodeSystem.Nodes.SendSignalNode,
-    Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null","json":"{\"_guid\":\"4542db2d-712b-4617-8f7a-af67c766a893\",\"_position\":{\"x\":-348.0,\"y\":-1102.0},\"_groupId\":\"a9a2add4-9e4c-40e8-98a0-2adf8f372fe5\",\"hasBreakpoint\":false,\"displayLabel\":\"\",\"signalId\":\"Score\"}"},{"typeName":"NodeSystem.Nodes.PlaySoundNode,
-    Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null","json":"{\"_guid\":\"cdce7551-5c6f-4fd2-8223-4ff78bc9796f\",\"_position\":{\"x\":3162.0009765625,\"y\":-620.8914794921875},\"_groupId\":\"87408b03-d560-4d04-80ea-91b7b852dd6f\",\"hasBreakpoint\":false,\"displayLabel\":\"\",\"audioClipRef\":{\"instanceID\":50322},\"audioClipPath\":\"Assets/Score
-    and Times - Game Sound Solutions/Increase-Decrease/Decrease_organ_1.wav\",\"playMode\":0,\"audioSourcePath\":\"\",\"volume\":1.0,\"pitch\":1.0,\"waitForCompletion\":true,\"loop\":false}"},{"typeName":"NodeSystem.Nodes.ReceiveSignalNode,
-    Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null","json":"{\"_guid\":\"35fc08d2-d37d-44fd-bf03-923dd97c7c61\",\"_position\":{\"x\":2803.0009765625,\"y\":-570.8914794921875},\"_groupId\":\"87408b03-d560-4d04-80ea-91b7b852dd6f\",\"hasBreakpoint\":false,\"displayLabel\":\"\",\"signalId\":\"yeld\"}"},{"typeName":"NodeSystem.Nodes.SendSignalNode,
-    Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null","json":"{\"_guid\":\"c6c06ae3-3b3d-43c3-abea-dec35938e3ab\",\"_position\":{\"x\":-361.0,\"y\":-957.0},\"_groupId\":\"a9a2add4-9e4c-40e8-98a0-2adf8f372fe5\",\"hasBreakpoint\":false,\"displayLabel\":\"\",\"signalId\":\"yeld\"}"},{"typeName":"NodeSystem.Nodes.SendSignalNode,
-    Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null","json":"{\"_guid\":\"e9f28315-6d92-45a8-99fb-1810500cb750\",\"_position\":{\"x\":730.0,\"y\":-611.0},\"_groupId\":\"5dd1a8f2-3cd2-4c36-bfaa-41e7309fe61f\",\"hasBreakpoint\":false,\"displayLabel\":\"\",\"signalId\":\"yeld\"}"},{"typeName":"NodeSystem.Nodes.SendSignalNode,
-    Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null","json":"{\"_guid\":\"93a81857-3bea-4a6e-8a40-82f76ae39245\",\"_position\":{\"x\":2195.0,\"y\":-621.0},\"_groupId\":\"fc0bdc97-b9f8-42ce-bd5e-0d365113cb60\",\"hasBreakpoint\":false,\"displayLabel\":\"\",\"signalId\":\"yeld\"}"},{"typeName":"NodeSystem.Nodes.PlaySoundNode,
-    Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null","json":"{\"_guid\":\"8647e789-306a-435b-a1db-062d4828c187\",\"_position\":{\"x\":1013.0,\"y\":-486.0},\"_groupId\":\"\",\"hasBreakpoint\":false,\"displayLabel\":\"\",\"audioClipRef\":{\"instanceID\":50322},\"audioClipPath\":\"Assets/Score
-    and Times - Game Sound Solutions/Increase-Decrease/Decrease_organ_1.wav\",\"playMode\":0,\"audioSourcePath\":\"\",\"volume\":1.0,\"pitch\":1.0,\"waitForCompletion\":true,\"loop\":false}"},{"typeName":"NodeSystem.Nodes.PlaySoundNode,
-    Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null","json":"{\"_guid\":\"1340a388-2058-4e33-9aa8-c9f4ce65605f\",\"_position\":{\"x\":-333.0,\"y\":-554.0},\"_groupId\":\"\",\"hasBreakpoint\":false,\"displayLabel\":\"\",\"audioClipRef\":{\"instanceID\":50322},\"audioClipPath\":\"Assets/Score
-    and Times - Game Sound Solutions/Increase-Decrease/Decrease_organ_1.wav\",\"playMode\":0,\"audioSourcePath\":\"\",\"volume\":1.0,\"pitch\":1.0,\"waitForCompletion\":true,\"loop\":false}"},{"typeName":"NodeSystem.Nodes.DelayNode,
-    Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null","json":"{\"_guid\":\"b4a2fea1-b1dd-4359-9093-ae4fa54a9624\",\"_position\":{\"x\":213.0,\"y\":-1469.0},\"_groupId\":\"\",\"hasBreakpoint\":false,\"displayLabel\":\"\",\"delaySeconds\":2.0}"}],"connections":[{"outNode":"f321247a-a7f8-401f-8526-0a2bacce8526","outPort":"output","inNode":"50cd9a6c-5b51-4d9a-bf8b-38901c107d35","inPort":"input"},{"outNode":"4028db10-d034-48e3-a713-342d76c777ee","outPort":"output","inNode":"4f8f5d1b-1e99-4ea3-8a5c-09282ff715e3","inPort":"input"},{"outNode":"a8ef3254-cdcc-4ee9-8f28-c10c01239742","outPort":"on_wrong","inNode":"7375d0f9-2042-47b3-8152-39d3c0cd1d4c","inPort":"input"},{"outNode":"a6109561-d5a6-4eff-b01e-a0fca3c93f67","outPort":"output","inNode":"4497d6f2-318a-4441-8081-4d6976207541","inPort":"input"},{"outNode":"f22a23c5-5765-4170-9087-1e94c0c3cc8e","outPort":"output","inNode":"304a1e53-b68b-4af3-a9b6-7c3d8af1ce27","inPort":"input"},{"outNode":"a8ef3254-cdcc-4ee9-8f28-c10c01239742","outPort":"on_correct","inNode":"35fd1e1d-87d0-4065-9696-012fb49a127f","inPort":"input"},{"outNode":"df520e02-e9be-42c4-a5f0-46390016b09c","outPort":"on_correct","inNode":"ffe43fdc-b952-46e8-afe7-5212f430babc","inPort":"input"},{"outNode":"df520e02-e9be-42c4-a5f0-46390016b09c","outPort":"on_correct","inNode":"b4a36b9d-11b7-4f9e-8708-d271f75e694f","inPort":"input"},{"outNode":"a8ef3254-cdcc-4ee9-8f28-c10c01239742","outPort":"on_correct","inNode":"8554ca45-58b4-484d-a447-96ba0f816d58","inPort":"input"},{"outNode":"a8ef3254-cdcc-4ee9-8f28-c10c01239742","outPort":"correct","inNode":"8554ca45-58b4-484d-a447-96ba0f816d58","inPort":"input"},{"outNode":"a8ef3254-cdcc-4ee9-8f28-c10c01239742","outPort":"correct","inNode":"35fd1e1d-87d0-4065-9696-012fb49a127f","inPort":"input"},{"outNode":"df520e02-e9be-42c4-a5f0-46390016b09c","outPort":"correct","inNode":"b4a36b9d-11b7-4f9e-8708-d271f75e694f","inPort":"input"},{"outNode":"df520e02-e9be-42c4-a5f0-46390016b09c","outPort":"complete","inNode":"a8ef3254-cdcc-4ee9-8f28-c10c01239742","inPort":"input"},{"outNode":"df520e02-e9be-42c4-a5f0-46390016b09c","outPort":"on_wrong","inNode":"17ec7f7b-c9dd-4bf6-a9bc-6168b3ffa571","inPort":"input"},{"outNode":"9b53af3e-429e-49c7-b1cf-5185cf57ee33","outPort":"correct","inNode":"4542db2d-712b-4617-8f7a-af67c766a893","inPort":"input"},{"outNode":"9b53af3e-429e-49c7-b1cf-5185cf57ee33","outPort":"on_correct","inNode":"751f4337-7fff-48bb-a459-d803e8a401c1","inPort":"input"},{"outNode":"9b53af3e-429e-49c7-b1cf-5185cf57ee33","outPort":"on_correct","inNode":"4542db2d-712b-4617-8f7a-af67c766a893","inPort":"input"},{"outNode":"9b53af3e-429e-49c7-b1cf-5185cf57ee33","outPort":"on_wrong","inNode":"1cf0610b-89bb-4b72-adfa-7ee6c3c1978f","inPort":"input"},{"outNode":"35fc08d2-d37d-44fd-bf03-923dd97c7c61","outPort":"output","inNode":"cdce7551-5c6f-4fd2-8223-4ff78bc9796f","inPort":"input"},{"outNode":"a8ef3254-cdcc-4ee9-8f28-c10c01239742","outPort":"on_wrong_feedback","inNode":"93a81857-3bea-4a6e-8a40-82f76ae39245","inPort":"input"},{"outNode":"9b53af3e-429e-49c7-b1cf-5185cf57ee33","outPort":"on_wrong_feedback","inNode":"c6c06ae3-3b3d-43c3-abea-dec35938e3ab","inPort":"input"},{"outNode":"df520e02-e9be-42c4-a5f0-46390016b09c","outPort":"on_wrong_feedback","inNode":"e9f28315-6d92-45a8-99fb-1810500cb750","inPort":"input"},{"outNode":"9b53af3e-429e-49c7-b1cf-5185cf57ee33","outPort":"complete","inNode":"df520e02-e9be-42c4-a5f0-46390016b09c","inPort":"input"},{"outNode":"50cd9a6c-5b51-4d9a-bf8b-38901c107d35","outPort":"output","inNode":"9b53af3e-429e-49c7-b1cf-5185cf57ee33","inPort":"input"},{"outNode":"9b53af3e-429e-49c7-b1cf-5185cf57ee33","outPort":"on_load","inNode":"b4a2fea1-b1dd-4359-9093-ae4fa54a9624","inPort":"input"}],"variables":[],"groups":[{"id":"fc0bdc97-b9f8-42ce-bd5e-0d365113cb60","title":"G2","x":1547.0,"y":-1002.0,"width":893.0,"height":1002.0,"nodeGuids":["a8ef3254-cdcc-4ee9-8f28-c10c01239742","8554ca45-58b4-484d-a447-96ba0f816d58","7375d0f9-2042-47b3-8152-39d3c0cd1d4c","35fd1e1d-87d0-4065-9696-012fb49a127f","93a81857-3bea-4a6e-8a40-82f76ae39245"]},{"id":"87408b03-d560-4d04-80ea-91b7b852dd6f","title":"Play
-    sounds","x":2708.0,"y":-1356.0,"width":968.0,"height":1029.0,"nodeGuids":["4f8f5d1b-1e99-4ea3-8a5c-09282ff715e3","4497d6f2-318a-4441-8081-4d6976207541","4028db10-d034-48e3-a713-342d76c777ee","a6109561-d5a6-4eff-b01e-a0fca3c93f67","304a1e53-b68b-4af3-a9b6-7c3d8af1ce27","f22a23c5-5765-4170-9087-1e94c0c3cc8e","cdce7551-5c6f-4fd2-8223-4ff78bc9796f","35fc08d2-d37d-44fd-bf03-923dd97c7c61"]},{"id":"5dd1a8f2-3cd2-4c36-bfaa-41e7309fe61f","title":"G1","x":220.0,"y":-962.0,"width":755.0,"height":1056.0,"nodeGuids":["df520e02-e9be-42c4-a5f0-46390016b09c","ffe43fdc-b952-46e8-afe7-5212f430babc","17ec7f7b-c9dd-4bf6-a9bc-6168b3ffa571","b4a36b9d-11b7-4f9e-8708-d271f75e694f","e9f28315-6d92-45a8-99fb-1810500cb750"]},{"id":"a9a2add4-9e4c-40e8-98a0-2adf8f372fe5","title":"Drag
-    Drop","x":-858.0,"y":-1296.0,"width":770.0,"height":1057.0,"nodeGuids":["9b53af3e-429e-49c7-b1cf-5185cf57ee33","751f4337-7fff-48bb-a459-d803e8a401c1","1cf0610b-89bb-4b72-adfa-7ee6c3c1978f","4542db2d-712b-4617-8f7a-af67c766a893","c6c06ae3-3b3d-43c3-abea-dec35938e3ab"]}]}'
+  _jsonData: '{"nodes":[],"connections":[{"outNode":"f321247a-a7f8-401f-8526-0a2bacce8526","outPort":"output","inNode":"50cd9a6c-5b51-4d9a-bf8b-38901c107d35","inPort":"input"},{"outNode":"4028db10-d034-48e3-a713-342d76c777ee","outPort":"output","inNode":"4f8f5d1b-1e99-4ea3-8a5c-09282ff715e3","inPort":"input"},{"outNode":"a8ef3254-cdcc-4ee9-8f28-c10c01239742","outPort":"on_wrong","inNode":"7375d0f9-2042-47b3-8152-39d3c0cd1d4c","inPort":"input"},{"outNode":"a6109561-d5a6-4eff-b01e-a0fca3c93f67","outPort":"output","inNode":"4497d6f2-318a-4441-8081-4d6976207541","inPort":"input"},{"outNode":"f22a23c5-5765-4170-9087-1e94c0c3cc8e","outPort":"output","inNode":"304a1e53-b68b-4af3-a9b6-7c3d8af1ce27","inPort":"input"},{"outNode":"a8ef3254-cdcc-4ee9-8f28-c10c01239742","outPort":"on_correct","inNode":"35fd1e1d-87d0-4065-9696-012fb49a127f","inPort":"input"},{"outNode":"df520e02-e9be-42c4-a5f0-46390016b09c","outPort":"on_correct","inNode":"ffe43fdc-b952-46e8-afe7-5212f430babc","inPort":"input"},{"outNode":"df520e02-e9be-42c4-a5f0-46390016b09c","outPort":"on_correct","inNode":"b4a36b9d-11b7-4f9e-8708-d271f75e694f","inPort":"input"},{"outNode":"a8ef3254-cdcc-4ee9-8f28-c10c01239742","outPort":"on_correct","inNode":"8554ca45-58b4-484d-a447-96ba0f816d58","inPort":"input"},{"outNode":"a8ef3254-cdcc-4ee9-8f28-c10c01239742","outPort":"correct","inNode":"8554ca45-58b4-484d-a447-96ba0f816d58","inPort":"input"},{"outNode":"a8ef3254-cdcc-4ee9-8f28-c10c01239742","outPort":"correct","inNode":"35fd1e1d-87d0-4065-9696-012fb49a127f","inPort":"input"},{"outNode":"df520e02-e9be-42c4-a5f0-46390016b09c","outPort":"correct","inNode":"b4a36b9d-11b7-4f9e-8708-d271f75e694f","inPort":"input"},{"outNode":"df520e02-e9be-42c4-a5f0-46390016b09c","outPort":"complete","inNode":"a8ef3254-cdcc-4ee9-8f28-c10c01239742","inPort":"input"},{"outNode":"df520e02-e9be-42c4-a5f0-46390016b09c","outPort":"on_wrong","inNode":"17ec7f7b-c9dd-4bf6-a9bc-6168b3ffa571","inPort":"input"},{"outNode":"9b53af3e-429e-49c7-b1cf-5185cf57ee33","outPort":"correct","inNode":"4542db2d-712b-4617-8f7a-af67c766a893","inPort":"input"},{"outNode":"9b53af3e-429e-49c7-b1cf-5185cf57ee33","outPort":"on_correct","inNode":"751f4337-7fff-48bb-a459-d803e8a401c1","inPort":"input"},{"outNode":"9b53af3e-429e-49c7-b1cf-5185cf57ee33","outPort":"on_correct","inNode":"4542db2d-712b-4617-8f7a-af67c766a893","inPort":"input"},{"outNode":"9b53af3e-429e-49c7-b1cf-5185cf57ee33","outPort":"on_wrong","inNode":"1cf0610b-89bb-4b72-adfa-7ee6c3c1978f","inPort":"input"},{"outNode":"35fc08d2-d37d-44fd-bf03-923dd97c7c61","outPort":"output","inNode":"cdce7551-5c6f-4fd2-8223-4ff78bc9796f","inPort":"input"},{"outNode":"a8ef3254-cdcc-4ee9-8f28-c10c01239742","outPort":"on_wrong_feedback","inNode":"93a81857-3bea-4a6e-8a40-82f76ae39245","inPort":"input"},{"outNode":"9b53af3e-429e-49c7-b1cf-5185cf57ee33","outPort":"on_wrong_feedback","inNode":"c6c06ae3-3b3d-43c3-abea-dec35938e3ab","inPort":"input"},{"outNode":"df520e02-e9be-42c4-a5f0-46390016b09c","outPort":"on_wrong_feedback","inNode":"e9f28315-6d92-45a8-99fb-1810500cb750","inPort":"input"},{"outNode":"9b53af3e-429e-49c7-b1cf-5185cf57ee33","outPort":"complete","inNode":"df520e02-e9be-42c4-a5f0-46390016b09c","inPort":"input"},{"outNode":"50cd9a6c-5b51-4d9a-bf8b-38901c107d35","outPort":"output","inNode":"9b53af3e-429e-49c7-b1cf-5185cf57ee33","inPort":"input"},{"outNode":"9b53af3e-429e-49c7-b1cf-5185cf57ee33","outPort":"on_load","inNode":"b4a2fea1-b1dd-4359-9093-ae4fa54a9624","inPort":"input"}],"variables":[],"groups":[{"id":"fc0bdc97-b9f8-42ce-bd5e-0d365113cb60","title":"G2","x":2170.0,"y":-679.9998779296875,"width":270.0,"height":192.0,"nodeGuids":["93a81857-3bea-4a6e-8a40-82f76ae39245"]},{"id":"87408b03-d560-4d04-80ea-91b7b852dd6f","title":"Play
+    sounds","x":2738.0,"y":-626.9998779296875,"width":270.0,"height":192.0,"nodeGuids":["35fc08d2-d37d-44fd-bf03-923dd97c7c61"]},{"id":"5dd1a8f2-3cd2-4c36-bfaa-41e7309fe61f","title":"G1","x":887.0,"y":-1054.9998779296875,"width":270.0,"height":192.0,"nodeGuids":["e9f28315-6d92-45a8-99fb-1810500cb750"]},{"id":"a9a2add4-9e4c-40e8-98a0-2adf8f372fe5","title":"Drag
+    Drop","x":-955.9998779296875,"y":-1404.9998779296875,"width":727.0,"height":1081.0,"nodeGuids":["9b53af3e-429e-49c7-b1cf-5185cf57ee33","751f4337-7fff-48bb-a459-d803e8a401c1","1cf0610b-89bb-4b72-adfa-7ee6c3c1978f","4542db2d-712b-4617-8f7a-af67c766a893","c6c06ae3-3b3d-43c3-abea-dec35938e3ab"]}]}'
   _nodeEvents: []
   _nodeAssetReferences:
   - nodeGuid: a8ef3254-cdcc-4ee9-8f28-c10c01239742
@@ -66,7 +31,360 @@ MonoBehaviour:
     assetReference: {fileID: 11400000, guid: 96d1719de2df6b94c849f10f433d883e, type: 2}
   - nodeGuid: cdce7551-5c6f-4fd2-8223-4ff78bc9796f
     assetReference: {fileID: 8300000, guid: 53151b945e8834181b6e41a8873eb33c, type: 3}
-  - nodeGuid: 8647e789-306a-435b-a1db-062d4828c187
-    assetReference: {fileID: 8300000, guid: 53151b945e8834181b6e41a8873eb33c, type: 3}
-  - nodeGuid: 1340a388-2058-4e33-9aa8-c9f4ce65605f
-    assetReference: {fileID: 8300000, guid: 53151b945e8834181b6e41a8873eb33c, type: 3}
+  _serializedNodes:
+  - rid: 2376809931405262911
+  - rid: 2376809931405262912
+  - rid: 2376809931405262913
+  - rid: 2376809931405262914
+  - rid: 2376809931405262915
+  - rid: 2376809931405262916
+  - rid: 2376809931405262917
+  - rid: 2376809931405262918
+  - rid: 2376809931405262919
+  - rid: 2376809931405262920
+  - rid: 2376809931405262921
+  - rid: 2376809931405262922
+  - rid: 2376809931405262923
+  - rid: 2376809931405262924
+  - rid: 2376809931405262925
+  - rid: 2376809931405262926
+  - rid: 2376809931405262927
+  - rid: 2376809931405262928
+  - rid: 2376809931405262929
+  - rid: 2376809931405262930
+  - rid: 2376809931405262931
+  - rid: 2376809931405262932
+  - rid: 2376809931405262933
+  - rid: 2376809931405262934
+  - rid: 2376809931405262935
+  - rid: 2376809931405262936
+  - rid: 2376809931405262954
+  references:
+    version: 2
+    RefIds:
+    - rid: 2376809931405262911
+      type: {class: StartNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: f321247a-a7f8-401f-8526-0a2bacce8526
+        _position: {x: -1510, y: -602}
+        _groupId: 
+        hasBreakpoint: 0
+        displayLabel: 
+    - rid: 2376809931405262912
+      type: {class: StartQuizNode, ns: NodeSystem.Nodes.Quiz, asm: Assembly-CSharp}
+      data:
+        _guid: 50cd9a6c-5b51-4d9a-bf8b-38901c107d35
+        _position: {x: -1244, y: -569}
+        _groupId: 
+        hasBreakpoint: 0
+        displayLabel: 
+        totalQuestions: 3
+        maxScore: 150
+        startTimer: 0
+        timerDuration: 300
+        quizManagerPath: QuizManager
+    - rid: 2376809931405262913
+      type: {class: PlaySoundNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: 4f8f5d1b-1e99-4ea3-8a5c-09282ff715e3
+        _position: {x: 3140, y: -1122}
+        _groupId: 
+        hasBreakpoint: 0
+        displayLabel: 
+        audioClipRef: {fileID: 8300000, guid: 8f1c1f931ed244b45828b399ce2e580e, type: 3}
+        audioClipPath: Assets/Doozy/Examples/Sounds/SFX/Alerts/African Notification.mp3
+        playMode: 0
+        audioSourcePath: 
+        volume: 1
+        pitch: 1
+        waitForCompletion: 0
+        loop: 0
+    - rid: 2376809931405262914
+      type: {class: PlaySoundNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: 4497d6f2-318a-4441-8081-4d6976207541
+        _position: {x: 3140, y: -796}
+        _groupId: 
+        hasBreakpoint: 0
+        displayLabel: 
+        audioClipRef: {fileID: 8300000, guid: 135e66a4686efcb40b9cc3ef1da13063, type: 3}
+        audioClipPath: Assets/Doozy/Examples/Sounds/SFX/Alerts/Confirmation Tone.mp3
+        playMode: 0
+        audioSourcePath: 
+        volume: 1
+        pitch: 1
+        waitForCompletion: 0
+        loop: 0
+    - rid: 2376809931405262915
+      type: {class: LoadQuestionNode, ns: NodeSystem.Nodes.Quiz, asm: Assembly-CSharp}
+      data:
+        _guid: a8ef3254-cdcc-4ee9-8f28-c10c01239742
+        _position: {x: 1686, y: -976}
+        _groupId: 
+        hasBreakpoint: 0
+        displayLabel: 
+        questionRef: {fileID: 11400000, guid: e20d2ae4f2ea32a48a546350a4f65a88, type: 2}
+        questionAssetPath: Assets/Data/Questions/Sample_MultipleChoice_Question.asset
+        quizManagerPath: QuizManager
+        questionContainerRef: {fileID: 0}
+        layoutOverridePrefab: {fileID: 1647681409039264732, guid: c9b96964b46e007458beaee11370c731, type: 3}
+        layoutOverridePrefabPath: Assets/Prefabs/MultipleChoiceUI.prefab
+        questionContainerPath: QuestionContainerCanvas/QustionContainer (1)
+        waitForAnswer: 1
+        trackInQuizState: 1
+        animationType: 1
+        animationDuration: 0.3
+        staggerDelay: 0.1
+        easeType: 27
+        scaleMultiplier: 1
+        slideDistance: 100
+        enableAnimations: 1
+        showHints: 1
+    - rid: 2376809931405262916
+      type: {class: LoadQuestionNode, ns: NodeSystem.Nodes.Quiz, asm: Assembly-CSharp}
+      data:
+        _guid: df520e02-e9be-42c4-a5f0-46390016b09c
+        _position: {x: 392, y: -1207}
+        _groupId: 
+        hasBreakpoint: 0
+        displayLabel: 
+        questionRef: {fileID: 11400000, guid: 4ec98d667a90c1240adca7efde2d46a3, type: 2}
+        questionAssetPath: Assets/NodeFlow/Data/Questions/Sample_Ordering_Question.asset
+        quizManagerPath: QuizManagerr
+        questionContainerRef: {fileID: 0}
+        layoutOverridePrefab: {fileID: 2689483236617707794, guid: 0a730fa4a82685147a59b2761e82b066, type: 3}
+        layoutOverridePrefabPath: Assets/Prefabs/Ordering_Q/OrderQuestion.prefab
+        questionContainerPath: QuestionContainerCanvas/QustionContainer
+        waitForAnswer: 1
+        trackInQuizState: 1
+        animationType: 1
+        animationDuration: 0.3
+        staggerDelay: 0.1
+        easeType: 27
+        scaleMultiplier: 1
+        slideDistance: 100
+        enableAnimations: 1
+        showHints: 1
+    - rid: 2376809931405262917
+      type: {class: SendSignalNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: 8554ca45-58b4-484d-a447-96ba0f816d58
+        _position: {x: 2208, y: -976}
+        _groupId: 
+        hasBreakpoint: 0
+        displayLabel: 
+        signalId: win
+    - rid: 2376809931405262918
+      type: {class: ReceiveSignalNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: 4028db10-d034-48e3-a713-342d76c777ee
+        _position: {x: 2711, y: -1069}
+        _groupId: 
+        hasBreakpoint: 0
+        displayLabel: 
+        signalId: win
+    - rid: 2376809931405262919
+      type: {class: SendSignalNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: 7375d0f9-2042-47b3-8152-39d3c0cd1d4c
+        _position: {x: 2195, y: -514}
+        _groupId: 
+        hasBreakpoint: 0
+        displayLabel: 
+        signalId: lose
+    - rid: 2376809931405262920
+      type: {class: ReceiveSignalNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: a6109561-d5a6-4eff-b01e-a0fca3c93f67
+        _position: {x: 2735, y: -902}
+        _groupId: 
+        hasBreakpoint: 0
+        displayLabel: 
+        signalId: lose
+    - rid: 2376809931405262921
+      type: {class: SendSignalNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: ffe43fdc-b952-46e8-afe7-5212f430babc
+        _position: {x: 877, y: -1366}
+        _groupId: 
+        hasBreakpoint: 0
+        displayLabel: 
+        signalId: win
+    - rid: 2376809931405262922
+      type: {class: SendSignalNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: 17ec7f7b-c9dd-4bf6-a9bc-6168b3ffa571
+        _position: {x: 864, y: -803}
+        _groupId: 
+        hasBreakpoint: 0
+        displayLabel: 
+        signalId: lose
+    - rid: 2376809931405262923
+      type: {class: SendSignalNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: b4a36b9d-11b7-4f9e-8708-d271f75e694f
+        _position: {x: 880, y: -1182}
+        _groupId: 
+        hasBreakpoint: 0
+        displayLabel: 
+        signalId: Score
+    - rid: 2376809931405262924
+      type: {class: SendSignalNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: 35fd1e1d-87d0-4065-9696-012fb49a127f
+        _position: {x: 2195, y: -840}
+        _groupId: 
+        hasBreakpoint: 0
+        displayLabel: 
+        signalId: Score
+    - rid: 2376809931405262925
+      type: {class: ScoreProgressBarNode, ns: NodeSystem.Nodes.Quiz, asm: Assembly-CSharp}
+      data:
+        _guid: 304a1e53-b68b-4af3-a9b6-7c3d8af1ce27
+        _position: {x: 3053, y: -627}
+        _groupId: 
+        hasBreakpoint: 0
+        displayLabel: 
+        targetRef: {fileID: 0}
+        targetPath: QuestionContainerCanvas/Slider
+        valueSource: 0
+        valueVariableName: 
+        useQuizRange: 1
+        minLiteral: 0
+        minVariableName: 
+        maxLiteral: 100
+        maxVariableName: 
+        animateFill: 1
+        animationDuration: 0.3
+        liveUpdateFromScoreEvents: 1
+    - rid: 2376809931405262926
+      type: {class: ReceiveSignalNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: f22a23c5-5765-4170-9087-1e94c0c3cc8e
+        _position: {x: 2735, y: -764}
+        _groupId: 
+        hasBreakpoint: 0
+        displayLabel: 
+        signalId: Score
+    - rid: 2376809931405262927
+      type: {class: LoadQuestionNode, ns: NodeSystem.Nodes.Quiz, asm: Assembly-CSharp}
+      data:
+        _guid: 9b53af3e-429e-49c7-b1cf-5185cf57ee33
+        _position: {x: -930.7274, y: -1266.9999}
+        _groupId: a9a2add4-9e4c-40e8-98a0-2adf8f372fe5
+        hasBreakpoint: 0
+        displayLabel: 
+        questionRef: {fileID: 11400000, guid: 96d1719de2df6b94c849f10f433d883e, type: 2}
+        questionAssetPath: Assets/NodeFlow/Data/Questions/Sample_DragDrop_Question.asset
+        quizManagerPath: QuizManagerr
+        questionContainerRef: {fileID: 0}
+        layoutOverridePrefab: {fileID: 2488658687208128685, guid: 455d6ec9f277cba468f5d6d3a8331d52, type: 3}
+        layoutOverridePrefabPath: Assets/Prefabs/DragDrop_Q/Drag_Drop_Questions.prefab
+        questionContainerPath: QuestionContainerCanvas/QustionContainer (1)
+        waitForAnswer: 1
+        trackInQuizState: 1
+        animationType: 1
+        animationDuration: 0.3
+        staggerDelay: 0.1
+        easeType: 27
+        scaleMultiplier: 1
+        slideDistance: 100
+        enableAnimations: 1
+        showHints: 1
+    - rid: 2376809931405262928
+      type: {class: SendSignalNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: 751f4337-7fff-48bb-a459-d803e8a401c1
+        _position: {x: -474, y: -1346}
+        _groupId: a9a2add4-9e4c-40e8-98a0-2adf8f372fe5
+        hasBreakpoint: 0
+        displayLabel: 
+        signalId: win
+    - rid: 2376809931405262929
+      type: {class: SendSignalNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: 1cf0610b-89bb-4b72-adfa-7ee6c3c1978f
+        _position: {x: -506.72742, y: -778.9999}
+        _groupId: a9a2add4-9e4c-40e8-98a0-2adf8f372fe5
+        hasBreakpoint: 0
+        displayLabel: 
+        signalId: lose
+    - rid: 2376809931405262930
+      type: {class: SendSignalNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: 4542db2d-712b-4617-8f7a-af67c766a893
+        _position: {x: -480.72742, y: -1157.9999}
+        _groupId: a9a2add4-9e4c-40e8-98a0-2adf8f372fe5
+        hasBreakpoint: 0
+        displayLabel: 
+        signalId: Score
+    - rid: 2376809931405262931
+      type: {class: PlaySoundNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: cdce7551-5c6f-4fd2-8223-4ff78bc9796f
+        _position: {x: 3140, y: -446}
+        _groupId: 
+        hasBreakpoint: 0
+        displayLabel: 
+        audioClipRef: {fileID: 8300000, guid: 53151b945e8834181b6e41a8873eb33c, type: 3}
+        audioClipPath: Assets/Score and Times - Game Sound Solutions/Increase-Decrease/Decrease_organ_1.wav
+        playMode: 0
+        audioSourcePath: 
+        volume: 1
+        pitch: 1
+        waitForCompletion: 1
+        loop: 0
+    - rid: 2376809931405262932
+      type: {class: ReceiveSignalNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: 35fc08d2-d37d-44fd-bf03-923dd97c7c61
+        _position: {x: 2763, y: -568}
+        _groupId: 87408b03-d560-4d04-80ea-91b7b852dd6f
+        hasBreakpoint: 0
+        displayLabel: 
+        signalId: yeld
+    - rid: 2376809931405262933
+      type: {class: SendSignalNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: c6c06ae3-3b3d-43c3-abea-dec35938e3ab
+        _position: {x: -480.72742, y: -940.9999}
+        _groupId: a9a2add4-9e4c-40e8-98a0-2adf8f372fe5
+        hasBreakpoint: 0
+        displayLabel: 
+        signalId: yeld
+    - rid: 2376809931405262934
+      type: {class: SendSignalNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: e9f28315-6d92-45a8-99fb-1810500cb750
+        _position: {x: 911.90125, y: -995.79846}
+        _groupId: 5dd1a8f2-3cd2-4c36-bfaa-41e7309fe61f
+        hasBreakpoint: 0
+        displayLabel: 
+        signalId: yeld
+    - rid: 2376809931405262935
+      type: {class: SendSignalNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: 93a81857-3bea-4a6e-8a40-82f76ae39245
+        _position: {x: 2195, y: -621}
+        _groupId: fc0bdc97-b9f8-42ce-bd5e-0d365113cb60
+        hasBreakpoint: 0
+        displayLabel: 
+        signalId: yeld
+    - rid: 2376809931405262936
+      type: {class: DelayNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: b4a2fea1-b1dd-4359-9093-ae4fa54a9624
+        _position: {x: -254, y: -1548}
+        _groupId: 
+        hasBreakpoint: 0
+        displayLabel: 
+        delaySeconds: 2
+    - rid: 2376809931405262954
+      type: {class: SendSignalNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: dde95415-18b6-4c92-95ad-0796feafebad
+        _position: {x: -160, y: -623}
+        _groupId: 
+        hasBreakpoint: 0
+        displayLabel: 
+        signalId: lose

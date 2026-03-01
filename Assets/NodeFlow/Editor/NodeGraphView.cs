@@ -55,6 +55,11 @@ namespace NodeSystem.Editor
         // Prevent save callbacks from running while rebuilding visuals from serialized data.
         private bool _isLoadingGraph = false;
         
+        // Suppress Undo-record and group-sync callbacks while deferred GraphView events
+        // settle after an Undo/Redo reload. Without this, deferred events from
+        // group.AddElements()/UpdateGeometryFromContent() create phantom Undo entries.
+        private bool _undoCooldown = false;
+        
         // Authoritative editor-side group state. Avoids GraphView timing related membership loss.
         private readonly Dictionary<Group, NodeSystem.GroupEntry> _groupModels = new Dictionary<Group, NodeSystem.GroupEntry>();
 
@@ -124,8 +129,10 @@ namespace NodeSystem.Editor
         
         private void OnElementsAddedToGroup(Group group, IEnumerable<GraphElement> elements)
         {
-            if (_isLoadingGraph) return;
+            if (_isLoadingGraph || _undoCooldown) return;
             var model = EnsureGroupModel(group);
+            if (Graph != null) Undo.RecordObject(Graph, "Add to Group");
+
             foreach (var element in elements)
             {
                 if (element is Node node)
@@ -144,7 +151,10 @@ namespace NodeSystem.Editor
         
         private void OnElementsRemovedFromGroup(Group group, IEnumerable<GraphElement> elements)
         {
-            if (_isLoadingGraph) return;
+            if (_isLoadingGraph || _undoCooldown) return;
+
+            if (Graph != null) Undo.RecordObject(Graph, "Remove from Group");
+
             if (_groupModels.TryGetValue(group, out var model))
             {
                 var groupRect = group != null ? group.GetPosition() : default;
@@ -173,8 +183,9 @@ namespace NodeSystem.Editor
         
         private void OnGroupTitleChanged(Group group, string newTitle)
         {
-            if (_isLoadingGraph) return;
+            if (_isLoadingGraph || _undoCooldown) return;
             var model = EnsureGroupModel(group);
+            if (Graph != null) Undo.RecordObject(Graph, "Change Group Title");
             model.title = newTitle ?? "New Group";
             SyncGroupsToGraph();
             if (Graph != null) { Graph.SaveToJson(); EditorUtility.SetDirty(Graph); }
@@ -239,6 +250,36 @@ namespace NodeSystem.Editor
                 }
 
                 entries.Add(CloneGroupEntry(model));
+            }
+            Graph.SetEditorGroups(entries);
+        }
+
+        /// <summary>
+        /// Read-only initialization of _editorGroups from the already-correct _groupModels.
+        /// Unlike SyncGroupsToGraph, this does NOT modify nodeData.GroupId on any nodes,
+        /// making it safe to call during/after Undo/Redo reload without corrupting the Undo stack.
+        /// </summary>
+        private void InitEditorGroupsFromModels()
+        {
+            if (Graph == null) return;
+            var entries = new List<NodeSystem.GroupEntry>();
+            foreach (var kvp in _groupModels)
+            {
+                var group = kvp.Key;
+                var model = kvp.Value;
+                if (group == null || model == null) continue;
+
+                var pos = group.GetPosition();
+                entries.Add(new NodeSystem.GroupEntry
+                {
+                    id = model.id,
+                    title = model.title ?? group.title ?? "New Group",
+                    x = pos.x,
+                    y = pos.y,
+                    width = pos.width,
+                    height = pos.height,
+                    nodeGuids = model.nodeGuids != null ? new List<string>(model.nodeGuids) : new List<string>()
+                });
             }
             Graph.SetEditorGroups(entries);
         }
@@ -401,6 +442,9 @@ namespace NodeSystem.Editor
                 nodeGuids = selectedNodeGuids.ToList()
             };
             var createdModel = _groupModels[group];
+
+            if (Graph != null) Undo.RecordObject(Graph, "Create Group");
+
             foreach (var node in nodesToGroup)
             {
                 var data = GetNodeData(node);
@@ -435,6 +479,8 @@ namespace NodeSystem.Editor
             if (Graph == null) return;
             var groups = selection.OfType<Group>().ToList();
             if (groups.Count == 0) return;
+
+            if (Graph != null) Undo.RecordObject(Graph, "Ungroup Nodes");
 
             foreach (var group in groups)
             {
@@ -482,6 +528,8 @@ namespace NodeSystem.Editor
                 .Where(n => n.GetType() != typeof(Group))
                 .ToList();
             if (nodesToUngroup.Count == 0) return;
+
+            if (Graph != null) Undo.RecordObject(Graph, "Remove from Group");
 
             foreach (var node in nodesToUngroup)
             {
@@ -1302,15 +1350,33 @@ namespace NodeSystem.Editor
                 AttachSavedNodesToGroups(restoredGroups, restoredEntries, nodeElementsByGuid);
                 
                 // Retry after layout to handle GraphView timing quirks.
+                // IMPORTANT: Do NOT call SyncGroupsToGraph() synchronously here!
+                // Unity's GraphView.AddElements is async — containedElements won't be
+                // populated yet, so syncing now would overwrite correct group data with
+                // an empty/partial member list, causing the "kicked out of group" bug.
                 var loadedGraph = Graph;
                 schedule.Execute(() =>
                 {
                     if (Graph != loadedGraph) return;
-                    AttachSavedNodesToGroups(restoredGroups, restoredEntries, nodeElementsByGuid);
+                    // Guard against OnElementsAddedToGroup/OnElementsRemovedFromGroup
+                    // firing during re-attachment and corrupting group data.
+                    _isLoadingGraph = true;
+                    try
+                    {
+                        AttachSavedNodesToGroups(restoredGroups, restoredEntries, nodeElementsByGuid);
+                    }
+                    finally
+                    {
+                        _isLoadingGraph = false;
+                    }
+                    // DO NOT call SyncGroupsToGraph() here!
+                    // It modifies nodeData.GroupId on _serializedNodes objects without
+                    // Undo.RecordObject, silently corrupting the Undo stack and causing
+                    // nodes to be ejected from groups on the next Undo.
+                    // Instead, initialize _editorGroups from _groupModels so subsequent
+                    // saves preserve group data without mutating serialized node state.
+                    InitEditorGroupsFromModels();
                 }).ExecuteLater(1);
-
-                // Initialize editor-side group cache so generic Save() paths don't clear groups.
-                SyncGroupsToGraph();
 
                 // Add minimap after graph content is loaded
                 if (_minimap == null || _minimap.parent == null)
@@ -1806,7 +1872,7 @@ namespace NodeSystem.Editor
         private GraphViewChange OnGraphViewChanged(GraphViewChange change)
         {
             if (Graph == null) return change;
-            if (_isLoadingGraph) return change;
+            if (_isLoadingGraph || _undoCooldown) return change;
 
             SyncGroupsToGraph();
 
@@ -1941,6 +2007,7 @@ namespace NodeSystem.Editor
                     SyncGroupsToGraph();
                 }
                 EditorUtility.SetDirty(Graph);
+                if (Graph != null) Undo.RecordObject(Graph, "Move Elements");
                 Graph.Save();
             }
 
@@ -1973,8 +2040,21 @@ namespace NodeSystem.Editor
         {
             if (Graph != null)
             {
+                // Enable cooldown to suppress phantom Undo entries from deferred
+                // GraphView events (group.AddElements, UpdateGeometryFromContent, etc.)
+                _undoCooldown = true;
+                
                 Graph.ForceReload();
                 LoadGraph(Graph);
+                
+                // Clear cooldown after deferred events have settled.
+                // 100ms is enough for GraphView layout + attachment callbacks.
+                var loadedGraph = Graph;
+                schedule.Execute(() =>
+                {
+                    if (Graph == loadedGraph)
+                        _undoCooldown = false;
+                }).ExecuteLater(100);
             }
         }
 

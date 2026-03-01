@@ -91,6 +91,10 @@ namespace NodeSystem
         [SerializeField, HideInInspector]
         private List<NodeAssetReference> _nodeAssetReferences = new List<NodeAssetReference>();
 
+        // Native serialization path (faster, simpler than JSON)
+        [SerializeReference]
+        private List<NodeData> _serializedNodes = new List<NodeData>();
+
         // Runtime cache
         [NonSerialized] private List<NodeData> _runtimeNodes;
         [NonSerialized] private List<ConnectionData> _runtimeConnections;
@@ -195,6 +199,32 @@ namespace NodeSystem
             InvalidateIndices(); // Clear indices when reloading
             _loaded = true;
 
+            // --- FAIR MIGRATION NATIVE PATH ---
+            if (_serializedNodes != null && _serializedNodes.Count > 0)
+            {
+                Debug.Log($"[NodeGraph] Loading {graphName} via SerializeReference fast path.");
+                var loadedGuids = new HashSet<string>();
+                foreach (var node in _serializedNodes)
+                {
+                    if (node != null && !string.IsNullOrEmpty(node.Guid) && !loadedGuids.Contains(node.Guid))
+                    {
+                        loadedGuids.Add(node.Guid);
+                        _runtimeNodes.Add(node);
+                    }
+                }
+                
+                LoadMetadataFromJson(_jsonData);
+                SyncNodeGroupIdsFromGroups();
+                 
+#if UNITY_EDITOR
+                ValidateAndRestoreReferences();
+#endif
+                RestoreAssetReferences();
+                BuildIndices();
+                return;
+            }
+
+            // --- FALLBACK PATH: JSON DESERIALIZATION ---
             if (string.IsNullOrEmpty(_jsonData))
             {
                 Debug.LogWarning($"[NodeGraph] {graphName}: _jsonData is empty! Graph will appear empty.");
@@ -299,6 +329,56 @@ namespace NodeSystem
             {
                 Debug.LogError($"[NodeGraph] Failed to load: {e.Message}");
                 _loadFailed = true;
+            }
+        }
+
+        private void LoadMetadataFromJson(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            
+            try
+            {
+                var data = JsonUtility.FromJson<GraphData>(json);
+                if (data == null) return;
+                
+                // Load connections
+                if (data.connections != null)
+                {
+                    foreach (var entry in data.connections)
+                    {
+                        _runtimeConnections.Add(new ConnectionData(
+                            entry.outNode, entry.outPort, entry.inNode, entry.inPort
+                        ));
+                    }
+                }
+
+                // Load variables
+                if (data.variables != null)
+                {
+                    _runtimeVariables.AddRange(data.variables);
+                }
+
+                // Load groups (editor-only layout)
+                if (data.groups != null)
+                {
+                    foreach (var g in data.groups)
+                    {
+                        _runtimeGroups.Add(new GroupEntry
+                        {
+                            id = string.IsNullOrEmpty(g.id) ? System.Guid.NewGuid().ToString() : g.id,
+                            title = g.title ?? "New Group",
+                            x = g.x,
+                            y = g.y,
+                            width = g.width,
+                            height = g.height,
+                            nodeGuids = g.nodeGuids != null ? new List<string>(g.nodeGuids) : new List<string>()
+                        });
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[NodeGraph] Failed to load metadata: {e.Message}");
             }
         }
 
@@ -631,18 +711,19 @@ namespace NodeSystem
                 return;
             }
 
-            var data = new GraphData();
-
-            // Save nodes
+            // Sync native serialization array
+            if (_serializedNodes == null) _serializedNodes = new List<NodeData>();
+            _serializedNodes.Clear();
             foreach (var node in _runtimeNodes)
             {
-                if (node == null) continue;
-                data.nodes.Add(new NodeEntry
-                {
-                    typeName = node.GetType().AssemblyQualifiedName,
-                    json = JsonUtility.ToJson(node)
-                });
+                if (node != null) _serializedNodes.Add(node);
             }
+
+            var data = new GraphData();
+
+            // We no longer serialize nodes to JSON to save performance and memory. 
+            // The native [SerializeReference] list now authoritative.
+            data.nodes = new List<NodeEntry>();
 
             // Save connections
             foreach (var conn in _runtimeConnections)
