@@ -107,6 +107,10 @@ namespace NodeSystem.Nodes.Quiz
         [NonSerialized]
         private HashSet<string> _feedbackTrackedGuids = new HashSet<string>();
 
+        // Tracks GUIDs of all on_load nodes still running (for pre-question auto-unlock)
+        [NonSerialized]
+        private HashSet<string> _loadTrackedGuids = new HashSet<string>();
+
         public override string Name => "Load Question";
         public override Color Color => new Color(0.2f, 0.7f, 0.4f); // Green
         public override string Category => "Quiz";
@@ -123,6 +127,7 @@ namespace NodeSystem.Nodes.Quiz
         {
             return new List<PortData>
             {
+                new PortData("on_load", "On Load", PortDirection.Output, PortCapacity.Multi, "Fires immediately when the question loads. The UI is locked until all connected nodes finish (e.g. for intro sounds/animations)."),
                 new PortData("correct", "Correct", PortDirection.Output, PortCapacity.Multi, "Fires when the question is finally answered correctly."),
                 new PortData("incorrect", "Incorrect", PortDirection.Output, PortCapacity.Multi, "Fires when the question is finally answered incorrectly."),
                 new PortData("on_correct", "On Correct Attempt", PortDirection.Output, PortCapacity.Multi, "Fires on every correct partial action (e.g. correct pair in Connect)."),
@@ -277,6 +282,9 @@ namespace NodeSystem.Nodes.Quiz
             // Show THIS question immediately when this node runs (avoids wrong order when
             // multiple LoadQuestion nodes are connected to the same output, e.g. from StartQuiz).
             _quizManager.ShowQuestionByIndex(questionIndex);
+
+            // Execute the on_load intro nodes, which lock the UI until they finish.
+            ExecuteLoadChain();
 
             if (waitForAnswer)
             {
@@ -478,6 +486,96 @@ namespace NodeSystem.Nodes.Quiz
             }
         }
 
+        /// <summary>
+        /// Fires all nodes connected to "on_load".
+        /// Locks the UI, tracks node completion, and unlocks when done.
+        /// </summary>
+        private void ExecuteLoadChain()
+        {
+            if (Runner == null || Runner.Graph == null)
+            {
+                return;
+            }
+
+            var loadNodes = Runner.Graph.GetConnectedNodes(Guid, "on_load");
+            if (loadNodes == null || loadNodes.Count == 0)
+            {
+                // Nothing connected, UI remains interactive (or unlocks if locked elsewhere)
+                return;
+            }
+
+            // Lock UI before question interaction
+            QuizState.RequestUILockForLoad();
+
+            _loadTrackedGuids.Clear();
+            foreach (var node in loadNodes)
+            {
+                if (node != null)
+                    _loadTrackedGuids.Add(node.Guid);
+            }
+
+            NodeGraphRunner.OnNodeCompleted -= OnLoadChainNodeCompleted;
+            NodeGraphRunner.OnNodeCompleted += OnLoadChainNodeCompleted;
+
+            foreach (var node in loadNodes)
+            {
+                Runner.ExecuteNode(node);
+            }
+        }
+
+        private void OnLoadChainNodeCompleted(NodeGraphRunner runner, NodeData completedNode)
+        {
+            if (runner != Runner) return;
+            if (!_loadTrackedGuids.Remove(completedNode.Guid)) return;
+
+            if (Runner?.Graph != null)
+            {
+                // Track downstream nodes
+                foreach (var port in completedNode.GetOutputPorts())
+                {
+                    var downstream = Runner.Graph.GetConnectedNodes(completedNode.Guid, port.id);
+                    if (downstream != null)
+                    {
+                        foreach (var dn in downstream)
+                        {
+                            if (dn != null)
+                                _loadTrackedGuids.Add(dn.Guid);
+                        }
+                    }
+                }
+
+                // Follow SendSignalNode links
+                if (completedNode is NodeSystem.Nodes.SendSignalNode sendSignal && !string.IsNullOrEmpty(sendSignal.signalId))
+                {
+                    foreach (var node in Runner.Graph.Nodes)
+                    {
+                        if (node is NodeSystem.Nodes.ReceiveSignalNode recv && recv.signalId == sendSignal.signalId)
+                        {
+                            foreach (var recvPort in recv.GetOutputPorts())
+                            {
+                                var recvDownstream = Runner.Graph.GetConnectedNodes(recv.Guid, recvPort.id);
+                                if (recvDownstream != null)
+                                {
+                                    foreach (var dn in recvDownstream)
+                                    {
+                                        if (dn != null)
+                                            _loadTrackedGuids.Add(dn.Guid);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Unlock when the intro chain is fully done
+            if (_loadTrackedGuids.Count == 0)
+            {
+                NodeGraphRunner.OnNodeCompleted -= OnLoadChainNodeCompleted;
+                QuizState.RequestUIUnlock();
+            }
+        }
+
         private Transform ResolveQuestionContainer()
         {
             // First, try the direct reference
@@ -534,9 +632,14 @@ namespace NodeSystem.Nodes.Quiz
             QuizState.OnWrongAttempt -= OnWrongAttemptReceived;
             QuizState.OnCorrectAnswerFeedbackStart -= OnCorrectAnswerFeedbackReceived;
             QuizState.OnWrongAnswerFeedbackStart -= OnWrongAnswerFeedbackReceived;
+
             // Clean up feedback chain tracking
             NodeGraphRunner.OnNodeCompleted -= OnFeedbackChainNodeCompleted;
             _feedbackTrackedGuids.Clear();
+
+            // Clean up load chain tracking
+            NodeGraphRunner.OnNodeCompleted -= OnLoadChainNodeCompleted;
+            _loadTrackedGuids.Clear();
         }
     }
 }

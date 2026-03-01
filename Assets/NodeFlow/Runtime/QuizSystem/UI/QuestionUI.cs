@@ -114,13 +114,15 @@ namespace QuizSystem
             UpdateAttemptCounter();
             SetupQuestion();
 
-            // Subscribe to unlock event so this UI can be re-enabled when feedback chain finishes
+            // Subscribe to lock/unlock events so this UI can be controlled by nodes
             QuizState.OnUIUnlockRequested += UnlockUI;
+            QuizState.OnUILockRequested += LockUI;
         }
 
         protected virtual void OnDestroy()
         {
             QuizState.OnUIUnlockRequested -= UnlockUI;
+            QuizState.OnUILockRequested -= LockUI;
         }
 
         protected abstract void SetupQuestion();

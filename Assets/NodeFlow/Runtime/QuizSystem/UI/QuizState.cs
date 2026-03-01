@@ -40,6 +40,8 @@ namespace QuizSystem
         public static event Action OnWrongAnswerFeedbackStart;
         /// <summary>Fires when feedback nodes finish and the UI should be unlocked.</summary>
         public static event Action OnUIUnlockRequested;
+        /// <summary>Fires when the UI should be locked before any interaction (e.g. for on_load intro nodes).</summary>
+        public static event Action OnUILockRequested;
 
         // === UI Lock State ===
         /// <summary>Whether the quiz UI is currently locked (during answer feedback).</summary>
@@ -195,8 +197,19 @@ namespace QuizSystem
         }
 
         /// <summary>
-        /// Called by UnlockQuizUINode (or immediately if no feedback nodes are connected)
-        /// to re-enable quiz UI interaction.
+        /// Called by LoadQuestionNode to lock the UI before question interaction begins
+        /// (e.g. while playing "on_load" intro nodes like sounds/animations).
+        /// </summary>
+        public static void RequestUILockForLoad()
+        {
+            if (UILocked) return;
+            UILocked = true;
+            OnUILockRequested?.Invoke();
+            Debug.Log("[QuizState] UI lock requested for load");
+        }
+
+        /// <summary>
+        /// Called by UnlockQuizUINode (or automatically) to re-enable quiz UI interaction.
         /// </summary>
         public static void RequestUIUnlock()
         {
