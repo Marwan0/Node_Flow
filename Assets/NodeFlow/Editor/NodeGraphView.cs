@@ -38,7 +38,7 @@ namespace NodeSystem.Editor
         private Vector2 _copyCenter;
         private Vector2 _lastMousePosition;
         
-        // --- UX Enhancements (inspired by Doozy Nody) ---
+        // --- UX Enhancements ---
         
         // Edge execution highlighting
         private HashSet<string> _executedNodeGuids = new HashSet<string>();
@@ -62,6 +62,12 @@ namespace NodeSystem.Editor
         
         // Authoritative editor-side group state. Avoids GraphView timing related membership loss.
         private readonly Dictionary<Group, NodeSystem.GroupEntry> _groupModels = new Dictionary<Group, NodeSystem.GroupEntry>();
+        
+        // Prevent recursive graph callbacks during programmatic edge rewiring.
+        private bool _isApplyingAutoInsert;
+        
+        // Visual preview edge when dragging a node near a connection.
+        private Edge _insertPreviewEdge;
 
         public NodeGraphView()
         {
@@ -363,6 +369,7 @@ namespace NodeSystem.Editor
             if (evt.target == this || evt.target is GridBackground)
             {
                 evt.menu.AppendAction("Create Group", _ => CreateGroupAtContextMenuPosition(evt), DropdownMenuAction.AlwaysEnabled);
+                evt.menu.AppendAction("Create Sticky Note", _ => CreateStickyNoteAtPosition(evt), DropdownMenuAction.AlwaysEnabled);
             }
         }
 
@@ -395,6 +402,24 @@ namespace NodeSystem.Editor
             SyncGroupsToGraph();
             Graph.SaveToJson();
             EditorUtility.SetDirty(Graph);
+        }
+
+        private void CreateStickyNoteAtPosition(ContextualMenuPopulateEvent evt)
+        {
+            if (Graph == null) return;
+            Vector2 localPos = evt.target is VisualElement ve
+                ? contentViewContainer.WorldToLocal(ve.LocalToWorld(evt.localMousePosition))
+                : contentViewContainer.WorldToLocal(evt.originalMousePosition);
+
+            var commentNode = new Nodes.CommentNode();
+            commentNode.Position = localPos;
+
+            SyncGroupsToGraph();
+            Undo.RecordObject(Graph, "Add Sticky Note");
+            Graph.AddNode(commentNode);
+            Graph.Save();
+
+            CreateNodeView(commentNode);
         }
 
         /// <summary>
@@ -624,6 +649,10 @@ namespace NodeSystem.Editor
             {
                 UpdateDeletePreview(evt.localMousePosition);
             }
+            else
+            {
+                UpdateInsertPreviewFromCurrentSelection(evt);
+            }
         }
 
         private void OnKeyDown(KeyDownEvent evt)
@@ -699,6 +728,64 @@ namespace NodeSystem.Editor
                 _isAltHeld = false;
                 ClearDeletePreview();
             }
+        }
+        
+        private void UpdateInsertPreviewFromCurrentSelection(MouseMoveEvent evt)
+        {
+            if (EditorApplication.isPlaying)
+            {
+                ClearInsertPreview();
+                return;
+            }
+            
+            if (evt == null)
+            {
+                ClearInsertPreview();
+                return;
+            }
+            
+            // Left mouse button must be down and exactly one normal node selected.
+            bool isDraggingWithLeftButton = (evt.pressedButtons & 1) != 0;
+            if (!isDraggingWithLeftButton)
+            {
+                ClearInsertPreview();
+                return;
+            }
+
+            var selectedNode = selection.OfType<NodeView>().FirstOrDefault();
+            if (selectedNode == null || selection.OfType<NodeView>().Count() != 1)
+            {
+                ClearInsertPreview();
+                return;
+            }
+
+            if (FindInsertTargetEdge(selectedNode, out var targetEdge))
+            {
+                SetInsertPreview(targetEdge);
+            }
+            else
+            {
+                ClearInsertPreview();
+            }
+        }
+
+        private void SetInsertPreview(Edge edge)
+        {
+            if (_insertPreviewEdge == edge) return;
+            ClearInsertPreview();
+            _insertPreviewEdge = edge;
+            _insertPreviewEdge?.AddToClassList("edge-insert-preview");
+            (_insertPreviewEdge?.edgeControl as FlowStyleEdgeControl)?.SetRuntimeState(
+                FlowStyleEdgeControl.EdgeRuntimeState.Preview);
+        }
+
+        private void ClearInsertPreview()
+        {
+            if (_insertPreviewEdge == null) return;
+            _insertPreviewEdge.RemoveFromClassList("edge-insert-preview");
+            (_insertPreviewEdge.edgeControl as FlowStyleEdgeControl)?.SetRuntimeState(
+                FlowStyleEdgeControl.EdgeRuntimeState.Normal);
+            _insertPreviewEdge = null;
         }
 
         private void OnAttachToPanel(AttachToPanelEvent evt)
@@ -895,7 +982,7 @@ namespace NodeSystem.Editor
         }
 
         // ============================================================
-        //  EDGE EXECUTION HIGHLIGHTING (inspired by Doozy's curve colors)
+        //  EDGE EXECUTION HIGHLIGHTING
         // ============================================================
         
         /// <summary>
@@ -923,8 +1010,8 @@ namespace NodeSystem.Editor
                 {
                     edge.RemoveFromClassList("edge-executed");
                     edge.AddToClassList("edge-active");
-                    (edge.edgeControl as DoozyStyleEdgeControl)?.SetRuntimeState(
-                        DoozyStyleEdgeControl.EdgeRuntimeState.Active);
+                    (edge.edgeControl as FlowStyleEdgeControl)?.SetRuntimeState(
+                        FlowStyleEdgeControl.EdgeRuntimeState.Active);
                 }
             }
         }
@@ -946,8 +1033,8 @@ namespace NodeSystem.Editor
                 {
                     edge.RemoveFromClassList("edge-active");
                     edge.AddToClassList("edge-executed");
-                    (edge.edgeControl as DoozyStyleEdgeControl)?.SetRuntimeState(
-                        DoozyStyleEdgeControl.EdgeRuntimeState.Executed);
+                    (edge.edgeControl as FlowStyleEdgeControl)?.SetRuntimeState(
+                        FlowStyleEdgeControl.EdgeRuntimeState.Executed);
                 }
             }
 
@@ -961,8 +1048,8 @@ namespace NodeSystem.Editor
                     {
                         edge.RemoveFromClassList("edge-active");
                         edge.AddToClassList("edge-executed");
-                        (edge.edgeControl as DoozyStyleEdgeControl)?.SetRuntimeState(
-                            DoozyStyleEdgeControl.EdgeRuntimeState.Executed);
+                        (edge.edgeControl as FlowStyleEdgeControl)?.SetRuntimeState(
+                            FlowStyleEdgeControl.EdgeRuntimeState.Executed);
                     }
                 }
             }
@@ -994,8 +1081,8 @@ namespace NodeSystem.Editor
                         if (_executedNodeGuids.Contains(targetGuid) || targetGuid == _currentRunningNodeGuid)
                         {
                             edge.AddToClassList("edge-executed");
-                            (edge.edgeControl as DoozyStyleEdgeControl)?.SetRuntimeState(
-                                DoozyStyleEdgeControl.EdgeRuntimeState.Executed);
+                            (edge.edgeControl as FlowStyleEdgeControl)?.SetRuntimeState(
+                                FlowStyleEdgeControl.EdgeRuntimeState.Executed);
                         }
                     }
                 }
@@ -1014,8 +1101,8 @@ namespace NodeSystem.Editor
                         {
                             edge.RemoveFromClassList("edge-executed");
                             edge.AddToClassList("edge-active");
-                            (edge.edgeControl as DoozyStyleEdgeControl)?.SetRuntimeState(
-                                DoozyStyleEdgeControl.EdgeRuntimeState.Active);
+                            (edge.edgeControl as FlowStyleEdgeControl)?.SetRuntimeState(
+                                FlowStyleEdgeControl.EdgeRuntimeState.Active);
                         }
                     }
                 }
@@ -1031,12 +1118,12 @@ namespace NodeSystem.Editor
             {
                 edge.RemoveFromClassList("edge-active");
                 edge.RemoveFromClassList("edge-executed");
-                (edge.edgeControl as DoozyStyleEdgeControl)?.ResetState();
+                (edge.edgeControl as FlowStyleEdgeControl)?.ResetState();
             }
         }
 
         // ============================================================
-        //  ZOOM-BASED LOD (inspired by Doozy's NodyWindowDrawViewGraph LOD)
+        //  ZOOM-BASED LOD
         // ============================================================
         
         /// <summary>
@@ -1062,7 +1149,7 @@ namespace NodeSystem.Editor
         }
 
         // ============================================================
-        //  DELETE PREVIEW (inspired by Doozy's delete mode)
+        //  DELETE PREVIEW
         // ============================================================
         
         /// <summary>
@@ -1152,8 +1239,8 @@ namespace NodeSystem.Editor
             if (port.edgeConnector != null)
                 port.RemoveManipulator(port.edgeConnector);
 
-            // Add our custom connector (still creates DoozyStyleEdge instances)
-            port.AddManipulator(new EdgeConnector<DoozyStyleEdge>(listener));
+            // Add our custom connector (still creates FlowStyleEdge instances)
+            port.AddManipulator(new EdgeConnector<FlowStyleEdge>(listener));
         }
 
         /// <summary>
@@ -1770,6 +1857,135 @@ namespace NodeSystem.Editor
                 // Delay to next frame so graph data is fully updated
                 schedule.Execute(() => nv.RefreshInlineContent());
         }
+        
+        /// <summary>
+        /// If an unconnected node is dropped over a connection, split that edge:
+        /// A -> B becomes A -> node -> B.
+        /// </summary>
+        private bool TryAutoInsertNodeOnEdge(NodeView movedNode)
+        {
+            if (movedNode == null || Graph == null) return false;
+            if (!FindInsertTargetEdge(movedNode, out var targetEdge)) return false;
+            
+            // Node must be able to sit between two nodes.
+            var nodeInputPort = movedNode.inputContainer.Query<Port>().ToList().FirstOrDefault();
+            var nodeOutputPort = movedNode.outputContainer.Query<Port>().ToList().FirstOrDefault();
+            if (nodeInputPort == null || nodeOutputPort == null) return false;
+            var sourceNodeData = GetNodeData(targetEdge.output.node);
+            var destinationNodeData = GetNodeData(targetEdge.input.node);
+            var insertedNodeData = movedNode.Data;
+            if (sourceNodeData == null || destinationNodeData == null || insertedNodeData == null) return false;
+            var sourceNodeElement = targetEdge.output.node;
+            var destinationNodeElement = targetEdge.input.node;
+
+            var oldConnection = new ConnectionData(
+                sourceNodeData.Guid,
+                targetEdge.output.name,
+                destinationNodeData.Guid,
+                targetEdge.input.name
+            );
+
+            var toInsertedConnection = new ConnectionData(
+                sourceNodeData.Guid,
+                targetEdge.output.name,
+                insertedNodeData.Guid,
+                nodeInputPort.name
+            );
+
+            var fromInsertedConnection = new ConnectionData(
+                insertedNodeData.Guid,
+                nodeOutputPort.name,
+                destinationNodeData.Guid,
+                targetEdge.input.name
+            );
+
+            Undo.RecordObject(Graph, "Insert Node On Connection");
+            _isApplyingAutoInsert = true;
+            try
+            {
+                Graph.RemoveConnection(oldConnection);
+                Graph.AddConnection(toInsertedConnection);
+                Graph.AddConnection(fromInsertedConnection);
+                Graph.Save();
+
+                targetEdge.output.Disconnect(targetEdge);
+                targetEdge.input.Disconnect(targetEdge);
+                RemoveElement(targetEdge);
+
+                CreateEdge(toInsertedConnection);
+                CreateEdge(fromInsertedConnection);
+            }
+            finally
+            {
+                _isApplyingAutoInsert = false;
+            }
+            
+            ClearInsertPreview();
+
+            RefreshNodeInlineContent(sourceNodeElement);
+            RefreshNodeInlineContent(destinationNodeElement);
+            RefreshNodeInlineContent(movedNode);
+            return true;
+        }
+
+        private bool FindInsertTargetEdge(NodeView movedNode, out Edge targetEdge)
+        {
+            targetEdge = null;
+            if (movedNode == null || Graph == null) return false;
+            if (EditorApplication.isPlaying) return false;
+            
+            // Keep behavior predictable: only auto-insert brand new/unwired nodes.
+            bool hasExistingConnections =
+                movedNode.inputContainer.Query<Port>().ToList().Any(p => p.connections.Any()) ||
+                movedNode.outputContainer.Query<Port>().ToList().Any(p => p.connections.Any());
+            if (hasExistingConnections) return false;
+            
+            // Must have both directions available to split a connection.
+            bool hasInputPort = movedNode.inputContainer.Query<Port>().ToList().Any();
+            bool hasOutputPort = movedNode.outputContainer.Query<Port>().ToList().Any();
+            if (!hasInputPort || !hasOutputPort) return false;
+
+            Vector2 nodeCenter = movedNode.worldBound.center;
+            float maxInsertDistance = Mathf.Max(80f, Mathf.Max(movedNode.worldBound.width, movedNode.worldBound.height) * 0.55f);
+
+            var candidates = edges.ToList()
+                .Where(e =>
+                    e != null &&
+                    e.output != null &&
+                    e.input != null &&
+                    e.output.node != null &&
+                    e.input.node != null &&
+                    e.output.node != movedNode &&
+                    e.input.node != movedNode)
+                .Select(e => new
+                {
+                    edge = e,
+                    distance = DistancePointToSegment(
+                        nodeCenter,
+                        e.output.worldBound.center,
+                        e.input.worldBound.center)
+                })
+                .Where(x => x.distance <= maxInsertDistance)
+                .OrderBy(x => x.distance)
+                .ToList();
+
+            if (candidates.Count == 0) return false;
+            if (candidates.Count > 1 && (candidates[1].distance - candidates[0].distance) < 15f)
+                return false;
+
+            targetEdge = candidates[0].edge;
+            return targetEdge != null;
+        }
+
+        private static float DistancePointToSegment(Vector2 point, Vector2 segmentStart, Vector2 segmentEnd)
+        {
+            Vector2 segment = segmentEnd - segmentStart;
+            float lengthSq = segment.sqrMagnitude;
+            if (lengthSq < 0.0001f) return Vector2.Distance(point, segmentStart);
+            float t = Mathf.Clamp01(Vector2.Dot(point - segmentStart, segment) / lengthSq);
+            Vector2 projection = segmentStart + segment * t;
+            return Vector2.Distance(point, projection);
+        }
 
         /// <summary>
         /// Get NodeData from a node
@@ -1778,7 +1994,14 @@ namespace NodeSystem.Editor
         {
             if (node is NodeView nodeView)
                 return nodeView.Data;
-            if (node is CommentNodeView commentView)
+            return null;
+        }
+
+        private NodeData GetNodeDataFromElement(GraphElement element)
+        {
+            if (element is NodeView nodeView)
+                return nodeView.Data;
+            if (element is CommentNodeView commentView)
                 return commentView.Data;
             return null;
         }
@@ -1816,7 +2039,7 @@ namespace NodeSystem.Editor
             
             if (existingEdge != null) return;
 
-            var edge = new DoozyStyleEdge();
+            var edge = new FlowStyleEdge();
             edge.output = outputPort;
             edge.input = inputPort;
             outputPort.Connect(edge);
@@ -1873,6 +2096,7 @@ namespace NodeSystem.Editor
         {
             if (Graph == null) return change;
             if (_isLoadingGraph || _undoCooldown) return change;
+            if (_isApplyingAutoInsert) return change;
 
             SyncGroupsToGraph();
 
@@ -1881,16 +2105,7 @@ namespace NodeSystem.Editor
             {
                 foreach (var elem in change.elementsToRemove)
                 {
-                    NodeData nodeData = null;
-                    
-                    if (elem is NodeView nodeView)
-                    {
-                        nodeData = nodeView.Data;
-                    }
-                    else if (elem is CommentNodeView commentView)
-                    {
-                        nodeData = commentView.Data;
-                    }
+                    NodeData nodeData = GetNodeDataFromElement(elem);
                     
                     if (nodeData != null)
                     {
@@ -1991,11 +2206,28 @@ namespace NodeSystem.Editor
             if (change.movedElements != null)
             {
                 bool hasGroupMove = false;
+                bool autoInsertApplied = false;
                 foreach (var elem in change.movedElements)
                 {
                     if (elem is NodeView nodeView)
                     {
                         nodeView.Data.Position = nodeView.GetPosition().position;
+                        if (!autoInsertApplied && FindInsertTargetEdge(nodeView, out var previewEdge))
+                        {
+                            SetInsertPreview(previewEdge);
+                        }
+                        else if (!autoInsertApplied)
+                        {
+                            ClearInsertPreview();
+                        }
+                        if (!autoInsertApplied)
+                        {
+                            autoInsertApplied = TryAutoInsertNodeOnEdge(nodeView);
+                        }
+                    }
+                    else if (elem is CommentNodeView commentView)
+                    {
+                        commentView.Data.Position = commentView.GetPosition().position;
                     }
                     else if (elem is Group)
                     {
@@ -2009,6 +2241,7 @@ namespace NodeSystem.Editor
                 EditorUtility.SetDirty(Graph);
                 if (Graph != null) Undo.RecordObject(Graph, "Move Elements");
                 Graph.Save();
+                ClearInsertPreview();
             }
 
             // Re-sync groups after removals (e.g. deleted group) so saved state is correct

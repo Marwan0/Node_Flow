@@ -65,7 +65,7 @@ namespace NodeSystem.Editor
                 CreateHintButton();
             }
 
-            // Add glow element (behind everything, inspired by Doozy's NodeGlow)
+            // Add glow element behind everything.
             _glowElement = new VisualElement();
             _glowElement.name = "node-glow";
             _glowElement.pickingMode = PickingMode.Ignore; // Don't intercept clicks
@@ -275,11 +275,11 @@ namespace NodeSystem.Editor
         private void CreatePorts()
         {
             // Input ports
-            // Use Port.Create<DoozyStyleEdge> so that user-dragged connections
+            // Use Port.Create<FlowStyleEdge> so user-dragged connections
             // automatically create our custom edge type.
             foreach (var portData in Data.GetInputPorts())
             {
-                var port = Port.Create<DoozyStyleEdge>(
+                var port = Port.Create<FlowStyleEdge>(
                     Orientation.Horizontal,
                     Direction.Input,
                     portData.capacity == PortCapacity.Multi ? Port.Capacity.Multi : Port.Capacity.Single,
@@ -296,7 +296,7 @@ namespace NodeSystem.Editor
             // Output ports
             foreach (var portData in Data.GetOutputPorts())
             {
-                var port = Port.Create<DoozyStyleEdge>(
+                var port = Port.Create<FlowStyleEdge>(
                     Orientation.Horizontal,
                     Direction.Output,
                     portData.capacity == PortCapacity.Multi ? Port.Capacity.Multi : Port.Capacity.Single,
@@ -367,7 +367,7 @@ namespace NodeSystem.Editor
 
         /// <summary>
         /// Update visual state for runtime visualization.
-        /// Uses CSS transitions for smooth color changes (inspired by Doozy AnimBool lerps).
+        /// Uses CSS transitions for smooth color changes.
         /// </summary>
         public void SetVisualState(NodeState state)
         {
@@ -435,7 +435,7 @@ namespace NodeSystem.Editor
         }
 
         /// <summary>
-        /// Start a pulsing glow animation on the running node (inspired by Doozy's Ping system).
+        /// Start a pulsing glow animation on the running node.
         /// Electric blue pulse that is large and unmissable.
         /// </summary>
         private void StartPulse()

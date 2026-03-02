@@ -6,16 +6,16 @@ using UnityEditor.Experimental.GraphView;
 namespace NodeSystem.Editor
 {
     /// <summary>
-    /// Custom Edge that uses Doozy-inspired curve rendering:
+    /// Custom Edge with layered curve rendering:
     /// - Double-layer bezier (dark outline + bright inner + glossy highlight)
     /// - Dynamic tangents that adapt to relative node positions
     /// - Animated traveling dot on active/selected connections
     /// </summary>
-    public class DoozyStyleEdge : Edge
+    public class FlowStyleEdge : Edge
     {
         protected override EdgeControl CreateEdgeControl()
         {
-            return new DoozyStyleEdgeControl
+            return new FlowStyleEdgeControl
             {
                 capRadius = 5,
                 interceptWidth = 6
@@ -24,13 +24,13 @@ namespace NodeSystem.Editor
     }
 
     /// <summary>
-    /// Custom EdgeControl with Doozy-style rendering via Painter2D.
+    /// Custom EdgeControl rendering via Painter2D.
     /// Replaces the default flat polyline with a layered bezier curve.
     /// </summary>
-    public class DoozyStyleEdgeControl : EdgeControl
+    public class FlowStyleEdgeControl : EdgeControl
     {
         // --- Runtime state (set directly by NodeGraphView) ---
-        public enum EdgeRuntimeState { Normal, Active, Executed }
+        public enum EdgeRuntimeState { Normal, Active, Executed, Preview }
         private EdgeRuntimeState _runtimeState = EdgeRuntimeState.Normal;
 
         // --- Dot animation ---
@@ -38,7 +38,7 @@ namespace NodeSystem.Editor
         private IVisualElementScheduledItem _dotSchedule;
         private bool _isDotAnimating;
 
-        // --- Curve settings (inspired by Doozy NodySettings) ---
+        // --- Curve settings ---
         private const float CurveModifier = 0.35f;
         private const float MinStrength = 30f;
         private const float MaxStrength = 250f;
@@ -48,21 +48,23 @@ namespace NodeSystem.Editor
         private const float DotSpeed = 0.015f;
 
         // --- Color palette ---
-        private static readonly Color NormalMain     = new Color(0.50f, 0.68f, 0.88f, 0.80f);
-        private static readonly Color NormalOutline  = new Color(0.06f, 0.10f, 0.18f, 0.55f);
-        private static readonly Color ActiveMain     = new Color(0.15f, 0.75f, 1.00f, 1.00f);
-        private static readonly Color ActiveOutline  = new Color(0.04f, 0.18f, 0.35f, 0.70f);
-        private static readonly Color ExecutedMain   = new Color(0.27f, 0.82f, 0.40f, 0.88f);
-        private static readonly Color ExecutedOutline= new Color(0.05f, 0.18f, 0.08f, 0.55f);
-        private static readonly Color SelectedMain   = new Color(0.85f, 0.92f, 1.00f, 1.00f);
-        private static readonly Color SelectedOutline= new Color(0.15f, 0.25f, 0.40f, 0.70f);
-        private static readonly Color DotWhite       = new Color(1.00f, 1.00f, 1.00f, 0.95f);
+        private static readonly Color NormalMain      = new Color(0.50f, 0.68f, 0.88f, 0.80f);
+        private static readonly Color NormalOutline   = new Color(0.06f, 0.10f, 0.18f, 0.55f);
+        private static readonly Color ActiveMain      = new Color(0.15f, 0.75f, 1.00f, 1.00f);
+        private static readonly Color ActiveOutline   = new Color(0.04f, 0.18f, 0.35f, 0.70f);
+        private static readonly Color ExecutedMain    = new Color(0.27f, 0.82f, 0.40f, 0.88f);
+        private static readonly Color ExecutedOutline = new Color(0.05f, 0.18f, 0.08f, 0.55f);
+        private static readonly Color PreviewMain     = new Color(1.00f, 0.78f, 0.18f, 0.96f);
+        private static readonly Color PreviewOutline  = new Color(0.38f, 0.26f, 0.06f, 0.72f);
+        private static readonly Color SelectedMain    = new Color(0.85f, 0.92f, 1.00f, 1.00f);
+        private static readonly Color SelectedOutline = new Color(0.15f, 0.25f, 0.40f, 0.70f);
+        private static readonly Color DotWhite        = new Color(1.00f, 1.00f, 1.00f, 0.95f);
 
         // --- Hit testing ---
         private const int HitTestSamples = 40;
         private const float HitTestPadding = 8f; // Extra pixels around the curve for easier clicking
 
-        public DoozyStyleEdgeControl()
+        public FlowStyleEdgeControl()
         {
             // Replace the default mesh-based renderer with our Painter2D renderer
             generateVisualContent = OnGenerateVisualContent;
@@ -102,11 +104,11 @@ namespace NodeSystem.Editor
         }
 
         // =============================================================
-        //  HIT TESTING  (must match the drawn Doozy bezier exactly)
+        //  HIT TESTING  (must match the drawn bezier exactly)
         // =============================================================
 
         /// <summary>
-        /// Point-on-curve test. Samples the Doozy-style bezier and returns
+        /// Point-on-curve test. Samples the custom bezier and returns
         /// true when <paramref name="localPoint"/> is close enough to select.
         /// </summary>
         public override bool ContainsPoint(Vector2 localPoint)
@@ -114,7 +116,7 @@ namespace NodeSystem.Editor
             if (!GetLocalEndpoints(out Vector2 localStart, out Vector2 localEnd))
                 return false;
 
-            ComputeDoozyTangents(localStart, localEnd, out Vector2 cp1, out Vector2 cp2);
+            ComputeFlowTangents(localStart, localEnd, out Vector2 cp1, out Vector2 cp2);
 
             float clickRadius = Mathf.Max(interceptWidth, edgeWidth + OutlineExtra) + HitTestPadding;
             float clickRadiusSq = clickRadius * clickRadius;
@@ -138,7 +140,7 @@ namespace NodeSystem.Editor
             if (!GetLocalEndpoints(out Vector2 localStart, out Vector2 localEnd))
                 return false;
 
-            ComputeDoozyTangents(localStart, localEnd, out Vector2 cp1, out Vector2 cp2);
+            ComputeFlowTangents(localStart, localEnd, out Vector2 cp1, out Vector2 cp2);
 
             // Inflate the rect a little so near-misses still count
             Rect inflated = new Rect(
@@ -185,8 +187,8 @@ namespace NodeSystem.Editor
             if (!GetLocalEndpoints(out Vector2 localStart, out Vector2 localEnd)) return;
             if (Vector2.SqrMagnitude(localEnd - localStart) < 1f) return;
 
-            // Compute Doozy-style tangent handles
-            ComputeDoozyTangents(localStart, localEnd, out Vector2 cp1, out Vector2 cp2);
+            // Compute adaptive tangent handles
+            ComputeFlowTangents(localStart, localEnd, out Vector2 cp1, out Vector2 cp2);
 
             // Determine visual state
             GetVisualState(out Color mainCol, out Color outlineCol, out bool showDot, out float widthScale);
@@ -259,15 +261,15 @@ namespace NodeSystem.Editor
         }
 
         // =============================================================
-        //  DOOZY-STYLE TANGENT CALCULATION
+        //  TANGENT CALCULATION
         // =============================================================
 
         /// <summary>
-        /// Compute bezier control handles (tangents) using Doozy's algorithm.
+        /// Compute bezier control handles (tangents).
         /// The tangent direction adapts to the relative position of the connected
-        /// nodes so that curves always look organic and never cross through nodes.
+        /// nodes so curves stay readable and avoid cutting through node bodies.
         /// </summary>
-        private static void ComputeDoozyTangents(
+        private static void ComputeFlowTangents(
             Vector2 start, Vector2 end,
             out Vector2 cp1, out Vector2 cp2)
         {
@@ -278,14 +280,14 @@ namespace NodeSystem.Editor
 
             if (dx >= 0)
             {
-                // --- Standard flow (left → right) ---
+                // --- Standard flow (left -> right) ---
                 float strength = Mathf.Clamp(dist * CurveModifier, MinStrength, MaxStrength);
                 cp1 = start + Vector2.right * strength;
                 cp2 = end   + Vector2.left  * strength;
             }
             else
             {
-                // --- Reversed flow (right → left) ---
+                // --- Reversed flow (right -> left) ---
                 // Wider loop so the curve sweeps around instead of cutting through.
                 float reverseStrength = Mathf.Clamp(
                     absDx * 0.5f + absDy * 0.4f + 50f,
@@ -333,6 +335,12 @@ namespace NodeSystem.Editor
                     mainColor    = ExecutedMain;
                     outlineColor = ExecutedOutline;
                     widthScale   = 1.15f;
+                    break;
+                case EdgeRuntimeState.Preview:
+                    mainColor    = PreviewMain;
+                    outlineColor = PreviewOutline;
+                    showDot      = true;
+                    widthScale   = 1.35f;
                     break;
             }
 
