@@ -13,6 +13,16 @@ namespace NodeSystem.Editor
             var node = Node as ScoreProgressBarNode;
             if (node == null) return;
 
+            // Display mode selector at the top
+            CreateEnumField("Mode", node.displayMode, v =>
+            {
+                node.displayMode = v;
+                RequestRefresh();
+            });
+
+            bool isSlots = node.displayMode == ScoreProgressBarNode.DisplayMode.Slots;
+
+            // Target field (label changes per mode)
             UnityEngine.Object currentTarget = node.targetRef;
             if (currentTarget == null && !string.IsNullOrEmpty(node.targetPath))
             {
@@ -31,7 +41,9 @@ namespace NodeSystem.Editor
                 }
             }
 
-            CreateLabel("Target (drag Slider, Image, or GameObject)");
+            CreateLabel(isSlots
+                ? "Target (drag slot container)"
+                : "Target (drag Slider, Image, or GameObject)");
             CreateObjectField<UnityEngine.Object>("Target", currentTarget, v =>
             {
                 node.targetRef = v;
@@ -41,7 +53,6 @@ namespace NodeSystem.Editor
                     if (t != null)
                     {
                         node.targetPath = GetHierarchyPath(t);
-                        // Save the graph to persist the path
                         var graph = GetNodeGraph();
                         if (graph != null)
                         {
@@ -50,7 +61,6 @@ namespace NodeSystem.Editor
                         }
                     }
                 }
-                // Don't clear targetPath when v is null - keep it for restoration
                 MarkDirty();
             });
             if (!string.IsNullOrEmpty(node.targetPath))
@@ -58,44 +68,69 @@ namespace NodeSystem.Editor
                 CreateLabel($"Path: {node.targetPath}", new Color(0.55f, 0.55f, 0.55f));
             }
 
-            CreateEnumField("Value from", node.valueSource, v =>
+            if (isSlots)
             {
-                node.valueSource = v;
-                RequestRefresh();
-            });
+                // === Slots-specific fields ===
+                CreateLabel("Slot Colors");
+                CreateColorField("Default", node.slotDefaultColor, v => node.slotDefaultColor = v);
+                CreateColorField("Correct", node.slotCorrectColor, v => node.slotCorrectColor = v);
+                CreateColorField("Wrong", node.slotWrongColor, v => node.slotWrongColor = v);
 
-            if (node.valueSource == ScoreProgressBarNode.ValueSource.Variable)
-            {
-                CreateVariableSelector("Value var", node.valueVariableName, v => node.valueVariableName = v);
-            }
+                CreateLabel("Slot Sprites (optional)");
+                CreateObjectField<Sprite>("Default", node.slotDefaultSprite, v => node.slotDefaultSprite = v);
+                CreateObjectField<Sprite>("Correct", node.slotCorrectSprite, v => node.slotCorrectSprite = v);
+                CreateObjectField<Sprite>("Wrong", node.slotWrongSprite, v => node.slotWrongSprite = v);
 
-            if (node.valueSource == ScoreProgressBarNode.ValueSource.QuizScore)
-            {
-                CreateToggle("Use quiz range (0 to Start Quiz max)", node.useQuizRange, v =>
+                CreateToggle("Animate pop on fill", node.slotAnimateOnFill, v =>
                 {
-                    node.useQuizRange = v;
+                    node.slotAnimateOnFill = v;
                     RequestRefresh();
                 });
+                if (node.slotAnimateOnFill)
+                    CreateFloatField("Duration (s)", node.slotAnimationDuration, v => node.slotAnimationDuration = Mathf.Clamp(v, 0.05f, 2f));
             }
-
-            if (node.valueSource != ScoreProgressBarNode.ValueSource.QuizScore || !node.useQuizRange)
+            else
             {
-                CreateLabel("Min");
-                CreateFloatField("", node.minLiteral, v => node.minLiteral = v);
-                CreateVariableSelector("Min var (optional)", node.minVariableName, v => node.minVariableName = v);
+                // === Slider / FilledImage fields ===
+                CreateEnumField("Value from", node.valueSource, v =>
+                {
+                    node.valueSource = v;
+                    RequestRefresh();
+                });
 
-                CreateLabel("Max");
-                CreateFloatField("", node.maxLiteral, v => node.maxLiteral = v);
-                CreateVariableSelector("Max var (optional)", node.maxVariableName, v => node.maxVariableName = v);
+                if (node.valueSource == ScoreProgressBarNode.ValueSource.Variable)
+                {
+                    CreateVariableSelector("Value var", node.valueVariableName, v => node.valueVariableName = v);
+                }
+
+                if (node.valueSource == ScoreProgressBarNode.ValueSource.QuizScore)
+                {
+                    CreateToggle("Use quiz range (0 to Start Quiz max)", node.useQuizRange, v =>
+                    {
+                        node.useQuizRange = v;
+                        RequestRefresh();
+                    });
+                }
+
+                if (node.valueSource != ScoreProgressBarNode.ValueSource.QuizScore || !node.useQuizRange)
+                {
+                    CreateLabel("Min");
+                    CreateFloatField("", node.minLiteral, v => node.minLiteral = v);
+                    CreateVariableSelector("Min var (optional)", node.minVariableName, v => node.minVariableName = v);
+
+                    CreateLabel("Max");
+                    CreateFloatField("", node.maxLiteral, v => node.maxLiteral = v);
+                    CreateVariableSelector("Max var (optional)", node.maxVariableName, v => node.maxVariableName = v);
+                }
+
+                CreateToggle("Animate fill (lerp)", node.animateFill, v =>
+                {
+                    node.animateFill = v;
+                    RequestRefresh();
+                });
+                if (node.animateFill)
+                    CreateFloatField("Duration (s)", node.animationDuration, v => node.animationDuration = Mathf.Clamp(v, 0.05f, 2f));
             }
-
-            CreateToggle("Animate fill (lerp)", node.animateFill, v =>
-            {
-                node.animateFill = v;
-                RequestRefresh();
-            });
-            if (node.animateFill)
-                CreateFloatField("Duration (s)", node.animationDuration, v => node.animationDuration = Mathf.Clamp(v, 0.05f, 2f));
         }
 
         private static string GetHierarchyPath(Transform t)

@@ -8,7 +8,7 @@ using QuizSystem;
 namespace NodeSystem.Nodes.Quiz
 {
     /// <summary>
-    /// Drives a UI Slider or Image (fill amount) from a score value.
+    /// Drives a UI Slider, Image (fill amount), or Slots (LED indicators) from a score value.
     /// Value and min/max can be literals or graph variables for easy setup.
     /// Progress animates (lerp) by default instead of snapping.
     /// Safe to trigger multiple times: connect from Start Quiz, after each question type,
@@ -22,6 +22,17 @@ namespace NodeSystem.Nodes.Quiz
             QuizScore,
             Variable
         }
+
+        public enum DisplayMode
+        {
+            Slider,
+            FilledImage,
+            Slots
+        }
+
+        [Header("Display Mode")]
+        [SerializeField]
+        public DisplayMode displayMode = DisplayMode.Slider;
 
         [Header("Target")]
         [SerializeField]
@@ -75,11 +86,46 @@ namespace NodeSystem.Nodes.Quiz
         [Tooltip("When Value from = Quiz Score, keep listening to score changes and update automatically.")]
         public bool liveUpdateFromScoreEvents = true;
 
+        [Header("Slots Settings")]
+        [SerializeField]
+        public Color slotDefaultColor = new Color(0.5f, 0.5f, 0.5f, 1f);
+
+        [SerializeField]
+        public Color slotCorrectColor = new Color(0.2f, 0.8f, 0.2f, 1f);
+
+        [SerializeField]
+        public Color slotWrongColor = new Color(0.8f, 0.2f, 0.2f, 1f);
+
+        [SerializeField]
+        public Sprite slotDefaultSprite;
+
+        [SerializeField]
+        public Sprite slotCorrectSprite;
+
+        [SerializeField]
+        public Sprite slotWrongSprite;
+
+        [SerializeField]
+        public bool slotAnimateOnFill = true;
+
+        [SerializeField]
+        [Range(0.05f, 2f)]
+        public float slotAnimationDuration = 0.2f;
+
         [NonSerialized]
         private bool _isScoreEventSubscribed;
 
         [NonSerialized]
+        private bool _isAnswerEventSubscribed;
+
+        [NonSerialized]
         private Coroutine _activeAnimation;
+
+        [NonSerialized]
+        private Image[] _cachedSlotImages;
+
+        [NonSerialized]
+        private int _slotFillIndex;
 
         public override string Name => "Score Progress Bar";
         public override Color Color => new Color(0.85f, 0.65f, 0.25f); // Amber/Gold
@@ -106,6 +152,15 @@ namespace NodeSystem.Nodes.Quiz
             if (Runner?.Graph == null)
             {
                 Debug.LogWarning("[ScoreProgressBarNode] No graph runner.");
+                Complete();
+                return;
+            }
+
+            if (displayMode == DisplayMode.Slots)
+            {
+                ResolveSlotImages();
+                InitializeSlotsToDefault();
+                SubscribeToAnswerEventsIfNeeded();
                 Complete();
                 return;
             }
@@ -220,6 +275,104 @@ namespace NodeSystem.Nodes.Quiz
                 onComplete?.Invoke();
             }
         }
+
+        // === Slots Logic ===
+
+        private void ResolveSlotImages()
+        {
+            GameObject targetGo = ResolveTarget();
+            if (targetGo == null)
+            {
+                Debug.LogWarning("[ScoreProgressBarNode] No target for slots: assign a parent GameObject.");
+                _cachedSlotImages = Array.Empty<Image>();
+                return;
+            }
+
+            var list = new List<Image>();
+            for (int i = 0; i < targetGo.transform.childCount; i++)
+            {
+                var img = targetGo.transform.GetChild(i).GetComponent<Image>();
+                if (img != null)
+                    list.Add(img);
+            }
+            _cachedSlotImages = list.ToArray();
+
+            if (_cachedSlotImages.Length == 0)
+                Debug.LogWarning($"[ScoreProgressBarNode] No child Images found under: {targetGo.name}");
+        }
+
+        private void InitializeSlotsToDefault()
+        {
+            if (_cachedSlotImages == null) return;
+            _slotFillIndex = 0;
+
+            foreach (var img in _cachedSlotImages)
+            {
+                if (img == null) continue;
+                img.color = slotDefaultColor;
+                if (slotDefaultSprite != null)
+                    img.sprite = slotDefaultSprite;
+                img.transform.localScale = Vector3.one;
+            }
+        }
+
+        private void SubscribeToAnswerEventsIfNeeded()
+        {
+            if (_isAnswerEventSubscribed) return;
+            QuizState.OnLastAnswerResult += OnAnswerResult;
+            _isAnswerEventSubscribed = true;
+        }
+
+        private void OnAnswerResult(bool wasCorrect)
+        {
+            if (Runner == null || !Runner.IsRunning) return;
+            if (_cachedSlotImages == null || _slotFillIndex >= _cachedSlotImages.Length) return;
+
+            var slot = _cachedSlotImages[_slotFillIndex];
+            if (slot == null) { _slotFillIndex++; return; }
+
+            slot.color = wasCorrect ? slotCorrectColor : slotWrongColor;
+
+            var sprite = wasCorrect ? slotCorrectSprite : slotWrongSprite;
+            if (sprite != null)
+                slot.sprite = sprite;
+
+            if (slotAnimateOnFill && slotAnimationDuration > 0f && Runner != null)
+                Runner.StartCoroutine(AnimateSlotPop(slot.transform, slotAnimationDuration));
+
+            _slotFillIndex++;
+        }
+
+        private IEnumerator AnimateSlotPop(Transform slotTransform, float duration)
+        {
+            float half = duration * 0.5f;
+            float elapsed = 0f;
+
+            // Scale up
+            while (elapsed < half)
+            {
+                elapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsed / half);
+                float scale = Mathf.Lerp(1f, 1.3f, t);
+                slotTransform.localScale = new Vector3(scale, scale, 1f);
+                yield return null;
+            }
+
+            // Scale back down
+            elapsed = 0f;
+            while (elapsed < half)
+            {
+                elapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsed / half);
+                float scale = Mathf.Lerp(1.3f, 1f, t);
+                slotTransform.localScale = new Vector3(scale, scale, 1f);
+                yield return null;
+            }
+
+            slotTransform.localScale = Vector3.one;
+        }
+
+        // === Slider / FilledImage Logic ===
 
         private void SubscribeToScoreEventsIfNeeded()
         {
@@ -343,11 +496,22 @@ namespace NodeSystem.Nodes.Quiz
         {
             base.Reset();
             StopActiveAnimation();
+
             if (_isScoreEventSubscribed)
             {
                 QuizState.OnScoreChanged -= OnQuizScoreChanged;
                 _isScoreEventSubscribed = false;
             }
+
+            if (_isAnswerEventSubscribed)
+            {
+                QuizState.OnLastAnswerResult -= OnAnswerResult;
+                _isAnswerEventSubscribed = false;
+            }
+
+            InitializeSlotsToDefault();
+            _cachedSlotImages = null;
+            _slotFillIndex = 0;
         }
     }
 }

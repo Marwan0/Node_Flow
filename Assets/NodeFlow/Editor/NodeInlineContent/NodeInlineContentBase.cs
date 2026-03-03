@@ -361,6 +361,37 @@ namespace NodeSystem.Editor
             return row;
         }
 
+        protected ColorField CreateColorField(string label, Color value, Action<Color> onChanged)
+        {
+            var row = new VisualElement();
+            row.style.flexDirection = FlexDirection.Row;
+            row.style.alignItems = Align.Center;
+            row.style.marginTop = 2;
+            row.style.marginBottom = 2;
+
+            if (!string.IsNullOrEmpty(label))
+            {
+                var labelElement = new Label(label);
+                labelElement.style.minWidth = 50;
+                labelElement.style.color = new Color(0.8f, 0.8f, 0.8f);
+                labelElement.style.fontSize = 10;
+                row.Add(labelElement);
+            }
+
+            var field = new ColorField() { value = value };
+            field.style.flexGrow = 1;
+            field.style.minWidth = 40;
+            field.RegisterValueChangedCallback(evt =>
+            {
+                onChanged(evt.newValue);
+                MarkDirty();
+            });
+            row.Add(field);
+
+            Container.Add(row);
+            return field;
+        }
+
         protected ObjectField CreateObjectField<T>(string label, UnityEngine.Object currentValue, Action<T> onChanged) where T : UnityEngine.Object
         {
             var row = new VisualElement();
