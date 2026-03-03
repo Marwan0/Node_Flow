@@ -14,8 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NodeSystem.NodeGraph
   graphName: New Graph
   description: 
-  _jsonData: '{"nodes":[],"connections":[{"outNode":"f321247a-a7f8-401f-8526-0a2bacce8526","outPort":"output","inNode":"50cd9a6c-5b51-4d9a-bf8b-38901c107d35","inPort":"input"},{"outNode":"4028db10-d034-48e3-a713-342d76c777ee","outPort":"output","inNode":"4f8f5d1b-1e99-4ea3-8a5c-09282ff715e3","inPort":"input"},{"outNode":"a8ef3254-cdcc-4ee9-8f28-c10c01239742","outPort":"on_wrong","inNode":"7375d0f9-2042-47b3-8152-39d3c0cd1d4c","inPort":"input"},{"outNode":"a6109561-d5a6-4eff-b01e-a0fca3c93f67","outPort":"output","inNode":"4497d6f2-318a-4441-8081-4d6976207541","inPort":"input"},{"outNode":"f22a23c5-5765-4170-9087-1e94c0c3cc8e","outPort":"output","inNode":"304a1e53-b68b-4af3-a9b6-7c3d8af1ce27","inPort":"input"},{"outNode":"a8ef3254-cdcc-4ee9-8f28-c10c01239742","outPort":"on_correct","inNode":"35fd1e1d-87d0-4065-9696-012fb49a127f","inPort":"input"},{"outNode":"df520e02-e9be-42c4-a5f0-46390016b09c","outPort":"on_correct","inNode":"ffe43fdc-b952-46e8-afe7-5212f430babc","inPort":"input"},{"outNode":"df520e02-e9be-42c4-a5f0-46390016b09c","outPort":"on_correct","inNode":"b4a36b9d-11b7-4f9e-8708-d271f75e694f","inPort":"input"},{"outNode":"a8ef3254-cdcc-4ee9-8f28-c10c01239742","outPort":"on_correct","inNode":"8554ca45-58b4-484d-a447-96ba0f816d58","inPort":"input"},{"outNode":"a8ef3254-cdcc-4ee9-8f28-c10c01239742","outPort":"correct","inNode":"8554ca45-58b4-484d-a447-96ba0f816d58","inPort":"input"},{"outNode":"a8ef3254-cdcc-4ee9-8f28-c10c01239742","outPort":"correct","inNode":"35fd1e1d-87d0-4065-9696-012fb49a127f","inPort":"input"},{"outNode":"df520e02-e9be-42c4-a5f0-46390016b09c","outPort":"correct","inNode":"b4a36b9d-11b7-4f9e-8708-d271f75e694f","inPort":"input"},{"outNode":"df520e02-e9be-42c4-a5f0-46390016b09c","outPort":"complete","inNode":"a8ef3254-cdcc-4ee9-8f28-c10c01239742","inPort":"input"},{"outNode":"df520e02-e9be-42c4-a5f0-46390016b09c","outPort":"on_wrong","inNode":"17ec7f7b-c9dd-4bf6-a9bc-6168b3ffa571","inPort":"input"},{"outNode":"9b53af3e-429e-49c7-b1cf-5185cf57ee33","outPort":"correct","inNode":"4542db2d-712b-4617-8f7a-af67c766a893","inPort":"input"},{"outNode":"9b53af3e-429e-49c7-b1cf-5185cf57ee33","outPort":"on_correct","inNode":"751f4337-7fff-48bb-a459-d803e8a401c1","inPort":"input"},{"outNode":"9b53af3e-429e-49c7-b1cf-5185cf57ee33","outPort":"on_correct","inNode":"4542db2d-712b-4617-8f7a-af67c766a893","inPort":"input"},{"outNode":"9b53af3e-429e-49c7-b1cf-5185cf57ee33","outPort":"on_wrong","inNode":"1cf0610b-89bb-4b72-adfa-7ee6c3c1978f","inPort":"input"},{"outNode":"35fc08d2-d37d-44fd-bf03-923dd97c7c61","outPort":"output","inNode":"cdce7551-5c6f-4fd2-8223-4ff78bc9796f","inPort":"input"},{"outNode":"a8ef3254-cdcc-4ee9-8f28-c10c01239742","outPort":"on_wrong_feedback","inNode":"93a81857-3bea-4a6e-8a40-82f76ae39245","inPort":"input"},{"outNode":"9b53af3e-429e-49c7-b1cf-5185cf57ee33","outPort":"on_wrong_feedback","inNode":"c6c06ae3-3b3d-43c3-abea-dec35938e3ab","inPort":"input"},{"outNode":"df520e02-e9be-42c4-a5f0-46390016b09c","outPort":"on_wrong_feedback","inNode":"e9f28315-6d92-45a8-99fb-1810500cb750","inPort":"input"},{"outNode":"9b53af3e-429e-49c7-b1cf-5185cf57ee33","outPort":"complete","inNode":"df520e02-e9be-42c4-a5f0-46390016b09c","inPort":"input"},{"outNode":"9b53af3e-429e-49c7-b1cf-5185cf57ee33","outPort":"on_load","inNode":"b4a2fea1-b1dd-4359-9093-ae4fa54a9624","inPort":"input"},{"outNode":"50cd9a6c-5b51-4d9a-bf8b-38901c107d35","outPort":"output","inNode":"12883b8e-b6a6-43e3-b352-97c739a04cea","inPort":"input"},{"outNode":"12883b8e-b6a6-43e3-b352-97c739a04cea","outPort":"output","inNode":"9b53af3e-429e-49c7-b1cf-5185cf57ee33","inPort":"input"}],"variables":[],"groups":[{"id":"fc0bdc97-b9f8-42ce-bd5e-0d365113cb60","title":"G2","x":2170.0,"y":-680.0,"width":270.0,"height":192.0,"nodeGuids":["93a81857-3bea-4a6e-8a40-82f76ae39245"]},{"id":"87408b03-d560-4d04-80ea-91b7b852dd6f","title":"Play
-    sounds","x":2738.0,"y":-627.0,"width":270.0,"height":192.0,"nodeGuids":["35fc08d2-d37d-44fd-bf03-923dd97c7c61"]},{"id":"5dd1a8f2-3cd2-4c36-bfaa-41e7309fe61f","title":"G1","x":887.0,"y":-1055.0,"width":270.0,"height":192.0,"nodeGuids":["e9f28315-6d92-45a8-99fb-1810500cb750"]},{"id":"a9a2add4-9e4c-40e8-98a0-2adf8f372fe5","title":"Drag
+  _jsonData: '{"nodes":[],"connections":[{"outNode":"f321247a-a7f8-401f-8526-0a2bacce8526","outPort":"output","inNode":"50cd9a6c-5b51-4d9a-bf8b-38901c107d35","inPort":"input"},{"outNode":"4028db10-d034-48e3-a713-342d76c777ee","outPort":"output","inNode":"4f8f5d1b-1e99-4ea3-8a5c-09282ff715e3","inPort":"input"},{"outNode":"a8ef3254-cdcc-4ee9-8f28-c10c01239742","outPort":"on_wrong","inNode":"7375d0f9-2042-47b3-8152-39d3c0cd1d4c","inPort":"input"},{"outNode":"a6109561-d5a6-4eff-b01e-a0fca3c93f67","outPort":"output","inNode":"4497d6f2-318a-4441-8081-4d6976207541","inPort":"input"},{"outNode":"f22a23c5-5765-4170-9087-1e94c0c3cc8e","outPort":"output","inNode":"304a1e53-b68b-4af3-a9b6-7c3d8af1ce27","inPort":"input"},{"outNode":"a8ef3254-cdcc-4ee9-8f28-c10c01239742","outPort":"on_correct","inNode":"35fd1e1d-87d0-4065-9696-012fb49a127f","inPort":"input"},{"outNode":"df520e02-e9be-42c4-a5f0-46390016b09c","outPort":"on_correct","inNode":"ffe43fdc-b952-46e8-afe7-5212f430babc","inPort":"input"},{"outNode":"df520e02-e9be-42c4-a5f0-46390016b09c","outPort":"on_correct","inNode":"b4a36b9d-11b7-4f9e-8708-d271f75e694f","inPort":"input"},{"outNode":"a8ef3254-cdcc-4ee9-8f28-c10c01239742","outPort":"on_correct","inNode":"8554ca45-58b4-484d-a447-96ba0f816d58","inPort":"input"},{"outNode":"a8ef3254-cdcc-4ee9-8f28-c10c01239742","outPort":"correct","inNode":"8554ca45-58b4-484d-a447-96ba0f816d58","inPort":"input"},{"outNode":"a8ef3254-cdcc-4ee9-8f28-c10c01239742","outPort":"correct","inNode":"35fd1e1d-87d0-4065-9696-012fb49a127f","inPort":"input"},{"outNode":"df520e02-e9be-42c4-a5f0-46390016b09c","outPort":"correct","inNode":"b4a36b9d-11b7-4f9e-8708-d271f75e694f","inPort":"input"},{"outNode":"df520e02-e9be-42c4-a5f0-46390016b09c","outPort":"complete","inNode":"a8ef3254-cdcc-4ee9-8f28-c10c01239742","inPort":"input"},{"outNode":"df520e02-e9be-42c4-a5f0-46390016b09c","outPort":"on_wrong","inNode":"17ec7f7b-c9dd-4bf6-a9bc-6168b3ffa571","inPort":"input"},{"outNode":"9b53af3e-429e-49c7-b1cf-5185cf57ee33","outPort":"correct","inNode":"4542db2d-712b-4617-8f7a-af67c766a893","inPort":"input"},{"outNode":"9b53af3e-429e-49c7-b1cf-5185cf57ee33","outPort":"on_correct","inNode":"751f4337-7fff-48bb-a459-d803e8a401c1","inPort":"input"},{"outNode":"9b53af3e-429e-49c7-b1cf-5185cf57ee33","outPort":"on_correct","inNode":"4542db2d-712b-4617-8f7a-af67c766a893","inPort":"input"},{"outNode":"9b53af3e-429e-49c7-b1cf-5185cf57ee33","outPort":"on_wrong","inNode":"1cf0610b-89bb-4b72-adfa-7ee6c3c1978f","inPort":"input"},{"outNode":"35fc08d2-d37d-44fd-bf03-923dd97c7c61","outPort":"output","inNode":"cdce7551-5c6f-4fd2-8223-4ff78bc9796f","inPort":"input"},{"outNode":"a8ef3254-cdcc-4ee9-8f28-c10c01239742","outPort":"on_wrong_feedback","inNode":"93a81857-3bea-4a6e-8a40-82f76ae39245","inPort":"input"},{"outNode":"9b53af3e-429e-49c7-b1cf-5185cf57ee33","outPort":"on_wrong_feedback","inNode":"c6c06ae3-3b3d-43c3-abea-dec35938e3ab","inPort":"input"},{"outNode":"df520e02-e9be-42c4-a5f0-46390016b09c","outPort":"on_wrong_feedback","inNode":"e9f28315-6d92-45a8-99fb-1810500cb750","inPort":"input"},{"outNode":"9b53af3e-429e-49c7-b1cf-5185cf57ee33","outPort":"complete","inNode":"df520e02-e9be-42c4-a5f0-46390016b09c","inPort":"input"},{"outNode":"50cd9a6c-5b51-4d9a-bf8b-38901c107d35","outPort":"output","inNode":"9b53af3e-429e-49c7-b1cf-5185cf57ee33","inPort":"input"}],"variables":[],"groups":[{"id":"fc0bdc97-b9f8-42ce-bd5e-0d365113cb60","title":"G2","x":1684.9998779296875,"y":-1048.0,"width":792.0,"height":1002.0,"nodeGuids":["93a81857-3bea-4a6e-8a40-82f76ae39245","a8ef3254-cdcc-4ee9-8f28-c10c01239742","8554ca45-58b4-484d-a447-96ba0f816d58","35fd1e1d-87d0-4065-9696-012fb49a127f","7375d0f9-2042-47b3-8152-39d3c0cd1d4c"]},{"id":"87408b03-d560-4d04-80ea-91b7b852dd6f","title":"Play
+    sounds","x":2737.0,"y":-1244.0,"width":841.0,"height":1240.0,"nodeGuids":["35fc08d2-d37d-44fd-bf03-923dd97c7c61","4028db10-d034-48e3-a713-342d76c777ee","a6109561-d5a6-4eff-b01e-a0fca3c93f67","f22a23c5-5765-4170-9087-1e94c0c3cc8e","cdce7551-5c6f-4fd2-8223-4ff78bc9796f","4f8f5d1b-1e99-4ea3-8a5c-09282ff715e3","4497d6f2-318a-4441-8081-4d6976207541","304a1e53-b68b-4af3-a9b6-7c3d8af1ce27"]},{"id":"5dd1a8f2-3cd2-4c36-bfaa-41e7309fe61f","title":"G1","x":386.99993896484377,"y":-1416.0,"width":770.0,"height":1161.0,"nodeGuids":["e9f28315-6d92-45a8-99fb-1810500cb750","df520e02-e9be-42c4-a5f0-46390016b09c","ffe43fdc-b952-46e8-afe7-5212f430babc","b4a36b9d-11b7-4f9e-8708-d271f75e694f","17ec7f7b-c9dd-4bf6-a9bc-6168b3ffa571"]},{"id":"a9a2add4-9e4c-40e8-98a0-2adf8f372fe5","title":"Drag
     Drop","x":-956.0,"y":-1405.0,"width":727.0,"height":1081.0,"nodeGuids":["9b53af3e-429e-49c7-b1cf-5185cf57ee33","751f4337-7fff-48bb-a459-d803e8a401c1","1cf0610b-89bb-4b72-adfa-7ee6c3c1978f","4542db2d-712b-4617-8f7a-af67c766a893","c6c06ae3-3b3d-43c3-abea-dec35938e3ab"]}]}'
   _nodeEvents: []
   _nodeAssetReferences:
@@ -58,8 +58,6 @@ MonoBehaviour:
   - rid: 2376809931405262934
   - rid: 2376809931405262935
   - rid: 2376809931405262936
-  - rid: 2376809931405262954
-  - rid: 2376809947343880192
   references:
     version: 2
     RefIds:
@@ -88,8 +86,8 @@ MonoBehaviour:
       type: {class: PlaySoundNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
       data:
         _guid: 4f8f5d1b-1e99-4ea3-8a5c-09282ff715e3
-        _position: {x: 3140, y: -1122}
-        _groupId: 
+        _position: {x: 3174, y: -1185}
+        _groupId: 87408b03-d560-4d04-80ea-91b7b852dd6f
         hasBreakpoint: 0
         displayLabel: 
         audioClipRef: {fileID: 8300000, guid: 8f1c1f931ed244b45828b399ce2e580e, type: 3}
@@ -104,8 +102,8 @@ MonoBehaviour:
       type: {class: PlaySoundNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
       data:
         _guid: 4497d6f2-318a-4441-8081-4d6976207541
-        _position: {x: 3140, y: -796}
-        _groupId: 
+        _position: {x: 3157, y: -890}
+        _groupId: 87408b03-d560-4d04-80ea-91b7b852dd6f
         hasBreakpoint: 0
         displayLabel: 
         audioClipRef: {fileID: 8300000, guid: 135e66a4686efcb40b9cc3ef1da13063, type: 3}
@@ -120,8 +118,8 @@ MonoBehaviour:
       type: {class: LoadQuestionNode, ns: NodeSystem.Nodes.Quiz, asm: Assembly-CSharp}
       data:
         _guid: a8ef3254-cdcc-4ee9-8f28-c10c01239742
-        _position: {x: 1686, y: -976}
-        _groupId: 
+        _position: {x: 1710, y: -989}
+        _groupId: fc0bdc97-b9f8-42ce-bd5e-0d365113cb60
         hasBreakpoint: 0
         displayLabel: 
         questionRef: {fileID: 11400000, guid: e20d2ae4f2ea32a48a546350a4f65a88, type: 2}
@@ -145,8 +143,8 @@ MonoBehaviour:
       type: {class: LoadQuestionNode, ns: NodeSystem.Nodes.Quiz, asm: Assembly-CSharp}
       data:
         _guid: df520e02-e9be-42c4-a5f0-46390016b09c
-        _position: {x: 392, y: -1207}
-        _groupId: 
+        _position: {x: 412, y: -1198}
+        _groupId: 5dd1a8f2-3cd2-4c36-bfaa-41e7309fe61f
         hasBreakpoint: 0
         displayLabel: 
         questionRef: {fileID: 11400000, guid: 4ec98d667a90c1240adca7efde2d46a3, type: 2}
@@ -170,8 +168,8 @@ MonoBehaviour:
       type: {class: SendSignalNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
       data:
         _guid: 8554ca45-58b4-484d-a447-96ba0f816d58
-        _position: {x: 2208, y: -976}
-        _groupId: 
+        _position: {x: 2232, y: -989}
+        _groupId: fc0bdc97-b9f8-42ce-bd5e-0d365113cb60
         hasBreakpoint: 0
         displayLabel: 
         signalId: win
@@ -179,8 +177,8 @@ MonoBehaviour:
       type: {class: ReceiveSignalNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
       data:
         _guid: 4028db10-d034-48e3-a713-342d76c777ee
-        _position: {x: 2711, y: -1069}
-        _groupId: 
+        _position: {x: 2762, y: -1024}
+        _groupId: 87408b03-d560-4d04-80ea-91b7b852dd6f
         hasBreakpoint: 0
         displayLabel: 
         signalId: win
@@ -188,8 +186,8 @@ MonoBehaviour:
       type: {class: SendSignalNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
       data:
         _guid: 7375d0f9-2042-47b3-8152-39d3c0cd1d4c
-        _position: {x: 2195, y: -514}
-        _groupId: 
+        _position: {x: 2219, y: -527}
+        _groupId: fc0bdc97-b9f8-42ce-bd5e-0d365113cb60
         hasBreakpoint: 0
         displayLabel: 
         signalId: lose
@@ -197,8 +195,8 @@ MonoBehaviour:
       type: {class: ReceiveSignalNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
       data:
         _guid: a6109561-d5a6-4eff-b01e-a0fca3c93f67
-        _position: {x: 2735, y: -902}
-        _groupId: 
+        _position: {x: 2786, y: -857}
+        _groupId: 87408b03-d560-4d04-80ea-91b7b852dd6f
         hasBreakpoint: 0
         displayLabel: 
         signalId: lose
@@ -206,8 +204,8 @@ MonoBehaviour:
       type: {class: SendSignalNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
       data:
         _guid: ffe43fdc-b952-46e8-afe7-5212f430babc
-        _position: {x: 877, y: -1366}
-        _groupId: 
+        _position: {x: 897, y: -1357}
+        _groupId: 5dd1a8f2-3cd2-4c36-bfaa-41e7309fe61f
         hasBreakpoint: 0
         displayLabel: 
         signalId: win
@@ -215,8 +213,8 @@ MonoBehaviour:
       type: {class: SendSignalNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
       data:
         _guid: 17ec7f7b-c9dd-4bf6-a9bc-6168b3ffa571
-        _position: {x: 864, y: -803}
-        _groupId: 
+        _position: {x: 884, y: -794}
+        _groupId: 5dd1a8f2-3cd2-4c36-bfaa-41e7309fe61f
         hasBreakpoint: 0
         displayLabel: 
         signalId: lose
@@ -224,8 +222,8 @@ MonoBehaviour:
       type: {class: SendSignalNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
       data:
         _guid: b4a36b9d-11b7-4f9e-8708-d271f75e694f
-        _position: {x: 880, y: -1182}
-        _groupId: 
+        _position: {x: 900, y: -1173}
+        _groupId: 5dd1a8f2-3cd2-4c36-bfaa-41e7309fe61f
         hasBreakpoint: 0
         displayLabel: 
         signalId: Score
@@ -233,8 +231,8 @@ MonoBehaviour:
       type: {class: SendSignalNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
       data:
         _guid: 35fd1e1d-87d0-4065-9696-012fb49a127f
-        _position: {x: 2195, y: -840}
-        _groupId: 
+        _position: {x: 2219, y: -853}
+        _groupId: fc0bdc97-b9f8-42ce-bd5e-0d365113cb60
         hasBreakpoint: 0
         displayLabel: 
         signalId: Score
@@ -242,10 +240,11 @@ MonoBehaviour:
       type: {class: ScoreProgressBarNode, ns: NodeSystem.Nodes.Quiz, asm: Assembly-CSharp}
       data:
         _guid: 304a1e53-b68b-4af3-a9b6-7c3d8af1ce27
-        _position: {x: 3053, y: -627}
-        _groupId: 
+        _position: {x: 3174, y: -595}
+        _groupId: 87408b03-d560-4d04-80ea-91b7b852dd6f
         hasBreakpoint: 0
         displayLabel: 
+        displayMode: 2
         targetRef: {fileID: 0}
         targetPath: QuestionContainerCanvas/Slider
         valueSource: 0
@@ -258,12 +257,20 @@ MonoBehaviour:
         animateFill: 1
         animationDuration: 0.3
         liveUpdateFromScoreEvents: 1
+        slotDefaultColor: {r: 1, g: 1, b: 1, a: 1}
+        slotCorrectColor: {r: 1, g: 1, b: 1, a: 1}
+        slotWrongColor: {r: 1, g: 1, b: 1, a: 1}
+        slotDefaultSprite: {fileID: 0}
+        slotCorrectSprite: {fileID: 0}
+        slotWrongSprite: {fileID: 0}
+        slotAnimateOnFill: 1
+        slotAnimationDuration: 0.2
     - rid: 2376809931405262926
       type: {class: ReceiveSignalNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
       data:
         _guid: f22a23c5-5765-4170-9087-1e94c0c3cc8e
-        _position: {x: 2735, y: -764}
-        _groupId: 
+        _position: {x: 2786, y: -719}
+        _groupId: 87408b03-d560-4d04-80ea-91b7b852dd6f
         hasBreakpoint: 0
         displayLabel: 
         signalId: Score
@@ -323,8 +330,8 @@ MonoBehaviour:
       type: {class: PlaySoundNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
       data:
         _guid: cdce7551-5c6f-4fd2-8223-4ff78bc9796f
-        _position: {x: 3140, y: -446}
-        _groupId: 
+        _position: {x: 2982, y: -298}
+        _groupId: 87408b03-d560-4d04-80ea-91b7b852dd6f
         hasBreakpoint: 0
         displayLabel: 
         audioClipRef: {fileID: 8300000, guid: 53151b945e8834181b6e41a8873eb33c, type: 3}
@@ -375,27 +382,8 @@ MonoBehaviour:
       type: {class: DelayNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
       data:
         _guid: b4a2fea1-b1dd-4359-9093-ae4fa54a9624
-        _position: {x: -254, y: -1548}
+        _position: {x: -180, y: -1529}
         _groupId: 
         hasBreakpoint: 0
         displayLabel: 
         delaySeconds: 2
-    - rid: 2376809931405262954
-      type: {class: SendSignalNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
-      data:
-        _guid: dde95415-18b6-4c92-95ad-0796feafebad
-        _position: {x: -1219, y: -865}
-        _groupId: 
-        hasBreakpoint: 0
-        displayLabel: 
-        signalId: lose
-    - rid: 2376809947343880192
-      type: {class: DebugLogNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
-      data:
-        _guid: 12883b8e-b6a6-43e3-b352-97c739a04cea
-        _position: {x: -1343, y: -1158}
-        _groupId: 
-        hasBreakpoint: 0
-        displayLabel: 
-        logType: 0
-        message: Debug message
