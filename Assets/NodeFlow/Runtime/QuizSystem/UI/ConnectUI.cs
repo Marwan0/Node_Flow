@@ -357,6 +357,7 @@ namespace QuizSystem
                 PlayPointAudio();
                 PlayCorrectAudio();
                 QuizState.Instance?.NotifyCorrectAttempt();
+                QuizState.Instance?.NotifyStepResult(true);
                 quizManager?.UpdateQuestionProgress(currentQuestion, starsCollected, totalConnections);
 
                 // Hide hint from previous wrong attempt and reset for next connection
@@ -410,6 +411,7 @@ namespace QuizSystem
                         }
                     }
 
+                    QuizState.Instance?.NotifyStepResult(false);
                     if (hintButton != null) hintButton.gameObject.SetActive(false);
                     currentConnectionIndex++;
                     attemptsForCurrentConnection = 0;

@@ -413,6 +413,7 @@ namespace QuizSystem
                 
                 // Only notify success for manual drops
                 QuizState.Instance?.NotifyCorrectAttempt();
+                QuizState.Instance?.NotifyStepResult(true);
                 quizManager?.UpdateQuestionProgress(currentQuestion, correctCount, totalItems);
 
                 // Disable zone if it has received all its correct items
@@ -591,6 +592,8 @@ namespace QuizSystem
             correctCount++;
             _correctZoneIndices.Add(pairing.dropIndex);
             
+            // Auto-placed = wrong step result (user didn't earn it)
+            QuizState.Instance?.NotifyStepResult(false);
             // NOTE: We do NOT call NotifyCorrectAttempt here because this is auto-placement.
             // We also skip progress update if the user didn't earn it, but keep internal count.
             

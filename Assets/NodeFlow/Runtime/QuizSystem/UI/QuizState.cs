@@ -30,6 +30,7 @@ namespace QuizSystem
         public static event Action<bool> OnLastAnswerResult; // wasCorrect - fires when question is COMPLETE (correct or all attempts used)
         public static event Action OnWrongAttempt; // fires on EACH wrong answer (for VFX/sounds) - doesn't complete question
         public static event Action OnCorrectAttempt; // fires on EACH correct attempt in multi-step questions
+        public static event Action<bool> OnStepResult; // fires once per finalized step in multi-step questions (correct placement or auto-corrected)
         public static event Action OnQuizStarted;
         public static event Action OnQuizCompleted;
         public static event Action<float> OnTimerTick; // remainingTime
@@ -166,6 +167,17 @@ namespace QuizSystem
         {
             OnCorrectAttempt?.Invoke();
             Debug.Log("[QuizState] Correct attempt");
+        }
+
+        /// <summary>
+        /// Call when a step is finalized in a multi-step question (e.g. one ordering slot filled,
+        /// one drag-drop item placed). Fires once per step — correct placement or auto-corrected.
+        /// Used by Score Progress Bar slots to track per-step results.
+        /// </summary>
+        public void NotifyStepResult(bool wasCorrect)
+        {
+            OnStepResult?.Invoke(wasCorrect);
+            Debug.Log($"[QuizState] Step result: {(wasCorrect ? "Correct" : "Wrong")}");
         }
 
         /// <summary>

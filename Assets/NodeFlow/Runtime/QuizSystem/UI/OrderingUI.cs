@@ -250,6 +250,7 @@ namespace QuizSystem
 
                 starsCollected++;
                 QuizState.Instance?.NotifyCorrectAttempt();
+                QuizState.Instance?.NotifyStepResult(true);
                 quizManager?.UpdateQuestionProgress(currentQuestion, starsCollected, totalSlots);
 
                 HideHint();
@@ -309,6 +310,7 @@ namespace QuizSystem
                         placedItems.Add(correctItem);
                     }
 
+                    QuizState.Instance?.NotifyStepResult(false);
                     if (hintButton != null) hintButton.gameObject.SetActive(false);
                     currentSlotIndex++;
                     attemptsForCurrentSlot = 0;
