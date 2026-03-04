@@ -62,6 +62,7 @@ namespace NodeSystem.Editor
             Register<Nodes.Quiz.LoadQuestionNode, LoadQuestionNodeInlineContent>();
             Register<Nodes.Quiz.ScoreNode, ScoreNodeInlineContent>();
             Register<Nodes.Quiz.ScoreProgressBarNode, ScoreProgressBarNodeInlineContent>();
+            Register<Nodes.Quiz.AnswerOrderToVariableNode, AnswerOrderToVariableNodeInlineContent>();
             Register<Nodes.Quiz.QuizTimerNode, QuizTimerNodeInlineContent>();
             Register<Nodes.Quiz.QuizProgressNode, QuizProgressNodeInlineContent>();
             Register<Nodes.Quiz.QuizBranchNode, QuizBranchNodeInlineContent>();

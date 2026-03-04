@@ -112,11 +112,21 @@ namespace NodeSystem.Nodes.Quiz
         [Range(0.05f, 2f)]
         public float slotAnimationDuration = 0.2f;
 
+        [SerializeField]
+        [Tooltip("If enabled, each wrong attempt fills a wrong slot immediately. Disable for per-point results when retries are allowed.")]
+        public bool slotCountWrongAttempts = false;
+
         [NonSerialized]
         private bool _isScoreEventSubscribed;
 
         [NonSerialized]
         private bool _isAnswerEventSubscribed;
+
+        [NonSerialized]
+        private bool _isQuestionResultEventSubscribed;
+
+        [NonSerialized]
+        private bool _isWrongAttemptEventSubscribed;
 
         [NonSerialized]
         private Coroutine _activeAnimation;
@@ -129,6 +139,15 @@ namespace NodeSystem.Nodes.Quiz
 
         [NonSerialized]
         private bool _slotsInitialized;
+
+        [NonSerialized]
+        private bool _sawStepResultSinceLastQuestionResult;
+
+        [NonSerialized]
+        private bool _sawWrongAttemptSinceLastStepResult;
+
+        [NonSerialized]
+        private int _lastWrongAttemptFrame = -9999;
 
         public override string Name => "Score Progress Bar";
         public override Color Color => new Color(0.85f, 0.65f, 0.25f); // Amber/Gold
@@ -170,6 +189,9 @@ namespace NodeSystem.Nodes.Quiz
                     _slotsInitialized = true;
                 }
                 SubscribeToAnswerEventsIfNeeded();
+                if (slotCountWrongAttempts)
+                    SubscribeToWrongAttemptEventsIfNeeded();
+                SubscribeToQuestionResultEventsIfNeeded();
                 Complete();
                 return;
             }
@@ -316,6 +338,9 @@ namespace NodeSystem.Nodes.Quiz
         {
             if (_cachedSlotImages == null) return;
             _slotFillIndex = 0;
+            _sawStepResultSinceLastQuestionResult = false;
+            _sawWrongAttemptSinceLastStepResult = false;
+            _lastWrongAttemptFrame = -9999;
 
             foreach (var img in _cachedSlotImages)
             {
@@ -330,14 +355,70 @@ namespace NodeSystem.Nodes.Quiz
         private void SubscribeToAnswerEventsIfNeeded()
         {
             if (_isAnswerEventSubscribed) return;
-            QuizState.OnStepResult += OnAnswerResult;
+            QuizState.OnStepResult += OnStepResultReceived;
             _isAnswerEventSubscribed = true;
             Debug.Log("[ScoreProgressBarNode] Subscribed to OnStepResult");
         }
 
-        private void OnAnswerResult(bool wasCorrect)
+        private void SubscribeToQuestionResultEventsIfNeeded()
         {
-            Debug.Log($"[ScoreProgressBarNode] OnAnswerResult called: wasCorrect={wasCorrect}, slotIndex={_slotFillIndex}, Runner={Runner != null}, IsRunning={Runner?.IsRunning}, slotCount={_cachedSlotImages?.Length ?? -1}");
+            if (_isQuestionResultEventSubscribed) return;
+            QuizState.OnLastAnswerResult += OnQuestionResultReceived;
+            _isQuestionResultEventSubscribed = true;
+            Debug.Log("[ScoreProgressBarNode] Subscribed to OnLastAnswerResult");
+        }
+
+        private void SubscribeToWrongAttemptEventsIfNeeded()
+        {
+            if (_isWrongAttemptEventSubscribed) return;
+            QuizState.OnWrongAttempt += OnWrongAttemptReceived;
+            _isWrongAttemptEventSubscribed = true;
+            Debug.Log("[ScoreProgressBarNode] Subscribed to OnWrongAttempt");
+        }
+
+        private void OnStepResultReceived(bool wasCorrect)
+        {
+            _sawStepResultSinceLastQuestionResult = true;
+
+            // Wrong-attempt events are emitted before auto-corrected step results in sequential
+            // question types. Skip this immediate false step record to avoid double-filling.
+            if (slotCountWrongAttempts && !wasCorrect && _sawWrongAttemptSinceLastStepResult && Time.frameCount <= _lastWrongAttemptFrame + 1)
+            {
+                _sawWrongAttemptSinceLastStepResult = false;
+                return;
+            }
+
+            _sawWrongAttemptSinceLastStepResult = false;
+            FillNextSlot(wasCorrect, "step");
+        }
+
+        private void OnWrongAttemptReceived()
+        {
+            if (!slotCountWrongAttempts) return;
+            _sawWrongAttemptSinceLastStepResult = true;
+            _lastWrongAttemptFrame = Time.frameCount;
+            FillNextSlot(false, "wrong_attempt");
+        }
+
+        private void OnQuestionResultReceived(bool wasCorrect)
+        {
+            // Step-based questions already emit per-step slot events.
+            // Skip the final question result in that case to avoid double-filling.
+            if (_sawStepResultSinceLastQuestionResult)
+            {
+                _sawStepResultSinceLastQuestionResult = false;
+                _sawWrongAttemptSinceLastStepResult = false;
+                return;
+            }
+
+            FillNextSlot(wasCorrect, "question");
+            _sawStepResultSinceLastQuestionResult = false;
+            _sawWrongAttemptSinceLastStepResult = false;
+        }
+
+        private void FillNextSlot(bool wasCorrect, string source)
+        {
+            Debug.Log($"[ScoreProgressBarNode] Slot event ({source}): wasCorrect={wasCorrect}, slotIndex={_slotFillIndex}, Runner={Runner != null}, IsRunning={Runner?.IsRunning}, slotCount={_cachedSlotImages?.Length ?? -1}");
 
             if (Runner == null || !Runner.IsRunning) return;
             if (_cachedSlotImages == null || _slotFillIndex >= _cachedSlotImages.Length) return;
@@ -522,6 +603,8 @@ namespace NodeSystem.Nodes.Quiz
             }
 
             // NOTE: We intentionally do NOT unsubscribe from OnStepResult,
+            // do NOT unsubscribe from OnWrongAttempt,
+            // do NOT unsubscribe from OnLastAnswerResult,
             // do NOT clear _cachedSlotImages, and do NOT reset _slotFillIndex here.
             // The graph runner calls Reset() before re-executing a completed node.
             // For Slots mode, the fill index and cached images must survive across

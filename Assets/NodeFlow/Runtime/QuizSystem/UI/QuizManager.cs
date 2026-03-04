@@ -84,6 +84,15 @@ namespace QuizSystem
         private Dictionary<int, int> _awardedRawByQuestion = new Dictionary<int, int>();
         private int _lastScoreConfigSignature = int.MinValue;
 
+        private struct ScoreAwardResult
+        {
+            public int questionRawMax;
+            public int rawTarget;
+            public int rawDelta;
+            public int distributedDelta;
+            public int totalScoreAfterAward;
+        }
+
         private void Awake()
         {
             // No longer add CanvasGroup to questionContainer; each question gets its own wrapper with transition applied
@@ -565,16 +574,24 @@ namespace QuizSystem
         public void OnQuestionAnswered(bool isCorrect, int points, QuestionData answeredQuestion)
         {
             int questionIndex = ResolveQuestionIndex(answeredQuestion);
-            int awardedPoints = AwardRawPointsForQuestion(questionIndex, points, isCorrect);
-            if (awardedPoints > 0)
+            ScoreAwardResult award = AwardRawPointsForQuestion(questionIndex, points, isCorrect);
+            if (award.distributedDelta > 0)
             {
-                Debug.Log($"[QuizManager] Finalized question {questionIndex}: +{awardedPoints} distributed points (raw total: {points}). Total: {currentScore}");
+                Debug.Log($"[QuizManager] Finalized question {questionIndex}: +{award.distributedDelta} distributed points (raw total: {points}). Total: {currentScore}");
             }
-            
+             
             // Notify QuizState to fire the OnLastAnswerResult event
             // This allows LoadQuestionNode to detect when an answer is submitted
             if (QuizState.Instance != null)
             {
+                QuizState.Instance.RecordQuestionScoreFinal(
+                    questionIndex: questionIndex,
+                    wasCorrectFinalResult: isCorrect,
+                    questionRawMax: award.questionRawMax,
+                    rawTargetAfterEvent: award.rawTarget,
+                    rawDeltaThisEvent: award.rawDelta,
+                    distributedDeltaThisEvent: award.distributedDelta);
+
                 // Score was already applied live via AddScore in AwardRawPointsForQuestion.
                 // RecordAnswer here should only advance quiz progression and emit answer-result events.
                 QuizState.Instance.RecordAnswer(questionIndex, isCorrect, 0);
@@ -600,7 +617,20 @@ namespace QuizSystem
 
             float normalized = Mathf.Clamp01((float)completedUnits / totalUnits);
             int rawTarget = Mathf.RoundToInt(questionRawMax * normalized);
-            int deltaDistributed = AwardRawPointsForQuestion(questionIndex, rawTarget, false);
+            ScoreAwardResult award = AwardRawPointsForQuestion(questionIndex, rawTarget, false);
+            int deltaDistributed = award.distributedDelta;
+
+            if (QuizState.Instance != null)
+            {
+                QuizState.Instance.RecordScoreProgress(
+                    questionIndex: questionIndex,
+                    questionRawMax: award.questionRawMax,
+                    rawTargetAfterEvent: award.rawTarget,
+                    rawDeltaThisEvent: award.rawDelta,
+                    distributedDeltaThisEvent: award.distributedDelta,
+                    completedUnits: completedUnits,
+                    totalUnits: totalUnits);
+            }
 
             if (deltaDistributed > 0)
             {
@@ -678,22 +708,33 @@ namespace QuizSystem
             return Mathf.Max(0, awardedPoints);
         }
 
-        private int AwardRawPointsForQuestion(int questionIndex, int requestedRawPoints, bool forceFullOnCorrect)
+        private ScoreAwardResult AwardRawPointsForQuestion(int questionIndex, int requestedRawPoints, bool forceFullOnCorrect)
         {
+            ScoreAwardResult result = new ScoreAwardResult
+            {
+                questionRawMax = 0,
+                rawTarget = 0,
+                rawDelta = 0,
+                distributedDelta = 0,
+                totalScoreAfterAward = currentScore
+            };
+
             int questionRawMax = GetQuestionRawWeight(questionIndex);
-            if (questionRawMax <= 0) return 0;
+            result.questionRawMax = questionRawMax;
+            if (questionRawMax <= 0) return result;
 
             int rawTarget = Mathf.Clamp(Mathf.Max(0, requestedRawPoints), 0, questionRawMax);
             if (forceFullOnCorrect && rawTarget <= 0)
             {
                 rawTarget = questionRawMax;
             }
+            result.rawTarget = rawTarget;
 
             int alreadyAwardedRaw = 0;
             _awardedRawByQuestion.TryGetValue(questionIndex, out alreadyAwardedRaw);
             if (rawTarget <= alreadyAwardedRaw)
             {
-                return 0;
+                return result;
             }
 
             int rawDelta = rawTarget - alreadyAwardedRaw;
@@ -712,7 +753,10 @@ namespace QuizSystem
                 QuizState.Instance?.AddScore(distributedDelta);
             }
 
-            return distributedDelta;
+            result.rawDelta = rawDelta;
+            result.distributedDelta = distributedDelta;
+            result.totalScoreAfterAward = currentScore;
+            return result;
         }
 
         private int GetQuestionRawWeight(int questionIndex)

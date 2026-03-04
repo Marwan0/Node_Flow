@@ -88,6 +88,12 @@ namespace NodeSystem.Editor
                 });
                 if (node.slotAnimateOnFill)
                     CreateFloatField("Duration (s)", node.slotAnimationDuration, v => node.slotAnimationDuration = Mathf.Clamp(v, 0.05f, 2f));
+
+                CreateToggle("Count wrong attempts", node.slotCountWrongAttempts, v =>
+                {
+                    node.slotCountWrongAttempts = v;
+                    RequestRefresh();
+                });
             }
             else
             {
