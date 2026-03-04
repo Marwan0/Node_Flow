@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Unity Web Player | {{{ PRODUCT_NAME }}}</title>
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes">
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+        }
+        #unity-canvas {
+            width: 100vw;
+            height: 100vh;
+            background: url('TemplateData/progressLogo.Light.png') no-repeat center center;
+            background-size: cover; /* Ensure background covers the entire canvas */
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 0; /* Ensure canvas is behind the loading container */
+        }
+        /* Loading bar styles */
+        #loading-container {
+            position: absolute;
+            top: 60%; /* Position remains the same */
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40%; /* Keep the container at 40% width */
+            height: 20px; /* Height of loading container */
+            background-color: rgba(255, 255, 255, 0.9); /* Semi-transparent white background */
+            border-radius: 15px; /* Rounded corners */
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25); /* Subtle shadow */
+            overflow: hidden;
+            display: none; /* Hidden initially */
+            z-index: 1; /* Keep on top of the canvas */
+        }
+
+        #loading-bar {
+            height: 30px; /* Increased height of the loading bar */
+            width: 0; /* Start at 0% width */
+            background: linear-gradient(to right, #76c7c0, #38a1a1); /* Gradient background */
+            transition: width 0.5s ease; /* Smooth transition */
+            border-radius: 15px; /* Rounded corners */
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4); /* Shadow for the loading bar */
+        }
+
+        #loading-text {
+            position: absolute;
+            width: 100%;
+            text-align: center;
+            color: #333; /* Dark text color */
+            font-weight: bold;
+            top: 0; /* Align text to the top */
+            line-height: 20px; /* Center text vertically based on container height */
+            font-size: 14px; /* Text size */
+            text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8); /* Subtle text shadow */
+        }
+    </style>
+</head>
+<body>
+    <div id="loading-container">
+        <div id="loading-bar"></div>
+        <div id="loading-text">Loading... 0%</div>
+    </div>
+    <canvas id="unity-canvas" tabindex="-1"></canvas>
+    <script src="Build/{{{ LOADER_FILENAME }}}"></script>
+    <script>
+        // Show loading container
+        document.getElementById('loading-container').style.display = 'block';
+
+        // Simulating loading progress
+        let loadingProgress = 0;
+        const loadingBar = document.getElementById('loading-bar');
+        const loadingText = document.getElementById('loading-text');
+
+        const loadingInterval = setInterval(() => {
+            if (loadingProgress < 100) {
+                loadingProgress += 5; // Increase the progress
+                loadingBar.style.width = loadingProgress + '%'; // Update the width of loading bar
+                loadingText.innerText = 'Loading... ' + loadingProgress + '%'; // Update loading text
+            } else {
+                clearInterval(loadingInterval);
+                // Hide loading bar after loading completes
+                document.getElementById('loading-container').style.display = 'none';
+            }
+        }, 100); // Update every 100 milliseconds
+
+        // Initialize Unity instance
+        createUnityInstance(document.querySelector("#unity-canvas"), {
+            arguments: [],
+            dataUrl: "Build/{{{ DATA_FILENAME }}}",
+            frameworkUrl: "Build/{{{ FRAMEWORK_FILENAME }}}",
+            #if USE_THREADS
+            workerUrl: "Build/{{{ WORKER_FILENAME }}}",
+            #endif
+            #if USE_WASM
+            codeUrl: "Build/{{{ CODE_FILENAME }}}",
+            #endif
+            #if SYMBOLS_FILENAME
+            symbolsUrl: "Build/{{{ SYMBOLS_FILENAME }}}",
+            #endif
+            streamingAssetsUrl: "StreamingAssets",
+            companyName: {{{ JSON.stringify(COMPANY_NAME) }}},
+            productName: {{{ JSON.stringify(PRODUCT_NAME) }}},
+            productVersion: {{{ JSON.stringify(PRODUCT_VERSION) }}},
+        }).then((unityInstance) => {
+            window.addEventListener("resize", () => {
+                unityInstance.SendMessage("Canvas", "SetFullscreen", 1);
+            });
+
+            // Hide loading container as soon as Unity is ready
+            document.getElementById('loading-container').style.display = 'none';
+        }).catch((error) => {
+            console.error("Error initializing Unity:", error);
+        });
+    </script>
+</body>
+</html>

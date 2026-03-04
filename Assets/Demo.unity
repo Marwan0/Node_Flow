@@ -4546,23 +4546,7 @@ MonoBehaviour:
   _debugMode: 0
   _isPaused: 0
   _stepMode: 0
-  _sceneEvents:
-  - nodeGuid: ad8dcfe6-1abb-4278-b07a-42296bd56c89
-    onEvent:
-      m_PersistentCalls:
-        m_Calls:
-        - m_Target: {fileID: 2014979521}
-          m_TargetAssemblyTypeName: QuizEndAnimator, Assembly-CSharp
-          m_MethodName: OnQuizCompleted
-          m_Mode: 1
-          m_Arguments:
-            m_ObjectArgument: {fileID: 0}
-            m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
-            m_IntArgument: 0
-            m_FloatArgument: 0
-            m_StringArgument: 
-            m_BoolArgument: 0
-          m_CallState: 2
+  _sceneEvents: []
 --- !u!1 &682410291
 GameObject:
   m_ObjectHideFlags: 0

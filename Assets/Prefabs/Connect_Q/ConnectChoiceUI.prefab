@@ -1139,6 +1139,7 @@ GameObject:
   - component: {fileID: 1217132484444014465}
   - component: {fileID: 3715349858305992778}
   - component: {fileID: 6343366883413462493}
+  - component: {fileID: -8993852391001022835}
   m_Layer: 5
   m_Name: ConnectChoiceUI
   m_TagString: Untagged
@@ -1226,6 +1227,7 @@ MonoBehaviour:
   hintText: {fileID: 7018973706532922961}
   attemptCounterText: {fileID: 6610514850367600179}
   hintPanel: {fileID: 5283989607693133408}
+  hintButton: {fileID: 0}
   submitButton: {fileID: 95700735400189613}
   enableFeedbackAnimations: 1
   feedbackDuration: 0.5
@@ -1241,3 +1243,15 @@ MonoBehaviour:
   pointClip: {fileID: 0}
   connectionProgressText: {fileID: 0}
   attemptProgressText: {fileID: 0}
+--- !u!225 &-8993852391001022835
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6172849673812640436}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0

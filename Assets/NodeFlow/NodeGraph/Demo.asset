@@ -14,9 +14,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NodeSystem.NodeGraph
   graphName: New Graph
   description: 
-  _jsonData: '{"nodes":[],"connections":[{"outNode":"f321247a-a7f8-401f-8526-0a2bacce8526","outPort":"output","inNode":"50cd9a6c-5b51-4d9a-bf8b-38901c107d35","inPort":"input"},{"outNode":"4028db10-d034-48e3-a713-342d76c777ee","outPort":"output","inNode":"4f8f5d1b-1e99-4ea3-8a5c-09282ff715e3","inPort":"input"},{"outNode":"a8ef3254-cdcc-4ee9-8f28-c10c01239742","outPort":"on_wrong","inNode":"7375d0f9-2042-47b3-8152-39d3c0cd1d4c","inPort":"input"},{"outNode":"a6109561-d5a6-4eff-b01e-a0fca3c93f67","outPort":"output","inNode":"4497d6f2-318a-4441-8081-4d6976207541","inPort":"input"},{"outNode":"f22a23c5-5765-4170-9087-1e94c0c3cc8e","outPort":"output","inNode":"304a1e53-b68b-4af3-a9b6-7c3d8af1ce27","inPort":"input"},{"outNode":"a8ef3254-cdcc-4ee9-8f28-c10c01239742","outPort":"on_correct","inNode":"35fd1e1d-87d0-4065-9696-012fb49a127f","inPort":"input"},{"outNode":"df520e02-e9be-42c4-a5f0-46390016b09c","outPort":"on_correct","inNode":"ffe43fdc-b952-46e8-afe7-5212f430babc","inPort":"input"},{"outNode":"df520e02-e9be-42c4-a5f0-46390016b09c","outPort":"on_correct","inNode":"b4a36b9d-11b7-4f9e-8708-d271f75e694f","inPort":"input"},{"outNode":"a8ef3254-cdcc-4ee9-8f28-c10c01239742","outPort":"on_correct","inNode":"8554ca45-58b4-484d-a447-96ba0f816d58","inPort":"input"},{"outNode":"a8ef3254-cdcc-4ee9-8f28-c10c01239742","outPort":"correct","inNode":"35fd1e1d-87d0-4065-9696-012fb49a127f","inPort":"input"},{"outNode":"df520e02-e9be-42c4-a5f0-46390016b09c","outPort":"correct","inNode":"b4a36b9d-11b7-4f9e-8708-d271f75e694f","inPort":"input"},{"outNode":"df520e02-e9be-42c4-a5f0-46390016b09c","outPort":"on_wrong","inNode":"17ec7f7b-c9dd-4bf6-a9bc-6168b3ffa571","inPort":"input"},{"outNode":"9b53af3e-429e-49c7-b1cf-5185cf57ee33","outPort":"correct","inNode":"4542db2d-712b-4617-8f7a-af67c766a893","inPort":"input"},{"outNode":"9b53af3e-429e-49c7-b1cf-5185cf57ee33","outPort":"on_correct","inNode":"751f4337-7fff-48bb-a459-d803e8a401c1","inPort":"input"},{"outNode":"9b53af3e-429e-49c7-b1cf-5185cf57ee33","outPort":"on_correct","inNode":"4542db2d-712b-4617-8f7a-af67c766a893","inPort":"input"},{"outNode":"9b53af3e-429e-49c7-b1cf-5185cf57ee33","outPort":"on_wrong","inNode":"1cf0610b-89bb-4b72-adfa-7ee6c3c1978f","inPort":"input"},{"outNode":"35fc08d2-d37d-44fd-bf03-923dd97c7c61","outPort":"output","inNode":"cdce7551-5c6f-4fd2-8223-4ff78bc9796f","inPort":"input"},{"outNode":"a8ef3254-cdcc-4ee9-8f28-c10c01239742","outPort":"on_wrong_feedback","inNode":"93a81857-3bea-4a6e-8a40-82f76ae39245","inPort":"input"},{"outNode":"9b53af3e-429e-49c7-b1cf-5185cf57ee33","outPort":"on_wrong_feedback","inNode":"c6c06ae3-3b3d-43c3-abea-dec35938e3ab","inPort":"input"},{"outNode":"df520e02-e9be-42c4-a5f0-46390016b09c","outPort":"on_wrong_feedback","inNode":"e9f28315-6d92-45a8-99fb-1810500cb750","inPort":"input"},{"outNode":"9b53af3e-429e-49c7-b1cf-5185cf57ee33","outPort":"complete","inNode":"df520e02-e9be-42c4-a5f0-46390016b09c","inPort":"input"},{"outNode":"50cd9a6c-5b51-4d9a-bf8b-38901c107d35","outPort":"output","inNode":"9b53af3e-429e-49c7-b1cf-5185cf57ee33","inPort":"input"},{"outNode":"f22a23c5-5765-4170-9087-1e94c0c3cc8e","outPort":"output","inNode":"06f53464-2104-466e-b130-4367bfe20e1c","inPort":"input"},{"outNode":"df520e02-e9be-42c4-a5f0-46390016b09c","outPort":"complete","inNode":"a8ef3254-cdcc-4ee9-8f28-c10c01239742","inPort":"input"},{"outNode":"a8ef3254-cdcc-4ee9-8f28-c10c01239742","outPort":"complete","inNode":"59b08660-55a9-49bf-9685-fc50b4d2ac35","inPort":"input"},{"outNode":"59b08660-55a9-49bf-9685-fc50b4d2ac35","outPort":"output","inNode":"ad8dcfe6-1abb-4278-b07a-42296bd56c89","inPort":"input"},{"outNode":"a8ef3254-cdcc-4ee9-8f28-c10c01239742","outPort":"on_wrong","inNode":"35fd1e1d-87d0-4065-9696-012fb49a127f","inPort":"input"},{"outNode":"9b53af3e-429e-49c7-b1cf-5185cf57ee33","outPort":"on_wrong","inNode":"4542db2d-712b-4617-8f7a-af67c766a893","inPort":"input"}],"variables":[],"groups":[{"id":"fc0bdc97-b9f8-42ce-bd5e-0d365113cb60","title":"G2","x":1343.0,"y":-1427.0,"width":1027.0,"height":1075.0,"nodeGuids":["a8ef3254-cdcc-4ee9-8f28-c10c01239742","8554ca45-58b4-484d-a447-96ba0f816d58","7375d0f9-2042-47b3-8152-39d3c0cd1d4c","35fd1e1d-87d0-4065-9696-012fb49a127f","93a81857-3bea-4a6e-8a40-82f76ae39245"]},{"id":"87408b03-d560-4d04-80ea-91b7b852dd6f","title":"Play
-    sounds","x":2737.0,"y":-1651.0,"width":1001.0,"height":1716.0,"nodeGuids":["4f8f5d1b-1e99-4ea3-8a5c-09282ff715e3","4497d6f2-318a-4441-8081-4d6976207541","4028db10-d034-48e3-a713-342d76c777ee","a6109561-d5a6-4eff-b01e-a0fca3c93f67","304a1e53-b68b-4af3-a9b6-7c3d8af1ce27","f22a23c5-5765-4170-9087-1e94c0c3cc8e","cdce7551-5c6f-4fd2-8223-4ff78bc9796f","35fc08d2-d37d-44fd-bf03-923dd97c7c61","06f53464-2104-466e-b130-4367bfe20e1c"]},{"id":"5dd1a8f2-3cd2-4c36-bfaa-41e7309fe61f","title":"G1","x":301.0,"y":-1487.0,"width":779.0,"height":1607.0,"nodeGuids":["df520e02-e9be-42c4-a5f0-46390016b09c","ffe43fdc-b952-46e8-afe7-5212f430babc","17ec7f7b-c9dd-4bf6-a9bc-6168b3ffa571","b4a36b9d-11b7-4f9e-8708-d271f75e694f","e9f28315-6d92-45a8-99fb-1810500cb750"]},{"id":"a9a2add4-9e4c-40e8-98a0-2adf8f372fe5","title":"Drag
-    Drop","x":-956.0,"y":-1403.0,"width":851.0,"height":1079.0,"nodeGuids":["9b53af3e-429e-49c7-b1cf-5185cf57ee33","751f4337-7fff-48bb-a459-d803e8a401c1","1cf0610b-89bb-4b72-adfa-7ee6c3c1978f","4542db2d-712b-4617-8f7a-af67c766a893","c6c06ae3-3b3d-43c3-abea-dec35938e3ab"]}]}'
+  _jsonData: '{"nodes":[],"connections":[{"outNode":"f321247a-a7f8-401f-8526-0a2bacce8526","outPort":"output","inNode":"50cd9a6c-5b51-4d9a-bf8b-38901c107d35","inPort":"input"},{"outNode":"4028db10-d034-48e3-a713-342d76c777ee","outPort":"output","inNode":"4f8f5d1b-1e99-4ea3-8a5c-09282ff715e3","inPort":"input"},{"outNode":"a8ef3254-cdcc-4ee9-8f28-c10c01239742","outPort":"on_wrong","inNode":"7375d0f9-2042-47b3-8152-39d3c0cd1d4c","inPort":"input"},{"outNode":"a6109561-d5a6-4eff-b01e-a0fca3c93f67","outPort":"output","inNode":"4497d6f2-318a-4441-8081-4d6976207541","inPort":"input"},{"outNode":"f22a23c5-5765-4170-9087-1e94c0c3cc8e","outPort":"output","inNode":"304a1e53-b68b-4af3-a9b6-7c3d8af1ce27","inPort":"input"},{"outNode":"a8ef3254-cdcc-4ee9-8f28-c10c01239742","outPort":"on_correct","inNode":"35fd1e1d-87d0-4065-9696-012fb49a127f","inPort":"input"},{"outNode":"df520e02-e9be-42c4-a5f0-46390016b09c","outPort":"on_correct","inNode":"ffe43fdc-b952-46e8-afe7-5212f430babc","inPort":"input"},{"outNode":"df520e02-e9be-42c4-a5f0-46390016b09c","outPort":"on_correct","inNode":"b4a36b9d-11b7-4f9e-8708-d271f75e694f","inPort":"input"},{"outNode":"a8ef3254-cdcc-4ee9-8f28-c10c01239742","outPort":"on_correct","inNode":"8554ca45-58b4-484d-a447-96ba0f816d58","inPort":"input"},{"outNode":"a8ef3254-cdcc-4ee9-8f28-c10c01239742","outPort":"correct","inNode":"35fd1e1d-87d0-4065-9696-012fb49a127f","inPort":"input"},{"outNode":"df520e02-e9be-42c4-a5f0-46390016b09c","outPort":"correct","inNode":"b4a36b9d-11b7-4f9e-8708-d271f75e694f","inPort":"input"},{"outNode":"df520e02-e9be-42c4-a5f0-46390016b09c","outPort":"on_wrong","inNode":"17ec7f7b-c9dd-4bf6-a9bc-6168b3ffa571","inPort":"input"},{"outNode":"9b53af3e-429e-49c7-b1cf-5185cf57ee33","outPort":"correct","inNode":"4542db2d-712b-4617-8f7a-af67c766a893","inPort":"input"},{"outNode":"9b53af3e-429e-49c7-b1cf-5185cf57ee33","outPort":"on_correct","inNode":"751f4337-7fff-48bb-a459-d803e8a401c1","inPort":"input"},{"outNode":"9b53af3e-429e-49c7-b1cf-5185cf57ee33","outPort":"on_correct","inNode":"4542db2d-712b-4617-8f7a-af67c766a893","inPort":"input"},{"outNode":"9b53af3e-429e-49c7-b1cf-5185cf57ee33","outPort":"on_wrong","inNode":"1cf0610b-89bb-4b72-adfa-7ee6c3c1978f","inPort":"input"},{"outNode":"35fc08d2-d37d-44fd-bf03-923dd97c7c61","outPort":"output","inNode":"cdce7551-5c6f-4fd2-8223-4ff78bc9796f","inPort":"input"},{"outNode":"a8ef3254-cdcc-4ee9-8f28-c10c01239742","outPort":"on_wrong_feedback","inNode":"93a81857-3bea-4a6e-8a40-82f76ae39245","inPort":"input"},{"outNode":"9b53af3e-429e-49c7-b1cf-5185cf57ee33","outPort":"on_wrong_feedback","inNode":"c6c06ae3-3b3d-43c3-abea-dec35938e3ab","inPort":"input"},{"outNode":"df520e02-e9be-42c4-a5f0-46390016b09c","outPort":"on_wrong_feedback","inNode":"e9f28315-6d92-45a8-99fb-1810500cb750","inPort":"input"},{"outNode":"9b53af3e-429e-49c7-b1cf-5185cf57ee33","outPort":"complete","inNode":"df520e02-e9be-42c4-a5f0-46390016b09c","inPort":"input"},{"outNode":"50cd9a6c-5b51-4d9a-bf8b-38901c107d35","outPort":"output","inNode":"9b53af3e-429e-49c7-b1cf-5185cf57ee33","inPort":"input"},{"outNode":"f22a23c5-5765-4170-9087-1e94c0c3cc8e","outPort":"output","inNode":"06f53464-2104-466e-b130-4367bfe20e1c","inPort":"input"},{"outNode":"df520e02-e9be-42c4-a5f0-46390016b09c","outPort":"complete","inNode":"a8ef3254-cdcc-4ee9-8f28-c10c01239742","inPort":"input"},{"outNode":"a8ef3254-cdcc-4ee9-8f28-c10c01239742","outPort":"on_wrong","inNode":"35fd1e1d-87d0-4065-9696-012fb49a127f","inPort":"input"},{"outNode":"9b53af3e-429e-49c7-b1cf-5185cf57ee33","outPort":"on_wrong","inNode":"4542db2d-712b-4617-8f7a-af67c766a893","inPort":"input"},{"outNode":"f7ff7bd5-17b8-4362-a8fe-34aed64359a0","outPort":"correct","inNode":"fa616533-aa40-4e47-adde-1de7ce481fe8","inPort":"input"},{"outNode":"f7ff7bd5-17b8-4362-a8fe-34aed64359a0","outPort":"on_correct","inNode":"fa616533-aa40-4e47-adde-1de7ce481fe8","inPort":"input"},{"outNode":"f7ff7bd5-17b8-4362-a8fe-34aed64359a0","outPort":"on_correct","inNode":"083a67d9-05c2-486f-aada-7b571a544f77","inPort":"input"},{"outNode":"f7ff7bd5-17b8-4362-a8fe-34aed64359a0","outPort":"on_wrong","inNode":"b747eef1-83d7-4134-adbe-9fbee885658a","inPort":"input"},{"outNode":"f7ff7bd5-17b8-4362-a8fe-34aed64359a0","outPort":"on_wrong","inNode":"fa616533-aa40-4e47-adde-1de7ce481fe8","inPort":"input"},{"outNode":"f7ff7bd5-17b8-4362-a8fe-34aed64359a0","outPort":"on_wrong_feedback","inNode":"146a948e-87a6-4cd1-a88f-3d72ce108ee3","inPort":"input"},{"outNode":"a8ef3254-cdcc-4ee9-8f28-c10c01239742","outPort":"complete","inNode":"f7ff7bd5-17b8-4362-a8fe-34aed64359a0","inPort":"input"}],"variables":[],"groups":[{"id":"fc0bdc97-b9f8-42ce-bd5e-0d365113cb60","title":"G2","x":1343.0,"y":-1427.0,"width":1027.0,"height":1075.0,"nodeGuids":["a8ef3254-cdcc-4ee9-8f28-c10c01239742","8554ca45-58b4-484d-a447-96ba0f816d58","7375d0f9-2042-47b3-8152-39d3c0cd1d4c","35fd1e1d-87d0-4065-9696-012fb49a127f","93a81857-3bea-4a6e-8a40-82f76ae39245"]},{"id":"87408b03-d560-4d04-80ea-91b7b852dd6f","title":"Play
+    sounds","x":4469.0,"y":-1792.0,"width":1001.0,"height":1716.0,"nodeGuids":["4f8f5d1b-1e99-4ea3-8a5c-09282ff715e3","4497d6f2-318a-4441-8081-4d6976207541","4028db10-d034-48e3-a713-342d76c777ee","a6109561-d5a6-4eff-b01e-a0fca3c93f67","304a1e53-b68b-4af3-a9b6-7c3d8af1ce27","f22a23c5-5765-4170-9087-1e94c0c3cc8e","cdce7551-5c6f-4fd2-8223-4ff78bc9796f","35fc08d2-d37d-44fd-bf03-923dd97c7c61","06f53464-2104-466e-b130-4367bfe20e1c"]},{"id":"5dd1a8f2-3cd2-4c36-bfaa-41e7309fe61f","title":"G1","x":301.0,"y":-1487.0,"width":779.0,"height":1607.0,"nodeGuids":["df520e02-e9be-42c4-a5f0-46390016b09c","ffe43fdc-b952-46e8-afe7-5212f430babc","17ec7f7b-c9dd-4bf6-a9bc-6168b3ffa571","b4a36b9d-11b7-4f9e-8708-d271f75e694f","e9f28315-6d92-45a8-99fb-1810500cb750"]},{"id":"a9a2add4-9e4c-40e8-98a0-2adf8f372fe5","title":"Drag
+    Drop","x":-956.0,"y":-1403.0,"width":851.0,"height":1079.0,"nodeGuids":["9b53af3e-429e-49c7-b1cf-5185cf57ee33","751f4337-7fff-48bb-a459-d803e8a401c1","1cf0610b-89bb-4b72-adfa-7ee6c3c1978f","4542db2d-712b-4617-8f7a-af67c766a893","c6c06ae3-3b3d-43c3-abea-dec35938e3ab"]},{"id":"7a764bf3-cf60-43a9-accc-e2c5a9d76d21","title":"New
+    Group","x":2701.0,"y":-1474.0,"width":1027.0,"height":1122.0,"nodeGuids":["f7ff7bd5-17b8-4362-a8fe-34aed64359a0","083a67d9-05c2-486f-aada-7b571a544f77","b747eef1-83d7-4134-adbe-9fbee885658a","fa616533-aa40-4e47-adde-1de7ce481fe8","146a948e-87a6-4cd1-a88f-3d72ce108ee3"]}]}'
   _nodeEvents: []
   _nodeAssetReferences:
   - nodeGuid: a8ef3254-cdcc-4ee9-8f28-c10c01239742
@@ -31,6 +32,8 @@ MonoBehaviour:
     assetReference: {fileID: 11400000, guid: 96d1719de2df6b94c849f10f433d883e, type: 2}
   - nodeGuid: cdce7551-5c6f-4fd2-8223-4ff78bc9796f
     assetReference: {fileID: 8300000, guid: 16218b869fb9dab4780f7dab5dac5863, type: 3}
+  - nodeGuid: f7ff7bd5-17b8-4362-a8fe-34aed64359a0
+    assetReference: {fileID: 11400000, guid: 9efd769281792b64cbc5202450743d7e, type: 2}
   _serializedNodes:
   - rid: 6105214317843185869
   - rid: 6105214317843185870
@@ -59,9 +62,11 @@ MonoBehaviour:
   - rid: 6105214317843185893
   - rid: 6105214317843185894
   - rid: 6105214317843185895
-  - rid: 6105214317843185896
-  - rid: 6105214317843185897
-  - rid: 6105214317843185898
+  - rid: 6105214317843185899
+  - rid: 6105214317843185900
+  - rid: 6105214317843185901
+  - rid: 6105214317843185902
+  - rid: 6105214317843185903
   references:
     version: 2
     RefIds:
@@ -81,8 +86,8 @@ MonoBehaviour:
         _groupId: 
         hasBreakpoint: 0
         displayLabel: 
-        totalQuestions: 3
-        maxScore: 150
+        totalQuestions: 4
+        maxScore: 200
         startTimer: 0
         timerDuration: 300
         quizManagerPath: QuizManager
@@ -90,7 +95,7 @@ MonoBehaviour:
       type: {class: PlaySoundNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
       data:
         _guid: 4f8f5d1b-1e99-4ea3-8a5c-09282ff715e3
-        _position: {x: 3199, y: -1592}
+        _position: {x: 4930.8857, y: -1732.981}
         _groupId: 87408b03-d560-4d04-80ea-91b7b852dd6f
         hasBreakpoint: 0
         displayLabel: 
@@ -106,7 +111,7 @@ MonoBehaviour:
       type: {class: PlaySoundNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
       data:
         _guid: 4497d6f2-318a-4441-8081-4d6976207541
-        _position: {x: 3202, y: -1258}
+        _position: {x: 4933.8857, y: -1398.981}
         _groupId: 87408b03-d560-4d04-80ea-91b7b852dd6f
         hasBreakpoint: 0
         displayLabel: 
@@ -181,7 +186,7 @@ MonoBehaviour:
       type: {class: ReceiveSignalNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
       data:
         _guid: 4028db10-d034-48e3-a713-342d76c777ee
-        _position: {x: 2762, y: -1024}
+        _position: {x: 4493.8857, y: -1164.981}
         _groupId: 87408b03-d560-4d04-80ea-91b7b852dd6f
         hasBreakpoint: 0
         displayLabel: 
@@ -199,7 +204,7 @@ MonoBehaviour:
       type: {class: ReceiveSignalNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
       data:
         _guid: a6109561-d5a6-4eff-b01e-a0fca3c93f67
-        _position: {x: 2786, y: -857}
+        _position: {x: 4517.8857, y: -997.98096}
         _groupId: 87408b03-d560-4d04-80ea-91b7b852dd6f
         hasBreakpoint: 0
         displayLabel: 
@@ -244,7 +249,7 @@ MonoBehaviour:
       type: {class: ScoreProgressBarNode, ns: NodeSystem.Nodes.Quiz, asm: Assembly-CSharp}
       data:
         _guid: 304a1e53-b68b-4af3-a9b6-7c3d8af1ce27
-        _position: {x: 3202, y: -934}
+        _position: {x: 4933.8857, y: -1074.981}
         _groupId: 87408b03-d560-4d04-80ea-91b7b852dd6f
         hasBreakpoint: 0
         displayLabel: 
@@ -279,7 +284,7 @@ MonoBehaviour:
       type: {class: ReceiveSignalNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
       data:
         _guid: f22a23c5-5765-4170-9087-1e94c0c3cc8e
-        _position: {x: 2811, y: -719}
+        _position: {x: 4542.8857, y: -859.98096}
         _groupId: 87408b03-d560-4d04-80ea-91b7b852dd6f
         hasBreakpoint: 0
         displayLabel: 
@@ -340,7 +345,7 @@ MonoBehaviour:
       type: {class: PlaySoundNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
       data:
         _guid: cdce7551-5c6f-4fd2-8223-4ff78bc9796f
-        _position: {x: 2893, y: -229}
+        _position: {x: 4624.8857, y: -369.98096}
         _groupId: 87408b03-d560-4d04-80ea-91b7b852dd6f
         hasBreakpoint: 0
         displayLabel: 
@@ -356,7 +361,7 @@ MonoBehaviour:
       type: {class: ReceiveSignalNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
       data:
         _guid: 35fc08d2-d37d-44fd-bf03-923dd97c7c61
-        _position: {x: 2763, y: -568}
+        _position: {x: 4494.8857, y: -708.98096}
         _groupId: 87408b03-d560-4d04-80ea-91b7b852dd6f
         hasBreakpoint: 0
         displayLabel: 
@@ -401,7 +406,7 @@ MonoBehaviour:
       type: {class: ScoreProgressBarNode, ns: NodeSystem.Nodes.Quiz, asm: Assembly-CSharp}
       data:
         _guid: 06f53464-2104-466e-b130-4367bfe20e1c
-        _position: {x: 3200, y: -520}
+        _position: {x: 4931.8857, y: -660.98096}
         _groupId: 87408b03-d560-4d04-80ea-91b7b852dd6f
         hasBreakpoint: 0
         displayLabel: 
@@ -432,34 +437,65 @@ MonoBehaviour:
         slotAnimateOnFill: 1
         slotAnimationDuration: 0.2
         slotCountWrongAttempts: 0
-    - rid: 6105214317843185896
-      type: {class: EndQuizNode, ns: NodeSystem.Nodes.Quiz, asm: Assembly-CSharp}
+    - rid: 6105214317843185899
+      type: {class: LoadQuestionNode, ns: NodeSystem.Nodes.Quiz, asm: Assembly-CSharp}
       data:
-        _guid: 59b08660-55a9-49bf-9685-fc50b4d2ac35
-        _position: {x: 2450, y: -1087}
-        _groupId: 
+        _guid: f7ff7bd5-17b8-4362-a8fe-34aed64359a0
+        _position: {x: 2726.0562, y: -1342.3424}
+        _groupId: 7a764bf3-cf60-43a9-accc-e2c5a9d76d21
         hasBreakpoint: 0
         displayLabel: 
-        action: 0
-        branchOnPerformance: 0
-        passingPercentage: 70
-    - rid: 6105214317843185897
-      type: {class: AnswerOrderToVariableNode, ns: NodeSystem.Nodes.Quiz, asm: Assembly-CSharp}
+        questionRef: {fileID: 11400000, guid: 9efd769281792b64cbc5202450743d7e, type: 2}
+        questionAssetPath: Assets/NodeFlow/Data/Questions/Sample_Connect_Question
+          00.asset
+        quizManagerPath: QuizManager
+        questionContainerRef: {fileID: 0}
+        layoutOverridePrefab: {fileID: 6172849673812640436, guid: 808b298e24575eb46ada4206bb5ab90f, type: 3}
+        layoutOverridePrefabPath: Assets/Prefabs/Connect_Q/ConnectChoiceUI.prefab
+        questionContainerPath: QuestionContainerCanvas/QustionContainer (1)
+        waitForAnswer: 1
+        trackInQuizState: 1
+        animationType: 1
+        animationDuration: 0.3
+        staggerDelay: 0.1
+        easeType: 27
+        scaleMultiplier: 1
+        slideDistance: 100
+        enableAnimations: 1
+        showHints: 1
+    - rid: 6105214317843185900
+      type: {class: SendSignalNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
       data:
-        _guid: 18624fd8-474a-44d2-9b74-e0afb39bb2fd
-        _position: {x: 2415, y: -916}
-        _groupId: 
+        _guid: 083a67d9-05c2-486f-aada-7b571a544f77
+        _position: {x: 3471.0562, y: -1415.3424}
+        _groupId: 7a764bf3-cf60-43a9-accc-e2c5a9d76d21
         hasBreakpoint: 0
         displayLabel: 
-        outputVariableName: answer_order
-        correctToken: R
-        wrongToken: W
-        separator: 
-    - rid: 6105214317843185898
-      type: {class: UnityEventNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+        signalId: win
+    - rid: 6105214317843185901
+      type: {class: SendSignalNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
       data:
-        _guid: ad8dcfe6-1abb-4278-b07a-42296bd56c89
-        _position: {x: 2395, y: -1343}
-        _groupId: 
+        _guid: b747eef1-83d7-4134-adbe-9fbee885658a
+        _position: {x: 3483.0562, y: -853.3424}
+        _groupId: 7a764bf3-cf60-43a9-accc-e2c5a9d76d21
         hasBreakpoint: 0
         displayLabel: 
+        signalId: lose
+    - rid: 6105214317843185902
+      type: {class: SendSignalNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: fa616533-aa40-4e47-adde-1de7ce481fe8
+        _position: {x: 3471.0562, y: -1248.3424}
+        _groupId: 7a764bf3-cf60-43a9-accc-e2c5a9d76d21
+        hasBreakpoint: 0
+        displayLabel: 
+        signalId: Score
+    - rid: 6105214317843185903
+      type: {class: SendSignalNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: 146a948e-87a6-4cd1-a88f-3d72ce108ee3
+        _position: {x: 3483.0562, y: -991.3424}
+        _groupId: 7a764bf3-cf60-43a9-accc-e2c5a9d76d21
+        hasBreakpoint: 0
+        displayLabel: 
+        signalId: yeld
