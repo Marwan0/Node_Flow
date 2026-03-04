@@ -30,6 +30,19 @@ namespace NodeSystem.Nodes.Quiz
             Slots
         }
 
+        public enum FilledImageAnswerFilter
+        {
+            CorrectOnly,
+            WrongOnly,
+            AnyAnswer
+        }
+
+        public enum FilledImageAnswerSource
+        {
+            FinalAnswers,
+            PartialAnswers
+        }
+
         [Header("Display Mode")]
         [SerializeField]
         public DisplayMode displayMode = DisplayMode.Slider;
@@ -86,6 +99,26 @@ namespace NodeSystem.Nodes.Quiz
         [Tooltip("When Value from = Quiz Score, keep listening to score changes and update automatically.")]
         public bool liveUpdateFromScoreEvents = true;
 
+        [Header("Filled Image Answer Mode")]
+        [SerializeField]
+        [Tooltip("FilledImage only: fill by answer timeline results.")]
+        public bool filledImageUseFinalAnswers = false;
+
+        [SerializeField]
+        [Tooltip("Choose finalized answers, or partial step results. In Partial mode, wrong attempts are ignored and only finalized step results are counted (correct or auto-corrected).")]
+        public FilledImageAnswerSource filledImageAnswerSource = FilledImageAnswerSource.FinalAnswers;
+
+        [SerializeField]
+        public FilledImageAnswerFilter filledImageAnswerFilter = FilledImageAnswerFilter.CorrectOnly;
+
+        [SerializeField]
+        [Tooltip("Use QuizState.totalQuestions as the max count.")]
+        public bool filledImageUseTotalQuestionsAsMax = true;
+
+        [SerializeField]
+        [Tooltip("Used when 'Use total questions as max' is disabled.")]
+        public int filledImageMaxCount = 10;
+
         [Header("Slots Settings")]
         [SerializeField]
         public Color slotDefaultColor = new Color(0.5f, 0.5f, 0.5f, 1f);
@@ -127,6 +160,12 @@ namespace NodeSystem.Nodes.Quiz
 
         [NonSerialized]
         private bool _isWrongAttemptEventSubscribed;
+
+        [NonSerialized]
+        private bool _isFilledImageAnswerEventSubscribed;
+
+        [NonSerialized]
+        private bool _isFilledImagePartialAnswerEventSubscribed;
 
         [NonSerialized]
         private Coroutine _activeAnimation;
@@ -193,6 +232,29 @@ namespace NodeSystem.Nodes.Quiz
                     SubscribeToWrongAttemptEventsIfNeeded();
                 SubscribeToQuestionResultEventsIfNeeded();
                 Complete();
+                return;
+            }
+
+            if (displayMode == DisplayMode.FilledImage && filledImageUseFinalAnswers)
+            {
+                // Defensive: if this node was previously running in score mode,
+                // make sure score events cannot continue driving the same target.
+                if (_isScoreEventSubscribed)
+                {
+                    QuizState.OnScoreChanged -= OnQuizScoreChanged;
+                    _isScoreEventSubscribed = false;
+                }
+
+                if (filledImageAnswerSource == FilledImageAnswerSource.PartialAnswers)
+                {
+                    // Partial mode uses step-result timeline plus finalized non-step answers,
+                    // so listen to both streams.
+                    SubscribeToFilledImagePartialAnswerEventsIfNeeded();
+                    SubscribeToFilledImageAnswerEventsIfNeeded();
+                }
+                else
+                    SubscribeToFilledImageAnswerEventsIfNeeded();
+                ApplyFilledImageByFinalAnswers(onComplete: Complete);
                 return;
             }
 
@@ -368,6 +430,22 @@ namespace NodeSystem.Nodes.Quiz
             Debug.Log("[ScoreProgressBarNode] Subscribed to OnLastAnswerResult");
         }
 
+        private void SubscribeToFilledImageAnswerEventsIfNeeded()
+        {
+            if (_isFilledImageAnswerEventSubscribed) return;
+            QuizState.OnLastAnswerResult += OnFilledImageFinalAnswerReceived;
+            _isFilledImageAnswerEventSubscribed = true;
+            Debug.Log("[ScoreProgressBarNode] Subscribed to OnLastAnswerResult (FilledImage final-answer mode)");
+        }
+
+        private void SubscribeToFilledImagePartialAnswerEventsIfNeeded()
+        {
+            if (_isFilledImagePartialAnswerEventSubscribed) return;
+            QuizState.OnPartialAnswerRecorded += OnFilledImagePartialAnswerReceived;
+            _isFilledImagePartialAnswerEventSubscribed = true;
+            Debug.Log("[ScoreProgressBarNode] Subscribed to OnPartialAnswerRecorded (FilledImage partial-answer mode)");
+        }
+
         private void SubscribeToWrongAttemptEventsIfNeeded()
         {
             if (_isWrongAttemptEventSubscribed) return;
@@ -378,6 +456,7 @@ namespace NodeSystem.Nodes.Quiz
 
         private void OnStepResultReceived(bool wasCorrect)
         {
+            if (displayMode != DisplayMode.Slots) return;
             _sawStepResultSinceLastQuestionResult = true;
 
             // Wrong-attempt events are emitted before auto-corrected step results in sequential
@@ -394,6 +473,7 @@ namespace NodeSystem.Nodes.Quiz
 
         private void OnWrongAttemptReceived()
         {
+            if (displayMode != DisplayMode.Slots) return;
             if (!slotCountWrongAttempts) return;
             _sawWrongAttemptSinceLastStepResult = true;
             _lastWrongAttemptFrame = Time.frameCount;
@@ -402,6 +482,7 @@ namespace NodeSystem.Nodes.Quiz
 
         private void OnQuestionResultReceived(bool wasCorrect)
         {
+            if (displayMode != DisplayMode.Slots) return;
             // Step-based questions already emit per-step slot events.
             // Skip the final question result in that case to avoid double-filling.
             if (_sawStepResultSinceLastQuestionResult)
@@ -414,6 +495,355 @@ namespace NodeSystem.Nodes.Quiz
             FillNextSlot(wasCorrect, "question");
             _sawStepResultSinceLastQuestionResult = false;
             _sawWrongAttemptSinceLastStepResult = false;
+        }
+
+        private void OnFilledImageFinalAnswerReceived(bool _)
+        {
+            if (displayMode != DisplayMode.FilledImage || !filledImageUseFinalAnswers) return;
+            if (Runner == null || !Runner.IsRunning) return;
+            ApplyFilledImageByFinalAnswers();
+        }
+
+        private void OnFilledImagePartialAnswerReceived(QuizState.PartialAnswerTimelineEntry _)
+        {
+            if (displayMode != DisplayMode.FilledImage || !filledImageUseFinalAnswers) return;
+            if (filledImageAnswerSource != FilledImageAnswerSource.PartialAnswers) return;
+            if (_.eventType != QuizState.PartialAnswerEventType.StepResult) return;
+            if (Runner == null || !Runner.IsRunning) return;
+            ApplyFilledImageByFinalAnswers();
+        }
+
+        private void ApplyFilledImageByFinalAnswers(Action onComplete = null)
+        {
+            GameObject targetGo = ResolveTarget();
+            if (targetGo == null)
+            {
+                Debug.LogWarning("[ScoreProgressBarNode] No target: assign one by drag-and-drop or set target path.");
+                onComplete?.Invoke();
+                return;
+            }
+
+            var image = targetGo.GetComponent<Image>();
+            if (image == null || image.type != Image.Type.Filled)
+            {
+                Debug.LogWarning($"[ScoreProgressBarNode] FilledImage final-answer mode requires a filled Image on: {targetGo.name}");
+                onComplete?.Invoke();
+                return;
+            }
+
+            float fill = GetFilledImageAnswerFill();
+            ApplyToImage(image, fill, onComplete);
+        }
+
+        private float GetFilledImageAnswerFill()
+        {
+            var state = QuizState.Instance;
+            if (state == null)
+                return 0f;
+
+            int matchingCount = 0;
+            int sourceCount = 0;
+
+            if (filledImageAnswerSource == FilledImageAnswerSource.PartialAnswers)
+            {
+                var partialAnswers = state.PartialAnswerTimeline;
+                var questionsWithStepResults = new HashSet<int>();
+                if (partialAnswers != null)
+                {
+                    sourceCount = 0;
+                    for (int i = 0; i < partialAnswers.Count; i++)
+                    {
+                        if (partialAnswers[i].eventType != QuizState.PartialAnswerEventType.StepResult)
+                            continue;
+
+                        questionsWithStepResults.Add(partialAnswers[i].questionIndex);
+                        sourceCount++;
+                        bool wasCorrect = partialAnswers[i].wasCorrect;
+                        if (filledImageAnswerFilter == FilledImageAnswerFilter.CorrectOnly && wasCorrect)
+                            matchingCount++;
+                        else if (filledImageAnswerFilter == FilledImageAnswerFilter.WrongOnly && !wasCorrect)
+                            matchingCount++;
+                        else if (filledImageAnswerFilter == FilledImageAnswerFilter.AnyAnswer)
+                            matchingCount++;
+                    }
+                }
+
+                // In Partial source mode, include finalized results for non-step question types
+                // so quiz-wide normalization doesn't complete early before those questions finish.
+                var finalAnswers = state.AnswerTimeline;
+                if (finalAnswers != null)
+                {
+                    for (int i = 0; i < finalAnswers.Count; i++)
+                    {
+                        int questionIndex = finalAnswers[i].questionIndex;
+                        if (questionsWithStepResults.Contains(questionIndex))
+                            continue;
+
+                        sourceCount++;
+                        bool wasCorrect = finalAnswers[i].wasCorrect;
+                        if (filledImageAnswerFilter == FilledImageAnswerFilter.CorrectOnly && wasCorrect)
+                            matchingCount++;
+                        else if (filledImageAnswerFilter == FilledImageAnswerFilter.WrongOnly && !wasCorrect)
+                            matchingCount++;
+                        else if (filledImageAnswerFilter == FilledImageAnswerFilter.AnyAnswer)
+                            matchingCount++;
+                    }
+                }
+            }
+            else
+            {
+                var answers = state.AnswerTimeline;
+                if (answers != null)
+                {
+                    sourceCount = answers.Count;
+                    for (int i = 0; i < answers.Count; i++)
+                    {
+                        bool wasCorrect = answers[i].wasCorrect;
+                        if (filledImageAnswerFilter == FilledImageAnswerFilter.CorrectOnly && wasCorrect)
+                            matchingCount++;
+                        else if (filledImageAnswerFilter == FilledImageAnswerFilter.WrongOnly && !wasCorrect)
+                            matchingCount++;
+                        else if (filledImageAnswerFilter == FilledImageAnswerFilter.AnyAnswer)
+                            matchingCount++;
+                    }
+                }
+            }
+
+            // AnyAnswer mode is normalized by total expected answer events across the quiz.
+            if (filledImageAnswerFilter == FilledImageAnswerFilter.AnyAnswer)
+            {
+                int expectedTotal = GetExpectedTimelineEventCount(state);
+                if (expectedTotal <= 0)
+                    expectedTotal = GetAnyAnswerFallbackMaxCount(state);
+
+                if (expectedTotal <= 0)
+                    return 0f;
+
+                return Mathf.Clamp01((float)sourceCount / expectedTotal);
+            }
+
+            int maxCount;
+            if (filledImageAnswerSource == FilledImageAnswerSource.PartialAnswers)
+            {
+                // Partial timeline can have multiple entries per question,
+                // so totalQuestions is not a meaningful denominator here.
+                maxCount = Mathf.Max(0, filledImageMaxCount);
+            }
+            else
+            {
+                maxCount = filledImageUseTotalQuestionsAsMax
+                    ? Mathf.Max(0, state.totalQuestions)
+                    : Mathf.Max(0, filledImageMaxCount);
+            }
+
+            // Fallback for flows where totalQuestions wasn't set.
+            if (maxCount <= 0)
+                maxCount = sourceCount;
+
+            if (maxCount <= 0)
+                return 0f;
+
+            return Mathf.Clamp01((float)matchingCount / maxCount);
+        }
+
+        private int GetExpectedTimelineEventCount(QuizState state)
+        {
+            var plannedQuestions = GatherPlannedQuizQuestions(state);
+            int questionCount = plannedQuestions.Count;
+            int configuredTotalQuestions = state != null ? Mathf.Max(0, state.totalQuestions) : 0;
+            if (configuredTotalQuestions > 0)
+                questionCount = Mathf.Min(questionCount, configuredTotalQuestions);
+
+            int total = 0;
+            for (int i = 0; i < questionCount; i++)
+            {
+                var question = plannedQuestions[i];
+                if (question == null) continue;
+                total += GetExpectedTimelineEventCountForQuestion(question);
+            }
+
+            // If the graph/runtime question list is incomplete at this moment,
+            // include remaining configured questions as at least one unit each.
+            // This avoids early 100% fill before later questions are reached.
+            if (configuredTotalQuestions > questionCount)
+            {
+                total += (configuredTotalQuestions - questionCount);
+            }
+
+            return Mathf.Max(0, total);
+        }
+
+        private List<QuestionData> GatherPlannedQuizQuestions(QuizState state)
+        {
+            var result = new List<QuestionData>();
+
+            // Prefer graph-level LoadQuestionNode assets: this represents the full planned quiz
+            // even before each question is loaded into QuizManager.questions at runtime.
+            if (Runner?.Graph != null && Runner.Graph.Nodes != null)
+            {
+                var nodes = Runner.Graph.Nodes;
+                for (int i = 0; i < nodes.Count; i++)
+                {
+                    if (!(nodes[i] is LoadQuestionNode loadNode))
+                        continue;
+
+                    QuestionData question = loadNode.questionRef;
+                    if (question == null)
+                    {
+                        question = Runner.Graph.GetNodeAssetReference(loadNode.Guid) as QuestionData;
+                    }
+
+                    if (question != null)
+                        result.Add(question);
+                }
+            }
+
+            // Fallback to QuizManager list if graph assets are unavailable.
+            if (result.Count == 0)
+            {
+                QuizManager manager = state != null ? state.quizManagerRef : null;
+                if (manager == null)
+                    manager = UnityEngine.Object.FindObjectOfType<QuizManager>();
+
+                if (manager != null && manager.questions != null)
+                {
+                    for (int i = 0; i < manager.questions.Count; i++)
+                    {
+                        if (manager.questions[i] != null)
+                            result.Add(manager.questions[i]);
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        private int GetAnyAnswerFallbackMaxCount(QuizState state)
+        {
+            if (filledImageAnswerSource == FilledImageAnswerSource.FinalAnswers)
+            {
+                if (filledImageUseTotalQuestionsAsMax && state != null && state.totalQuestions > 0)
+                    return state.totalQuestions;
+
+                return Mathf.Max(1, filledImageMaxCount);
+            }
+
+            // PartialAnswers fallback: prefer explicit max, otherwise totalQuestions if available.
+            if (filledImageMaxCount > 0)
+                return filledImageMaxCount;
+
+            if (state != null && state.totalQuestions > 0)
+                return state.totalQuestions;
+
+            return 1;
+        }
+
+        private int GetExpectedTimelineEventCountForQuestion(QuestionData question)
+        {
+            if (question == null)
+                return 0;
+
+            if (filledImageAnswerSource == FilledImageAnswerSource.FinalAnswers)
+                return 1;
+
+            switch (question.questionType)
+            {
+                case QuestionType.Connect:
+                {
+                    var connect = question as ConnectQuestionData;
+                    int unitCount = 0;
+                    if (connect != null)
+                    {
+                        unitCount = connect.correctConnections != null ? connect.correctConnections.Count : 0;
+                        if (unitCount <= 0)
+                            unitCount = connect.leftColumnItems != null ? connect.leftColumnItems.Count : 0;
+                    }
+                    return Mathf.Max(0, unitCount);
+                }
+                case QuestionType.Ordering:
+                {
+                    var ordering = question as OrderingQuestionData;
+                    int unitCount = ordering != null && ordering.items != null ? ordering.items.Count : 0;
+                    return Mathf.Max(0, unitCount);
+                }
+                case QuestionType.DragDrop:
+                {
+                    var dragDrop = question as DragDropQuestionData;
+                    return Mathf.Max(0, GetDragDropAnswerUnitCount(dragDrop));
+                }
+                default:
+                    // Non-step question types contribute one finalized answer event.
+                    return 1;
+            }
+        }
+
+        private static int GetDragDropAnswerUnitCount(DragDropQuestionData dragDrop)
+        {
+            if (dragDrop == null)
+                return 0;
+
+            var pairings = dragDrop.correctPairings;
+            if (pairings == null || pairings.Count == 0)
+                return dragDrop.dragItems != null ? dragDrop.dragItems.Count : 0;
+
+            var adjacency = new Dictionary<int, List<int>>();
+            void AddEdge(int a, int b)
+            {
+                if (!adjacency.TryGetValue(a, out var listA))
+                {
+                    listA = new List<int>();
+                    adjacency[a] = listA;
+                }
+                listA.Add(b);
+
+                if (!adjacency.TryGetValue(b, out var listB))
+                {
+                    listB = new List<int>();
+                    adjacency[b] = listB;
+                }
+                listB.Add(a);
+            }
+
+            for (int i = 0; i < pairings.Count; i++)
+            {
+                int dragNode = pairings[i].dragIndex;
+                int dropNode = -1 - pairings[i].dropIndex;
+                AddEdge(dragNode, dropNode);
+            }
+
+            int unitCount = 0;
+            var visited = new HashSet<int>();
+            foreach (var node in adjacency.Keys)
+            {
+                if (visited.Contains(node)) continue;
+
+                bool hasDragNode = false;
+                var queue = new Queue<int>();
+                queue.Enqueue(node);
+                visited.Add(node);
+
+                while (queue.Count > 0)
+                {
+                    int current = queue.Dequeue();
+                    if (current >= 0)
+                        hasDragNode = true;
+
+                    if (!adjacency.TryGetValue(current, out var neighbours)) continue;
+                    for (int i = 0; i < neighbours.Count; i++)
+                    {
+                        int neighbour = neighbours[i];
+                        if (visited.Add(neighbour))
+                            queue.Enqueue(neighbour);
+                    }
+                }
+
+                if (hasDragNode)
+                    unitCount++;
+            }
+
+            if (unitCount <= 0 && dragDrop.dragItems != null)
+                unitCount = dragDrop.dragItems.Count;
+            return unitCount;
         }
 
         private void FillNextSlot(bool wasCorrect, string source)
@@ -485,6 +915,8 @@ namespace NodeSystem.Nodes.Quiz
 
         private void OnQuizScoreChanged(int _)
         {
+            if (displayMode == DisplayMode.Slots) return;
+            if (displayMode == DisplayMode.FilledImage && filledImageUseFinalAnswers) return;
             if (Runner == null || !Runner.IsRunning) return;
             ApplyCurrentValueToTarget();
         }

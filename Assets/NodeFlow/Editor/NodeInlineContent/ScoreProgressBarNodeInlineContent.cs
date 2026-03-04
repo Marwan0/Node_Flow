@@ -21,6 +21,7 @@ namespace NodeSystem.Editor
             });
 
             bool isSlots = node.displayMode == ScoreProgressBarNode.DisplayMode.Slots;
+            bool isFilledImage = node.displayMode == ScoreProgressBarNode.DisplayMode.FilledImage;
 
             // Target field (label changes per mode)
             UnityEngine.Object currentTarget = node.targetRef;
@@ -98,35 +99,91 @@ namespace NodeSystem.Editor
             else
             {
                 // === Slider / FilledImage fields ===
-                CreateEnumField("Value from", node.valueSource, v =>
+                if (isFilledImage)
                 {
-                    node.valueSource = v;
-                    RequestRefresh();
-                });
-
-                if (node.valueSource == ScoreProgressBarNode.ValueSource.Variable)
-                {
-                    CreateVariableSelector("Value var", node.valueVariableName, v => node.valueVariableName = v);
-                }
-
-                if (node.valueSource == ScoreProgressBarNode.ValueSource.QuizScore)
-                {
-                    CreateToggle("Use quiz range (0 to Start Quiz max)", node.useQuizRange, v =>
+                    CreateToggle("Fill from answers timeline", node.filledImageUseFinalAnswers, v =>
                     {
-                        node.useQuizRange = v;
+                        node.filledImageUseFinalAnswers = v;
                         RequestRefresh();
                     });
+
+                    if (node.filledImageUseFinalAnswers)
+                    {
+                        CreateEnumField("Source", node.filledImageAnswerSource, v =>
+                        {
+                            node.filledImageAnswerSource = v;
+                            RequestRefresh();
+                        });
+
+                        CreateEnumField("Count", node.filledImageAnswerFilter, v =>
+                        {
+                            node.filledImageAnswerFilter = v;
+                            RequestRefresh();
+                        });
+
+                        bool isAnyAnswer = node.filledImageAnswerFilter == ScoreProgressBarNode.FilledImageAnswerFilter.AnyAnswer;
+                        if (isAnyAnswer)
+                        {
+                            if (node.filledImageAnswerSource == ScoreProgressBarNode.FilledImageAnswerSource.PartialAnswers)
+                                CreateLabel("Auto normalized by finalized step events across all Load Question nodes (wrong attempts are ignored).");
+                            else
+                                CreateLabel("Auto normalized by total finalized answers across all Load Question nodes.");
+                        }
+                        else
+                        {
+                            bool isPartialSource = node.filledImageAnswerSource == ScoreProgressBarNode.FilledImageAnswerSource.PartialAnswers;
+
+                            if (!isPartialSource)
+                            {
+                                CreateToggle("Use total questions as max", node.filledImageUseTotalQuestionsAsMax, v =>
+                                {
+                                    node.filledImageUseTotalQuestionsAsMax = v;
+                                    RequestRefresh();
+                                });
+
+                                if (!node.filledImageUseTotalQuestionsAsMax)
+                                    CreateIntField("Max count", node.filledImageMaxCount, v => node.filledImageMaxCount = Mathf.Max(1, v));
+                            }
+                            else
+                            {
+                                CreateIntField("Max count", node.filledImageMaxCount, v => node.filledImageMaxCount = Mathf.Max(1, v));
+                            }
+                        }
+                    }
                 }
 
-                if (node.valueSource != ScoreProgressBarNode.ValueSource.QuizScore || !node.useQuizRange)
+                if (!isFilledImage || !node.filledImageUseFinalAnswers)
                 {
-                    CreateLabel("Min");
-                    CreateFloatField("", node.minLiteral, v => node.minLiteral = v);
-                    CreateVariableSelector("Min var (optional)", node.minVariableName, v => node.minVariableName = v);
+                    CreateEnumField("Value from", node.valueSource, v =>
+                    {
+                        node.valueSource = v;
+                        RequestRefresh();
+                    });
 
-                    CreateLabel("Max");
-                    CreateFloatField("", node.maxLiteral, v => node.maxLiteral = v);
-                    CreateVariableSelector("Max var (optional)", node.maxVariableName, v => node.maxVariableName = v);
+                    if (node.valueSource == ScoreProgressBarNode.ValueSource.Variable)
+                    {
+                        CreateVariableSelector("Value var", node.valueVariableName, v => node.valueVariableName = v);
+                    }
+
+                    if (node.valueSource == ScoreProgressBarNode.ValueSource.QuizScore)
+                    {
+                        CreateToggle("Use quiz range (0 to Start Quiz max)", node.useQuizRange, v =>
+                        {
+                            node.useQuizRange = v;
+                            RequestRefresh();
+                        });
+                    }
+
+                    if (node.valueSource != ScoreProgressBarNode.ValueSource.QuizScore || !node.useQuizRange)
+                    {
+                        CreateLabel("Min");
+                        CreateFloatField("", node.minLiteral, v => node.minLiteral = v);
+                        CreateVariableSelector("Min var (optional)", node.minVariableName, v => node.minVariableName = v);
+
+                        CreateLabel("Max");
+                        CreateFloatField("", node.maxLiteral, v => node.maxLiteral = v);
+                        CreateVariableSelector("Max var (optional)", node.maxVariableName, v => node.maxVariableName = v);
+                    }
                 }
 
                 CreateToggle("Animate fill (lerp)", node.animateFill, v =>

@@ -52,7 +52,14 @@ namespace QuizSystem
             public int sequenceIndex;
             public int questionIndex;
             public bool wasCorrect;
+            public PartialAnswerEventType eventType;
             public float timestamp;
+        }
+
+        public enum PartialAnswerEventType
+        {
+            WrongAttempt,
+            StepResult
         }
 
         private static QuizState _instance;
@@ -303,7 +310,7 @@ namespace QuizSystem
         /// </summary>
         public void NotifyWrongAttempt()
         {
-            RecordPartialAnswerEvent(false, -1);
+            RecordPartialAnswerEvent(false, -1, PartialAnswerEventType.WrongAttempt);
             OnWrongAttempt?.Invoke();
             Debug.Log("[QuizState] Wrong attempt - user can try again");
         }
@@ -325,7 +332,7 @@ namespace QuizSystem
         /// </summary>
         public void NotifyStepResult(bool wasCorrect, int questionIndex = -1)
         {
-            RecordPartialAnswerEvent(wasCorrect, questionIndex);
+            RecordPartialAnswerEvent(wasCorrect, questionIndex, PartialAnswerEventType.StepResult);
             OnStepResult?.Invoke(wasCorrect);
             Debug.Log($"[QuizState] Step result: {(wasCorrect ? "Correct" : "Wrong")}");
         }
@@ -621,7 +628,7 @@ namespace QuizSystem
             return Mathf.Max(0, lastQuestionIndex);
         }
 
-        private void RecordPartialAnswerEvent(bool wasCorrect, int questionIndex)
+        private void RecordPartialAnswerEvent(bool wasCorrect, int questionIndex, PartialAnswerEventType eventType)
         {
             if (partialAnswerTimeline == null)
                 partialAnswerTimeline = new List<PartialAnswerTimelineEntry>();
@@ -632,6 +639,7 @@ namespace QuizSystem
                 sequenceIndex = partialAnswerTimeline.Count,
                 questionIndex = resolvedQuestionIndex,
                 wasCorrect = wasCorrect,
+                eventType = eventType,
                 timestamp = Time.unscaledTime
             };
 

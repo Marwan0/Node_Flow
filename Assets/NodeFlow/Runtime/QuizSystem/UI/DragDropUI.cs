@@ -56,9 +56,19 @@ namespace QuizSystem
         private Canvas rootCanvas;
 
         // Live scoring state
-        private int correctCount = 0;
-        private int totalItems = 0;
+        private class AnswerUnit
+        {
+            public int id;
+            public HashSet<int> dragIndices = new HashSet<int>();
+            public bool isCompleted;
+            public bool hasAutoPlacement;
+        }
+
+        private int completedAnswerUnits = 0;
+        private int totalAnswerUnits = 0;
         private Dictionary<int, int> _wrongAttemptsPerItem = new Dictionary<int, int>(); // dragIndex -> wrong drop count
+        private Dictionary<int, AnswerUnit> _answerUnitsById = new Dictionary<int, AnswerUnit>(); // unitId -> answer unit
+        private Dictionary<int, int> _dragToAnswerUnit = new Dictionary<int, int>(); // dragIndex -> unitId
 
         protected override void SetupQuestion()
         {
@@ -79,10 +89,11 @@ namespace QuizSystem
             currentPairings.Clear();
             currentlyDragging = null;
             currentlyHoveredZone = null;
-            correctCount = 0;
-            totalItems = ddData.dragItems.Count;
+            completedAnswerUnits = 0;
             _correctZoneIndices.Clear();
             _wrongAttemptsPerItem.Clear();
+            BuildAnswerUnits();
+            totalAnswerUnits = Mathf.Max(1, _answerUnitsById.Count);
 
             // No submit button needed — validation happens live on each drop
             if (submitButton != null)
@@ -408,19 +419,17 @@ namespace QuizSystem
                 if (zoneImage != null) zoneImage.color = Color.green;
 
                 // Score and progress
-                correctCount++;
                 _correctZoneIndices.Add(dropIndex);
                 
-                // Only notify success for manual drops
+                // Keep per-drop feedback for VFX/sfx.
                 QuizState.Instance?.NotifyCorrectAttempt();
-                QuizState.Instance?.NotifyStepResult(true);
-                quizManager?.UpdateQuestionProgress(currentQuestion, correctCount, totalItems);
+                HandleAnswerUnitProgressUpdate(dragIndex, wasAutoPlaced: false);
 
                 // Disable zone if it has received all its correct items
                 CheckAndDisableZone(zoneUI);
 
                 // Check if all items are correctly placed
-                if (correctCount >= totalItems)
+                if (completedAnswerUnits >= totalAnswerUnits)
                 {
                     FinalizeQuestion(true, currentQuestion.points);
                 }
@@ -589,17 +598,12 @@ namespace QuizSystem
             if (itemImage != null) itemImage.color = Color.green;
             if (zoneImage != null) zoneImage.color = Color.green;
 
-            correctCount++;
             _correctZoneIndices.Add(pairing.dropIndex);
-            
-            // Auto-placed = wrong step result (user didn't earn it)
-            QuizState.Instance?.NotifyStepResult(false);
-            // NOTE: We do NOT call NotifyCorrectAttempt here because this is auto-placement.
-            // We also skip progress update if the user didn't earn it, but keep internal count.
+            HandleAnswerUnitProgressUpdate(pairing.dragIndex, wasAutoPlaced: true);
             
             CheckAndDisableZone(zoneUI);
 
-            if (correctCount >= totalItems)
+            if (completedAnswerUnits >= totalAnswerUnits)
             {
                 FinalizeQuestion(false, 0); // auto-corrected = no points
             }
@@ -646,6 +650,7 @@ namespace QuizSystem
                     if (itemImage != null) itemImage.color = Color.green;
                     if (zoneImage != null) zoneImage.color = Color.green;
 
+                    HandleAnswerUnitProgressUpdate(cp.dragIndex, wasAutoPlaced: true);
                     CheckAndDisableZone(zoneUI);
                 }
             }
@@ -672,6 +677,126 @@ namespace QuizSystem
                 if (cg == null) cg = zoneUI.dropZoneObject.AddComponent<CanvasGroup>();
                 cg.blocksRaycasts = false;
             }
+        }
+
+        private void BuildAnswerUnits()
+        {
+            _answerUnitsById.Clear();
+            _dragToAnswerUnit.Clear();
+
+            if (ddData == null || ddData.correctPairings == null || ddData.correctPairings.Count == 0)
+            {
+                // Fallback: each drag item is its own unit.
+                int fallbackCount = ddData != null && ddData.dragItems != null ? ddData.dragItems.Count : 0;
+                for (int i = 0; i < fallbackCount; i++)
+                {
+                    var unit = new AnswerUnit { id = i };
+                    unit.dragIndices.Add(i);
+                    _answerUnitsById[i] = unit;
+                    _dragToAnswerUnit[i] = i;
+                }
+                return;
+            }
+
+            // Build connected components over drag and drop nodes.
+            // A component represents one logical answer unit:
+            // - Same drop with multiple drags => one unit
+            // - Same drag with multiple valid drops => one unit
+            var adjacency = new Dictionary<int, List<int>>();
+            void AddEdge(int a, int b)
+            {
+                if (!adjacency.TryGetValue(a, out var listA))
+                {
+                    listA = new List<int>();
+                    adjacency[a] = listA;
+                }
+                listA.Add(b);
+
+                if (!adjacency.TryGetValue(b, out var listB))
+                {
+                    listB = new List<int>();
+                    adjacency[b] = listB;
+                }
+                listB.Add(a);
+            }
+
+            for (int i = 0; i < ddData.correctPairings.Count; i++)
+            {
+                var cp = ddData.correctPairings[i];
+                int dragNode = cp.dragIndex;
+                int dropNode = -1 - cp.dropIndex; // ensure disjoint id space for drop nodes
+                AddEdge(dragNode, dropNode);
+            }
+
+            var visited = new HashSet<int>();
+            int nextUnitId = 0;
+            foreach (var node in adjacency.Keys)
+            {
+                if (visited.Contains(node)) continue;
+
+                var queue = new Queue<int>();
+                queue.Enqueue(node);
+                visited.Add(node);
+
+                var unit = new AnswerUnit { id = nextUnitId };
+
+                while (queue.Count > 0)
+                {
+                    int current = queue.Dequeue();
+                    if (current >= 0)
+                        unit.dragIndices.Add(current);
+
+                    if (!adjacency.TryGetValue(current, out var neighbours)) continue;
+                    for (int i = 0; i < neighbours.Count; i++)
+                    {
+                        int neighbour = neighbours[i];
+                        if (visited.Add(neighbour))
+                            queue.Enqueue(neighbour);
+                    }
+                }
+
+                if (unit.dragIndices.Count > 0)
+                {
+                    _answerUnitsById[unit.id] = unit;
+                    foreach (var dragIndex in unit.dragIndices)
+                    {
+                        _dragToAnswerUnit[dragIndex] = unit.id;
+                    }
+                    nextUnitId++;
+                }
+            }
+        }
+
+        private void HandleAnswerUnitProgressUpdate(int dragIndex, bool wasAutoPlaced)
+        {
+            if (totalAnswerUnits <= 0)
+                return;
+            if (!_dragToAnswerUnit.TryGetValue(dragIndex, out var unitId))
+                return;
+            if (!_answerUnitsById.TryGetValue(unitId, out var unit))
+                return;
+
+            if (wasAutoPlaced)
+                unit.hasAutoPlacement = true;
+            if (unit.isCompleted)
+                return;
+
+            int placedCount = 0;
+            foreach (var requiredDrag in unit.dragIndices)
+            {
+                if (currentPairings.ContainsKey(requiredDrag))
+                    placedCount++;
+            }
+
+            if (placedCount < unit.dragIndices.Count)
+                return;
+
+            unit.isCompleted = true;
+            completedAnswerUnits++;
+
+            // One finalized step per logical answer unit (zone), not per item.
+            QuizState.Instance?.NotifyStepResult(!unit.hasAutoPlacement);
+            quizManager?.UpdateQuestionProgress(currentQuestion, completedAnswerUnits, totalAnswerUnits);
         }
 
         protected override string GetCorrectAnswerDisplay()
