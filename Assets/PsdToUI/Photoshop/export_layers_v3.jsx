@@ -1,0 +1,688 @@
+/*
+ Photoshop ExtendScript - OPTIMIZED v3 (Baum2-style)
+ Exports every layer as PNG + layout.json for Unity import.
+
+ Key optimizations (inspired by Baum2):
+   1. Pre-rasterizes ALL layers upfront (bakes styles, masks, smart objects)
+   2. ActionManager snapshot for reliable revert
+   3. No mergeVisibleLayers needed for non-clipped layers
+   4. Only clipped layers merge (fast since pre-rasterized)
+   5. SaveAs PNG instead of slow SaveForWeb
+   6. Single working copy (no per-layer doc duplication)
+*/
+
+#target photoshop
+app.bringToFront();
+
+// Force pixel units for accuracy
+var _savedRulerUnits = app.preferences.rulerUnits;
+var _savedTypeUnits = app.preferences.typeUnits;
+app.preferences.rulerUnits = Units.PIXELS;
+app.preferences.typeUnits = TypeUnits.PIXELS;
+
+if (app.documents.length === 0) {
+    alert("Open a PSD document first.");
+} else {
+    var originalDoc = app.activeDocument;
+    var outputFolder = Folder.selectDialog("Select export folder for PNG + layout.json");
+    if (outputFolder) {
+        var layout = {
+            version: 2,
+            document: {
+                width: originalDoc.width.value,
+                height: originalDoc.height.value,
+                name: originalDoc.name
+            },
+            nodes: [],
+            layers: []
+        };
+
+        var counterObj = { value: 0 };
+
+        // ── Phase 1: Create working copy & pre-process ──
+        var workDoc = originalDoc.duplicate("TEMP_EXPORT_WORK", false);
+        makeBackgroundEditable(workDoc);
+        unlockAllLayers(workDoc.layers);
+
+        // Pre-rasterize all non-text layers (bake effects, masks into flat pixels)
+        // This is the key optimization: after this, layers are simple bitmaps.
+        var savedDM = app.displayDialogs;
+        app.displayDialogs = DialogModes.NO;
+        rasterizeAllLayers(workDoc, workDoc.layers);
+        app.displayDialogs = savedDM;
+
+        // Hide everything and take a snapshot (clean state for export loop)
+        hideAllLayers(workDoc.layers);
+        var snapshotId = takeSnapshot(workDoc);
+
+        // ── Phase 2: Walk layer tree & export each layer ──
+        exportLayerCollection(
+            originalDoc, workDoc, originalDoc.layers,
+            "", "", layout, outputFolder, counterObj, snapshotId
+        );
+
+        // ── Phase 3: Cleanup ──
+        try { workDoc.close(SaveOptions.DONOTSAVECHANGES); } catch (e) {}
+
+        writeLayoutJson(outputFolder, layout);
+        alert(
+            "Export finished.\n" +
+            "Nodes: " + layout.nodes.length + "\n" +
+            "Exported PNGs: " + counterObj.value + "\n" +
+            "Folder: " + outputFolder.fsName
+        );
+    }
+}
+
+// Restore units
+app.preferences.rulerUnits = _savedRulerUnits;
+app.preferences.typeUnits = _savedTypeUnits;
+
+
+// =====================================================================
+//  LAYER TREE WALKER
+// =====================================================================
+
+function exportLayerCollection(originalDoc, workDoc, layers, parentId, parentPath, layout, outputFolder, counterObj, snapshotId) {
+    if (!layers || layers.length === 0) return;
+
+    for (var i = layers.length - 1; i >= 0; i--) {
+        var layer = layers[i];
+        var nodeId = parentPath ? (parentPath + "/" + i) : String(i);
+
+        var bounds = getLayerBoundsSafe(layer);
+        var isGroup = layer.typename === "LayerSet";
+        var isArtLayer = layer.typename === "ArtLayer";
+        var isText = false;
+        var textValue = "";
+
+        if (isArtLayer) {
+            try {
+                isText = layer.kind === LayerKind.TEXT;
+                if (isText && layer.textItem) {
+                    textValue = layer.textItem.contents || "";
+                }
+            } catch (e) {}
+        }
+
+        var fileName = "";
+        var finalX = bounds.x;
+        var finalY = bounds.y;
+        var finalWidth = bounds.width;
+        var finalHeight = bounds.height;
+
+        if (isArtLayer && bounds.width > 0 && bounds.height > 0) {
+            var exportResult = exportSingleLayer(
+                workDoc, nodeId, outputFolder, counterObj,
+                layer.name, snapshotId
+            );
+            if (exportResult) {
+                fileName = exportResult.file || "";
+                if (fileName) {
+                    finalX = exportResult.x;
+                    finalY = exportResult.y;
+                    finalWidth = exportResult.width;
+                    finalHeight = exportResult.height;
+                }
+            }
+        }
+
+        var node = {
+            id: nodeId,
+            parentId: parentId,
+            name: safeString(layer.name),
+            file: fileName,
+            x: finalX,
+            y: finalY,
+            width: finalWidth,
+            height: finalHeight,
+            opacity: safeOpacity(layer),
+            visible: safeVisible(layer),
+            isText: isText,
+            text: textValue,
+            isGroup: isGroup,
+            order: i
+        };
+
+        layout.nodes.push(node);
+
+        if (!isGroup) {
+            layout.layers.push({
+                name: node.name, file: node.file,
+                x: node.x, y: node.y,
+                width: node.width, height: node.height,
+                opacity: node.opacity, visible: node.visible,
+                isText: node.isText, text: node.text
+            });
+        }
+
+        if (isGroup) {
+            exportLayerCollection(
+                originalDoc, workDoc, layer.layers, nodeId, nodeId,
+                layout, outputFolder, counterObj, snapshotId
+            );
+        }
+    }
+}
+
+
+// =====================================================================
+//  SINGLE-LAYER EXPORT (snapshot + crop, NO per-layer doc duplication)
+// =====================================================================
+
+function exportSingleLayer(workDoc, layerPath, outputFolder, counterObj, sourceLayerName, snapshotId) {
+    var fileName = buildFileName(layerPath, sourceLayerName, counterObj.value);
+    counterObj.value++;
+    var outputFile = new File(outputFolder.fsName + "/" + fileName);
+
+    try {
+        // 1. Revert to snapshot (all layers hidden, all pre-rasterized)
+        revertToSnapshot(workDoc, snapshotId);
+
+        // 2. Show only the target layer + parent chain
+        var targetLayer = findLayerByPath(workDoc, layerPath);
+        if (!targetLayer) return null;
+
+        showParentChain(targetLayer);
+        targetLayer.visible = true;
+
+        // 3. Handle clipping chain if layer is clipped
+        var isClipped = false;
+        try { isClipped = !!targetLayer.grouped; } catch (e) {}
+
+        if (isClipped) {
+            showRequiredClippingChain(targetLayer);
+        }
+
+        // 4. ALWAYS merge visible to get fully composited result
+        //    Add a temporary empty layer so mergeVisibleLayers never fails
+        //    (it requires 2+ visible layers). The empty layer adds no pixels.
+        var tempHelper = workDoc.artLayers.add();
+        tempHelper.name = "MERGE_HELPER";
+        tempHelper.visible = true;
+
+        var savedDM = app.displayDialogs;
+        app.displayDialogs = DialogModes.NO;
+        try {
+            workDoc.mergeVisibleLayers();
+        } catch (mergeErr) {}
+        app.displayDialogs = savedDM;
+
+        // mergeVisibleLayers returns undefined in ExtendScript,
+        // the merged result becomes the active layer
+        var renderedLayer = workDoc.activeLayer;
+
+        // 4. Get bounds and validate
+        var renderBounds = getLayerBoundsSafe(renderedLayer);
+        if (renderBounds.width <= 0 || renderBounds.height <= 0) {
+            revertToSnapshot(workDoc, snapshotId);
+            return null;
+        }
+
+        // 5. Crop to layer content
+        try {
+            workDoc.crop([
+                UnitValue(renderBounds.x, "px"),
+                UnitValue(renderBounds.y, "px"),
+                UnitValue(renderBounds.x + renderBounds.width, "px"),
+                UnitValue(renderBounds.y + renderBounds.height, "px")
+            ]);
+        } catch (cropErr) {}
+
+        // 6. Save as PNG (fast SaveAs, not slow SaveForWeb)
+        savePngFast(workDoc, outputFile);
+
+        // 7. Revert to snapshot for next layer
+        revertToSnapshot(workDoc, snapshotId);
+
+        if (!outputFile.exists) return null;
+
+        return {
+            file: fileName,
+            x: renderBounds.x,
+            y: renderBounds.y,
+            width: renderBounds.width,
+            height: renderBounds.height
+        };
+    } catch (err) {
+        try { revertToSnapshot(workDoc, snapshotId); } catch (e) {}
+        return null;
+    }
+}
+
+
+// =====================================================================
+//  PRE-RASTERIZATION (one-time cost, makes all layers flat bitmaps)
+//  Bakes: layer styles, vector masks, layer masks, smart objects
+//  Skips: text layers (preserves editable text for metadata)
+// =====================================================================
+
+function rasterizeAllLayers(doc, layers) {
+    if (!layers) return;
+
+    for (var i = 0; i < layers.length; i++) {
+        var layer = layers[i];
+
+        if (layer.typename === "LayerSet") {
+            rasterizeAllLayers(doc, layer.layers);
+            continue;
+        }
+
+        if (layer.typename !== "ArtLayer") continue;
+
+        // Skip text layers (we need their text content for metadata)
+        try {
+            if (layer.kind === LayerKind.TEXT) continue;
+        } catch (e) {}
+
+        // Make visible temporarily (some rasterize ops need visibility)
+        var wasVisible = layer.visible;
+        layer.visible = true;
+
+        try {
+            doc.activeLayer = layer;
+
+            // 1. Rasterize layer styles (drop shadow, bevel, stroke, etc.)
+            amRasterizeLayerStyle();
+
+            // 2. Handle vector masks
+            if (amHasVectorMask()) {
+                amRasterizeLayer();
+                amSelectVectorMask();
+                amRasterizeVectorMask();
+                amApplyLayerMask();
+            }
+
+            // 3. Handle layer masks
+            if (amHasLayerMask()) {
+                amRasterizeLayer();
+                amSelectLayerMask();
+                amApplyLayerMask();
+            }
+
+            // 4. Final rasterize (smart objects, fill layers, etc.)
+            layer.rasterize(RasterizeType.ENTIRELAYER);
+        } catch (e) {}
+
+        layer.visible = wasVisible;
+    }
+}
+
+
+// =====================================================================
+//  ACTION-MANAGER RASTERIZATION FUNCTIONS (from Baum2)
+//  These use native Photoshop commands instead of slow DOM calls.
+// =====================================================================
+
+function amRasterizeLayerStyle() {
+    try {
+        var desc = new ActionDescriptor();
+        var ref = new ActionReference();
+        ref.putEnumerated(charIDToTypeID("Lyr "), charIDToTypeID("Ordn"), charIDToTypeID("Trgt"));
+        desc.putReference(charIDToTypeID("null"), ref);
+        desc.putEnumerated(charIDToTypeID("What"), stringIDToTypeID("rasterizeItem"), stringIDToTypeID("layerStyle"));
+        executeAction(stringIDToTypeID("rasterizeLayer"), desc, DialogModes.NO);
+    } catch (e) {}
+}
+
+function amRasterizeLayer() {
+    try {
+        var desc = new ActionDescriptor();
+        var ref = new ActionReference();
+        ref.putEnumerated(charIDToTypeID("Lyr "), charIDToTypeID("Ordn"), charIDToTypeID("Trgt"));
+        desc.putReference(charIDToTypeID("null"), ref);
+        executeAction(stringIDToTypeID("rasterizeLayer"), desc, DialogModes.NO);
+    } catch (e) {}
+}
+
+function amHasVectorMask() {
+    try {
+        var ref = new ActionReference();
+        var keyVM = stringIDToTypeID("vectorMask");
+        ref.putEnumerated(charIDToTypeID("Path"), charIDToTypeID("Ordn"), keyVM);
+        var desc = executeActionGet(ref);
+        if (desc.hasKey(charIDToTypeID("Knd "))) {
+            return desc.getEnumerationValue(charIDToTypeID("Knd ")) === keyVM;
+        }
+    } catch (e) {}
+    return false;
+}
+
+function amHasLayerMask() {
+    try {
+        var ref = new ActionReference();
+        var keyUM = charIDToTypeID("UsrM");
+        ref.putProperty(charIDToTypeID("Prpr"), keyUM);
+        ref.putEnumerated(charIDToTypeID("Lyr "), charIDToTypeID("Ordn"), charIDToTypeID("Trgt"));
+        var desc = executeActionGet(ref);
+        return desc.hasKey(keyUM);
+    } catch (e) {}
+    return false;
+}
+
+function amSelectVectorMask() {
+    try {
+        var desc = new ActionDescriptor();
+        var ref = new ActionReference();
+        ref.putEnumerated(charIDToTypeID("Path"), charIDToTypeID("Path"), stringIDToTypeID("vectorMask"));
+        ref.putEnumerated(charIDToTypeID("Lyr "), charIDToTypeID("Ordn"), charIDToTypeID("Trgt"));
+        desc.putReference(charIDToTypeID("null"), ref);
+        executeAction(charIDToTypeID("slct"), desc, DialogModes.NO);
+    } catch (e) {}
+}
+
+function amSelectLayerMask() {
+    try {
+        var desc = new ActionDescriptor();
+        var ref = new ActionReference();
+        ref.putEnumerated(charIDToTypeID("Chnl"), charIDToTypeID("Chnl"), charIDToTypeID("Msk "));
+        desc.putReference(charIDToTypeID("null"), ref);
+        desc.putBoolean(charIDToTypeID("MkVs"), false);
+        executeAction(charIDToTypeID("slct"), desc, DialogModes.NO);
+    } catch (e) {}
+}
+
+function amRasterizeVectorMask() {
+    try {
+        var desc = new ActionDescriptor();
+        var ref = new ActionReference();
+        ref.putEnumerated(charIDToTypeID("Lyr "), charIDToTypeID("Ordn"), charIDToTypeID("Trgt"));
+        desc.putReference(charIDToTypeID("null"), ref);
+        desc.putEnumerated(charIDToTypeID("What"), stringIDToTypeID("rasterizeItem"), stringIDToTypeID("vectorMask"));
+        executeAction(stringIDToTypeID("rasterizeLayer"), desc, DialogModes.NO);
+    } catch (e) {}
+}
+
+function amApplyLayerMask() {
+    try {
+        var desc = new ActionDescriptor();
+        var ref = new ActionReference();
+        ref.putEnumerated(charIDToTypeID("Chnl"), charIDToTypeID("Ordn"), charIDToTypeID("Trgt"));
+        desc.putReference(charIDToTypeID("null"), ref);
+        desc.putBoolean(charIDToTypeID("Aply"), true);
+        executeAction(charIDToTypeID("Dlt "), desc, DialogModes.NO);
+    } catch (e) {}
+}
+
+
+// =====================================================================
+//  SNAPSHOT (ActionManager-based, more reliable than History state)
+// =====================================================================
+
+function takeSnapshot(doc) {
+    var desc = new ActionDescriptor();
+    var refSnap = new ActionReference();
+    refSnap.putClass(charIDToTypeID("SnpS"));
+    desc.putReference(charIDToTypeID("null"), refSnap);
+    var refFrom = new ActionReference();
+    refFrom.putProperty(charIDToTypeID("HstS"), charIDToTypeID("CrnH"));
+    desc.putReference(charIDToTypeID("From"), refFrom);
+    executeAction(charIDToTypeID("Mk  "), desc, DialogModes.NO);
+    return getLastSnapshotId(doc);
+}
+
+function getLastSnapshotId(doc) {
+    var states = doc.historyStates;
+    for (var i = states.length - 1; i >= 0; i--) {
+        if (states[i].snapshot) return i;
+    }
+    return 0;
+}
+
+function revertToSnapshot(doc, snapshotId) {
+    doc.activeHistoryState = doc.historyStates[snapshotId];
+}
+
+
+// =====================================================================
+//  LAYER UTILITIES
+// =====================================================================
+
+function hideAllLayers(layers) {
+    if (!layers) return;
+    for (var i = 0; i < layers.length; i++) {
+        try { layers[i].visible = false; } catch (e) {}
+        if (layers[i].typename === "LayerSet") {
+            hideAllLayers(layers[i].layers);
+        }
+    }
+}
+
+function unlockAllLayers(layers) {
+    if (!layers) return;
+    for (var i = 0; i < layers.length; i++) {
+        try {
+            if (layers[i].allLocked) layers[i].allLocked = false;
+        } catch (e) {}
+        if (layers[i].typename === "LayerSet") {
+            unlockAllLayers(layers[i].layers);
+        }
+    }
+}
+
+function showParentChain(layer) {
+    var current = layer;
+    while (current) {
+        try { current.visible = true; } catch (e) {}
+        if (!current.parent || current.parent.typename === "Document") break;
+        current = current.parent;
+    }
+}
+
+function showRequiredClippingChain(layer) {
+    var current = layer;
+    while (current) {
+        var isClipped = false;
+        try { isClipped = !!current.grouped; } catch (e) {}
+        if (!isClipped) break;
+
+        var baseLayer = findLayerBelow(current);
+        if (!baseLayer) break;
+
+        showParentChain(baseLayer);
+        try { baseLayer.visible = true; } catch (e) {}
+        current = baseLayer;
+    }
+}
+
+function findLayerBelow(layer) {
+    if (!layer || !layer.parent || !layer.parent.layers) return null;
+    var siblings = layer.parent.layers;
+    for (var i = 0; i < siblings.length; i++) {
+        if (siblings[i] === layer) {
+            var belowIndex = i + 1;
+            if (belowIndex < siblings.length) return siblings[belowIndex];
+            return null;
+        }
+    }
+    return null;
+}
+
+function findLayerByPath(doc, path) {
+    if (!doc || !path) return null;
+    var parts = path.split("/");
+    var siblings = doc.layers;
+    var current = null;
+
+    for (var i = 0; i < parts.length; i++) {
+        var index = parseInt(parts[i], 10);
+        if (isNaN(index) || !siblings || index < 0 || index >= siblings.length) return null;
+        current = siblings[index];
+        siblings = current.layers;
+    }
+    return current;
+}
+
+function getLayerBoundsSafe(layer) {
+    try {
+        var b = layer.bounds;
+        var left = b[0].value;
+        var top = b[1].value;
+        var right = b[2].value;
+        var bottom = b[3].value;
+        return {
+            x: left,
+            y: top,
+            width: Math.max(0, right - left),
+            height: Math.max(0, bottom - top)
+        };
+    } catch (e) {
+        return { x: 0, y: 0, width: 0, height: 0 };
+    }
+}
+
+function makeBackgroundEditable(doc) {
+    try {
+        if (doc.backgroundLayer) {
+            doc.activeLayer = doc.backgroundLayer;
+            doc.activeLayer.isBackgroundLayer = false;
+        }
+    } catch (e) {}
+}
+
+function safeOpacity(layer) {
+    try { return layer.opacity / 100.0; } catch (e) { return 1.0; }
+}
+
+function safeVisible(layer) {
+    try { return !!layer.visible; } catch (e) { return true; }
+}
+
+function safeString(value) {
+    if (value === undefined || value === null) return "";
+    return String(value);
+}
+
+
+// =====================================================================
+//  FAST PNG SAVE
+// =====================================================================
+
+function savePngFast(doc, outputFile) {
+    var pngOpts = new PNGSaveOptions();
+    pngOpts.compression = 6;
+    pngOpts.interlaced = false;
+    doc.saveAs(outputFile, pngOpts, true, Extension.LOWERCASE);
+}
+
+
+// =====================================================================
+//  FILE NAME HELPERS
+// =====================================================================
+
+function buildFileName(layerPath, layerName, counter) {
+    var pathPart = layerPath.split("/").join("-").split("\\").join("-");
+    var namePart = toAsciiSlug(layerName);
+    return "L_" + pathPart + "_" + namePart + "_" + pad(counter, 4) + ".png";
+}
+
+function toAsciiSlug(value) {
+    if (!value) return "layer";
+    var text = String(value);
+    // Replace non-ASCII
+    var out = "";
+    for (var i = 0; i < text.length; i++) {
+        var c = text.charCodeAt(i);
+        if (c >= 0x20 && c <= 0x7E) {
+            out += text.charAt(i);
+        } else {
+            out += "_";
+        }
+    }
+    // Replace filesystem-unsafe chars
+    out = out.split("\\").join("_");
+    out = out.split("/").join("_");
+    out = out.split(":").join("_");
+    out = out.split("*").join("_");
+    out = out.split("?").join("_");
+    out = out.split("\"").join("_");
+    out = out.split("<").join("_");
+    out = out.split(">").join("_");
+    out = out.split("|").join("_");
+    // Clean up whitespace and underscores
+    out = out.split(" ").join("_");
+    // Collapse multiple underscores
+    while (out.indexOf("__") >= 0) {
+        out = out.split("__").join("_");
+    }
+    // Trim leading/trailing underscores
+    while (out.length > 0 && out.charAt(0) === "_") out = out.substring(1);
+    while (out.length > 0 && out.charAt(out.length - 1) === "_") out = out.substring(0, out.length - 1);
+
+    if (out.length === 0) out = "layer";
+    if (out.length > 48) out = out.substring(0, 48);
+    return out;
+}
+
+function pad(num, size) {
+    var s = String(num);
+    while (s.length < size) s = "0" + s;
+    return s;
+}
+
+
+// =====================================================================
+//  JSON WRITER
+// =====================================================================
+
+function writeLayoutJson(folder, layoutObj) {
+    var file = new File(folder.fsName + "/layout.json");
+    file.encoding = "UTF8";
+    file.open("w");
+    file.write(stringify(layoutObj, 2));
+    file.close();
+}
+
+function stringify(value, indentSize) {
+    var indentUnit = "  ";
+    if (indentSize === 4) indentUnit = "    ";
+    return stringifyValue(value, "", indentUnit);
+}
+
+function stringifyValue(value, currentIndent, indentUnit) {
+    if (value === null) return "null";
+    var t = typeof value;
+    if (t === "string") return quoteString(value);
+    if (t === "number") return isFinite(value) ? String(value) : "0";
+    if (t === "boolean") return value ? "true" : "false";
+
+    if (value.constructor === Array) {
+        if (value.length === 0) return "[]";
+        var arrNext = currentIndent + indentUnit;
+        var arrOut = "[\n";
+        for (var i = 0; i < value.length; i++) {
+            arrOut += arrNext + stringifyValue(value[i], arrNext, indentUnit);
+            if (i < value.length - 1) arrOut += ",";
+            arrOut += "\n";
+        }
+        arrOut += currentIndent + "]";
+        return arrOut;
+    }
+
+    var keys = [];
+    for (var key in value) {
+        if (value.hasOwnProperty(key)) keys.push(key);
+    }
+    if (keys.length === 0) return "{}";
+
+    var objNext = currentIndent + indentUnit;
+    var out = "{\n";
+    for (var k = 0; k < keys.length; k++) {
+        var name = keys[k];
+        out += objNext + quoteString(name) + ": " + stringifyValue(value[name], objNext, indentUnit);
+        if (k < keys.length - 1) out += ",";
+        out += "\n";
+    }
+    out += currentIndent + "}";
+    return out;
+}
+
+function quoteString(s) {
+    var escaped = String(s);
+    escaped = escaped.split("\\").join("\\\\");
+    escaped = escaped.split("\"").join("\\\"");
+    escaped = escaped.split("\r").join("\\r");
+    escaped = escaped.split("\n").join("\\n");
+    escaped = escaped.split("\t").join("\\t");
+    return "\"" + escaped + "\"";
+}
