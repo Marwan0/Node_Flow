@@ -47,6 +47,11 @@ namespace QuizSystem
                 submitButton.interactable = true;
             }
 
+            // Register hover effects
+            ClearRegisteredHoverEffects();
+            if (valueSlider != null && valueSlider.handleRect != null)
+                RegisterHoverEffect(valueSlider.handleRect.gameObject);
+
             UpdateValueDisplay();
         }
 

@@ -45,6 +45,13 @@ namespace QuizSystem
                 }
             }
 
+            // Register hover effects
+            ClearRegisteredHoverEffects();
+            foreach (var toggle in optionToggles)
+            {
+                if (toggle != null) RegisterHoverEffect(toggle.gameObject);
+            }
+
             if (submitButton != null)
             {
                 submitButton.onClick.RemoveAllListeners();

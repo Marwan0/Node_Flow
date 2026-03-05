@@ -136,13 +136,16 @@ namespace Object_Flow.PsdToUI.Editor
                 return;
             }
 
+            Vector2 pivot = PsdImporterWindow.PivotModeToVector(settings.PivotMode);
             GameObject compositeGO = new GameObject("Composite");
             RectTransform compositeRT = compositeGO.AddComponent<RectTransform>();
             compositeRT.SetParent(rootRT, false);
             compositeRT.anchorMin = new Vector2(0f, 1f);
             compositeRT.anchorMax = new Vector2(0f, 1f);
-            compositeRT.pivot = new Vector2(0f, 1f);
-            compositeRT.anchoredPosition = Vector2.zero;
+            compositeRT.pivot = pivot;
+            float compPivotOffsetX = pivot.x * document.Width;
+            float compPivotOffsetY = -(1f - pivot.y) * document.Height;
+            compositeRT.anchoredPosition = new Vector2(compPivotOffsetX, compPivotOffsetY);
             compositeRT.sizeDelta = new Vector2(document.Width, document.Height);
 
             Image compositeImage = compositeGO.AddComponent<Image>();
@@ -285,10 +288,11 @@ namespace Object_Flow.PsdToUI.Editor
             RectTransform rt = go.AddComponent<RectTransform>();
             rt.SetParent(parentRT, false);
 
-            // Anchor to Top-Left
+            // Anchor to Top-Left, pivot from settings
+            Vector2 pivot = PsdImporterWindow.PivotModeToVector(settings.PivotMode);
             rt.anchorMin = new Vector2(0f, 1f);
             rt.anchorMax = new Vector2(0f, 1f);
-            rt.pivot = new Vector2(0f, 1f);
+            rt.pivot = pivot;
 
             float newOriginX = parentGlobalX;
             float newOriginY = parentGlobalY;
@@ -298,10 +302,15 @@ namespace Object_Flow.PsdToUI.Editor
                 newOriginX = layer.Left;
                 newOriginY = layer.Top;
 
+                // Base position: top-left corner of the layer relative to parent
                 float localX = layer.Left - parentGlobalX;
                 float localY = -(layer.Top - parentGlobalY);
-                
-                rt.anchoredPosition = new Vector2(localX, localY);
+
+                // Offset from top-left pivot (0,1) to the chosen pivot
+                float pivotOffsetX = pivot.x * layer.Width;
+                float pivotOffsetY = -(1f - pivot.y) * layer.Height;
+
+                rt.anchoredPosition = new Vector2(localX + pivotOffsetX, localY + pivotOffsetY);
                 rt.sizeDelta = new Vector2(layer.Width, layer.Height);
             }
             else

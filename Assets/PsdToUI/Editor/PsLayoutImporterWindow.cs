@@ -11,12 +11,12 @@ namespace Object_Flow.PsdToUI.Editor
     public class PsLayoutImporterWindow : EditorWindow
     {
         private string jsonPath = "";
-        private string imagesFolder = "";
         private string importSpritesFolder = "Assets/PsdToUI/ImportedLayouts";
         private RectTransform targetCanvas;
         private bool createTextObjects = true;
         private bool respectVisibility = true;
         private bool copyImagesIntoProject = true;
+        private PsdImporterWindow.PivotMode pivotMode = PsdImporterWindow.PivotMode.Center;
 
         private class RuntimeNode
         {
@@ -44,11 +44,6 @@ namespace Object_Flow.PsdToUI.Editor
                 () => EditorUtility.OpenFilePanel("Select layout JSON", "", "json"));
 
             DrawPathField(
-                "Images Folder",
-                ref imagesFolder,
-                () => EditorUtility.OpenFolderPanel("Select exported images folder", "", ""));
-
-            DrawPathField(
                 "Import Sprites To",
                 ref importSpritesFolder,
                 () => EditorUtility.OpenFolderPanel("Select import destination under Assets", Application.dataPath, ""));
@@ -57,6 +52,7 @@ namespace Object_Flow.PsdToUI.Editor
             createTextObjects = EditorGUILayout.Toggle("Create Text Objects", createTextObjects);
             respectVisibility = EditorGUILayout.Toggle("Respect Visibility", respectVisibility);
             copyImagesIntoProject = EditorGUILayout.Toggle("Copy Images Into Project", copyImagesIntoProject);
+            pivotMode = (PsdImporterWindow.PivotMode)EditorGUILayout.EnumPopup("Layer Pivot", pivotMode);
 
             EditorGUILayout.Space();
             GUI.enabled = File.Exists(jsonPath);
@@ -179,18 +175,13 @@ namespace Object_Flow.PsdToUI.Editor
 
         private string ResolveSourceImagesFolder()
         {
-            if (!string.IsNullOrEmpty(imagesFolder) && Directory.Exists(imagesFolder))
-            {
-                return imagesFolder;
-            }
-
             string jsonDirectory = Path.GetDirectoryName(jsonPath);
             if (!string.IsNullOrEmpty(jsonDirectory) && Directory.Exists(jsonDirectory))
             {
                 return jsonDirectory;
             }
 
-            throw new DirectoryNotFoundException("Images folder not found. Set 'Images Folder' explicitly.");
+            throw new DirectoryNotFoundException("Could not resolve images folder from layout JSON path.");
         }
 
         private Dictionary<string, string> PrepareImageAssets(List<PsExportNode> nodes, string sourceFolder)
@@ -392,13 +383,20 @@ namespace Object_Flow.PsdToUI.Editor
                     parentY = parentRuntime.Data.y;
                 }
 
+                Vector2 pivot = PsdImporterWindow.PivotModeToVector(pivotMode);
                 RectTransform rt = runtime.RectTransform;
                 rt.SetParent(parentRt, false);
                 rt.anchorMin = new Vector2(0f, 1f);
                 rt.anchorMax = new Vector2(0f, 1f);
-                rt.pivot = new Vector2(0f, 1f);
-                rt.anchoredPosition = new Vector2(node.x - parentX, -(node.y - parentY));
-                rt.sizeDelta = new Vector2(Mathf.Max(0f, node.width), Mathf.Max(0f, node.height));
+                rt.pivot = pivot;
+                float localX = node.x - parentX;
+                float localY = -(node.y - parentY);
+                float w = Mathf.Max(0f, node.width);
+                float h = Mathf.Max(0f, node.height);
+                float pivotOffsetX = pivot.x * w;
+                float pivotOffsetY = -(1f - pivot.y) * h;
+                rt.anchoredPosition = new Vector2(localX + pivotOffsetX, localY + pivotOffsetY);
+                rt.sizeDelta = new Vector2(w, h);
                 rt.localScale = Vector3.one;
 
                 if (!childrenByParentId.TryGetValue(parentId, out List<RuntimeNode> childList))

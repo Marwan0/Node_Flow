@@ -1,5 +1,5 @@
 /*
- Photoshop ExtendScript - OPTIMIZED v3 (Baum2-style)
+ Photoshop ExtendScript
  Exports every layer as PNG + layout.json for Unity import.
 
  Key optimizations (inspired by Baum2):

@@ -81,6 +81,17 @@ namespace QuizSystem
             CreateRightColumnItems();
             currentConnections.Clear();
 
+            // Register hover effects
+            ClearRegisteredHoverEffects();
+            foreach (var item in leftItemUIs)
+            {
+                if (item.itemObject != null) RegisterHoverEffect(item.itemObject);
+            }
+            foreach (var item in rightItemUIs)
+            {
+                if (item.itemObject != null) RegisterHoverEffect(item.itemObject);
+            }
+
             currentConnectionIndex = 0;
             attemptsForCurrentConnection = 0;
             starsCollected = 0;

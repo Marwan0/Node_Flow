@@ -35,6 +35,36 @@ namespace Object_Flow.PsdToUI.Editor
             FlatComposite
         }
 
+        public enum PivotMode
+        {
+            Center,
+            TopLeft,
+            TopCenter,
+            TopRight,
+            MiddleLeft,
+            MiddleRight,
+            BottomLeft,
+            BottomCenter,
+            BottomRight
+        }
+
+        public static Vector2 PivotModeToVector(PivotMode mode)
+        {
+            switch (mode)
+            {
+                case PivotMode.TopLeft:       return new Vector2(0f,   1f);
+                case PivotMode.TopCenter:     return new Vector2(0.5f, 1f);
+                case PivotMode.TopRight:      return new Vector2(1f,   1f);
+                case PivotMode.MiddleLeft:    return new Vector2(0f,   0.5f);
+                case PivotMode.Center:        return new Vector2(0.5f, 0.5f);
+                case PivotMode.MiddleRight:   return new Vector2(1f,   0.5f);
+                case PivotMode.BottomLeft:    return new Vector2(0f,   0f);
+                case PivotMode.BottomCenter:  return new Vector2(0.5f, 0f);
+                case PivotMode.BottomRight:   return new Vector2(1f,   0f);
+                default:                      return new Vector2(0.5f, 0.5f);
+            }
+        }
+
         private struct LayerViewItem
         {
             public string LayerKey;
@@ -52,6 +82,7 @@ namespace Object_Flow.PsdToUI.Editor
         private TextImportMode textImportMode = TextImportMode.TextMeshPro;
         private LayoutFitMode layoutFitMode = LayoutFitMode.MatchPsdPixels;
         private CompositionImportMode compositionImportMode = CompositionImportMode.Layered;
+        private PivotMode pivotMode = PivotMode.Center;
 
         private readonly List<LayerViewItem> layerItems = new List<LayerViewItem>();
         private readonly Dictionary<string, LayerViewItem> layerByKey = new Dictionary<string, LayerViewItem>();
@@ -120,6 +151,7 @@ namespace Object_Flow.PsdToUI.Editor
             compositionImportMode = (CompositionImportMode)EditorGUILayout.EnumPopup("Import Mode", compositionImportMode);
             textImportMode = (TextImportMode)EditorGUILayout.EnumPopup("Import Text As", textImportMode);
             layoutFitMode = (LayoutFitMode)EditorGUILayout.EnumPopup("Layout Fit", layoutFitMode);
+            pivotMode = (PivotMode)EditorGUILayout.EnumPopup("Layer Pivot", pivotMode);
 
             if (compositionImportMode == CompositionImportMode.FlatComposite)
             {
@@ -633,6 +665,7 @@ namespace Object_Flow.PsdToUI.Editor
                 TextImportMode = textImportMode,
                 LayoutFitMode = layoutFitMode,
                 CompositionImportMode = compositionImportMode,
+                PivotMode = pivotMode,
                 FlattenLayerKeys = flatLayerKeys
             };
 
@@ -649,6 +682,7 @@ namespace Object_Flow.PsdToUI.Editor
         public PsdImporterWindow.TextImportMode TextImportMode;
         public PsdImporterWindow.LayoutFitMode LayoutFitMode;
         public PsdImporterWindow.CompositionImportMode CompositionImportMode;
+        public PsdImporterWindow.PivotMode PivotMode;
         public string[] FlattenLayerKeys;
     }
 }

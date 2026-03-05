@@ -55,6 +55,16 @@ namespace QuizSystem
                 SetupFillInTheBlank();
             }
 
+            // Register hover effects on answer options
+            ClearRegisteredHoverEffects();
+            if (audioData.answerType == AudioAnswerType.MultipleChoice && answerContainer != null)
+            {
+                foreach (Transform child in answerContainer)
+                {
+                    RegisterHoverEffect(child.gameObject);
+                }
+            }
+
             if (submitButton != null)
             {
                 submitButton.onClick.RemoveAllListeners();

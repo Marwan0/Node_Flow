@@ -66,6 +66,14 @@ namespace QuizSystem
             answerSubmitted = false;
             UpdateButtonVisuals();
 
+            // Register hover effects
+            ClearRegisteredHoverEffects();
+            for (int i = 0; i < answerButtons.Length && i < mcData.answerCount; i++)
+            {
+                if (answerButtons[i] != null)
+                    RegisterHoverEffect(answerButtons[i].gameObject);
+            }
+
             // Animate button entrance - ALWAYS check for custom animations first
             // Custom animations from LoadQuestionNode take priority over inspector settings
             AnimateButtonEntrance();
@@ -349,6 +357,7 @@ namespace QuizSystem
                     button.interactable = true;
             }
             UpdateButtonVisuals();
+            RecaptureAllHoverIdleStates();
         }
 
         private void AnimateWrongButton(Transform buttonTransform)

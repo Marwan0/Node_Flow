@@ -25,6 +25,10 @@ namespace QuizSystem
                 submitButton.onClick.AddListener(OnInputSubmitted);
                 submitButton.interactable = true;
             }
+
+            // Register hover effects
+            ClearRegisteredHoverEffects();
+            if (submitButton != null) RegisterHoverEffect(submitButton.gameObject);
         }
 
         private void OnInputSubmitted(string answer)

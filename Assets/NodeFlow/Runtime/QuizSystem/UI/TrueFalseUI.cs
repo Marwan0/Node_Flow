@@ -27,6 +27,11 @@ namespace QuizSystem
 
             answerSelected = false;
             EnableButtons(true);
+
+            // Register hover effects
+            ClearRegisteredHoverEffects();
+            if (trueButton != null) RegisterHoverEffect(trueButton.gameObject);
+            if (falseButton != null) RegisterHoverEffect(falseButton.gameObject);
         }
 
         private void OnButtonClicked(bool answer)

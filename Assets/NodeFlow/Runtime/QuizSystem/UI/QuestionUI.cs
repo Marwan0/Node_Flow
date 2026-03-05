@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -25,6 +26,10 @@ namespace QuizSystem
         [Tooltip("Duration of feedback animations")]
         public float feedbackDuration = 0.5f;
 
+        [Header("Hover Effects")]
+        [Tooltip("Hover configuration for answer point elements. Assign a PointHoverConfig asset to enable hover feedback.")]
+        [SerializeField] protected PointHoverConfig pointHoverConfig;
+
         protected QuestionData currentQuestion;
         protected IQuestionValidator validator;
         protected QuizManager quizManager;
@@ -36,6 +41,10 @@ namespace QuizSystem
         private bool _isLocked = false;
         // Action deferred until after feedback chain completes (e.g. quizManager.OnQuestionAnswered)
         private System.Action _pendingOnAnswered;
+
+        // Hover effect tracking
+        private AudioSource _hoverAudioSource;
+        private List<PointHoverEffect> _registeredHoverEffects = new List<PointHoverEffect>();
 
         /// <summary>
         /// Whether hints are globally enabled (set by LoadQuestionNode via QuizState).
@@ -123,10 +132,64 @@ namespace QuizSystem
         {
             QuizState.OnUIUnlockRequested -= UnlockUI;
             QuizState.OnUILockRequested -= LockUI;
+
+            if (_hoverAudioSource != null)
+                Destroy(_hoverAudioSource.gameObject);
         }
 
         protected abstract void SetupQuestion();
         public abstract void OnAnswerSubmitted();
+
+        #region Hover Effect Helpers
+
+        protected PointHoverEffect RegisterHoverEffect(GameObject answerElement)
+        {
+            if (answerElement == null || pointHoverConfig == null) return null;
+
+            var effect = answerElement.GetComponent<PointHoverEffect>();
+            if (effect == null)
+                effect = answerElement.AddComponent<PointHoverEffect>();
+
+            effect.SetConfig(pointHoverConfig);
+            effect.SetSharedAudioSource(GetOrCreateHoverAudioSource());
+            _registeredHoverEffects.Add(effect);
+            return effect;
+        }
+
+        protected void ForceExitAllHoverEffects()
+        {
+            foreach (var effect in _registeredHoverEffects)
+            {
+                if (effect != null) effect.ForceExitHover();
+            }
+        }
+
+        protected void RecaptureAllHoverIdleStates()
+        {
+            foreach (var effect in _registeredHoverEffects)
+            {
+                if (effect != null) effect.RecaptureIdleState();
+            }
+        }
+
+        protected void ClearRegisteredHoverEffects()
+        {
+            _registeredHoverEffects.Clear();
+        }
+
+        private AudioSource GetOrCreateHoverAudioSource()
+        {
+            if (_hoverAudioSource != null) return _hoverAudioSource;
+
+            var sfxObj = new GameObject("HoverSFX");
+            sfxObj.transform.SetParent(transform, false);
+            _hoverAudioSource = sfxObj.AddComponent<AudioSource>();
+            _hoverAudioSource.playOnAwake = false;
+            _hoverAudioSource.loop = false;
+            return _hoverAudioSource;
+        }
+
+        #endregion
 
         /// <summary>
         /// The single correct way for any QuestionUI subclass to complete the question.
@@ -332,6 +395,8 @@ namespace QuizSystem
         {
             if (_isLocked) return;
             _isLocked = true;
+
+            ForceExitAllHoverEffects();
 
             // Lazily acquire or create a CanvasGroup on this object for blocking input
             if (_uiLockCanvasGroup == null)

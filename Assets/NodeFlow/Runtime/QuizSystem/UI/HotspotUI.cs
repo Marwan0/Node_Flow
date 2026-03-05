@@ -44,6 +44,11 @@ namespace QuizSystem
 
             selectedHotspotIndex = null;
 
+            // Register hover effects
+            ClearRegisteredHoverEffects();
+            if (imageRectTransform != null)
+                RegisterHoverEffect(imageRectTransform.gameObject);
+
             if (submitButton != null)
             {
                 submitButton.onClick.RemoveAllListeners();

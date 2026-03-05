@@ -95,6 +95,17 @@ namespace QuizSystem
             BuildAnswerUnits();
             totalAnswerUnits = Mathf.Max(1, _answerUnitsById.Count);
 
+            // Register hover effects
+            ClearRegisteredHoverEffects();
+            foreach (var item in dragItemUIs)
+            {
+                if (item.dragObject != null) RegisterHoverEffect(item.dragObject);
+            }
+            foreach (var zone in dropZoneUIs)
+            {
+                if (zone.dropZoneObject != null) RegisterHoverEffect(zone.dropZoneObject);
+            }
+
             // No submit button needed — validation happens live on each drop
             if (submitButton != null)
                 submitButton.gameObject.SetActive(false);

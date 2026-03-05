@@ -65,6 +65,13 @@ namespace QuizSystem
             }
             
             SetupHintButton();
+
+            // Register hover effects
+            ClearRegisteredHoverEffects();
+            foreach (var item in dragItems)
+            {
+                if (item != null) RegisterHoverEffect(item.gameObject);
+            }
         }
 
         private void SetupHintButton()
