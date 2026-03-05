@@ -29,6 +29,7 @@ namespace QuizSystem
         private MultipleChoiceQuestionData mcData;
         private int selectedAnswerIndex = -1;
         private bool answerSubmitted = false;
+        private Sprite[] originalButtonSprites;
 
         protected override void SetupQuestion()
         {
@@ -59,6 +60,17 @@ namespace QuizSystem
                 if (answerTexts[i] != null && i < mcData.answerCount)
                 {
                     answerTexts[i].text = mcData.GetAnswer(i);
+                }
+            }
+
+            // Capture original sprites for restoration on retry
+            originalButtonSprites = new Sprite[answerButtons.Length];
+            for (int i = 0; i < answerButtons.Length; i++)
+            {
+                if (answerButtons[i] != null)
+                {
+                    var img = answerButtons[i].GetComponent<Image>();
+                    if (img != null) originalButtonSprites[i] = img.sprite;
                 }
             }
 
@@ -251,19 +263,18 @@ namespace QuizSystem
             {
                 if (answerButtons[i] != null)
                 {
-                    // Visual feedback for selected button
-                    var colors = answerButtons[i].colors;
-                    if (i == selectedAnswerIndex)
+                    var image = answerButtons[i].GetComponent<Image>();
+                    if (image != null)
                     {
-                        colors.normalColor = new Color(0.6f, 0.8f, 1f); // Light blue for selected
-                        colors.selectedColor = new Color(0.5f, 0.7f, 1f);
+                        image.DOKill();
+                        image.color = Color.white;
+
+                        // Restore original sprite (undo any correct/wrong sprite swap)
+                        if (originalButtonSprites != null && i < originalButtonSprites.Length && originalButtonSprites[i] != null)
+                        {
+                            image.sprite = originalButtonSprites[i];
+                        }
                     }
-                    else
-                    {
-                        colors.normalColor = Color.white;
-                        colors.selectedColor = Color.white;
-                    }
-                    answerButtons[i].colors = colors;
                 }
             }
         }
@@ -296,22 +307,18 @@ namespace QuizSystem
         protected override void OnCorrectAnswer()
         {
             base.OnCorrectAnswer();
-            
-            // Highlight correct answer in green
+
             if (selectedAnswerIndex >= 0 && selectedAnswerIndex < answerButtons.Length && answerButtons[selectedAnswerIndex] != null)
             {
-                var colors = answerButtons[selectedAnswerIndex].colors;
-                colors.normalColor = Color.green;
-                answerButtons[selectedAnswerIndex].colors = colors;
+                // Apply visual feedback (color + sprite + SFX) via Image.color directly
+                ApplyAnswerFeedback(answerButtons[selectedAnswerIndex], true);
 
-                // Animate correct answer button
                 if (enableFeedbackAnimations)
                 {
                     AnimateCorrectButton(answerButtons[selectedAnswerIndex].transform);
                 }
             }
-            
-            // Hide submit button if it exists (not needed for multiple choice)
+
             if (submitButton != null)
             {
                 submitButton.gameObject.SetActive(false);
@@ -333,15 +340,12 @@ namespace QuizSystem
         protected override void OnWrongAnswer()
         {
             base.OnWrongAnswer();
-            
-            // Highlight wrong answer in red
+
             if (selectedAnswerIndex >= 0 && selectedAnswerIndex < answerButtons.Length && answerButtons[selectedAnswerIndex] != null)
             {
-                var colors = answerButtons[selectedAnswerIndex].colors;
-                colors.normalColor = Color.red;
-                answerButtons[selectedAnswerIndex].colors = colors;
+                // Apply visual feedback (color + sprite + SFX) via Image.color directly
+                ApplyAnswerFeedback(answerButtons[selectedAnswerIndex], false);
 
-                // Animate wrong answer button
                 if (enableFeedbackAnimations)
                 {
                     AnimateWrongButton(answerButtons[selectedAnswerIndex].transform);
@@ -371,15 +375,12 @@ namespace QuizSystem
         protected override void OnAutoCorrect()
         {
             base.OnAutoCorrect();
-            
-            // Highlight correct answer in green
+
+            // Highlight the correct answer so the user can see it
             if (mcData != null && mcData.correctAnswerIndex >= 0 && mcData.correctAnswerIndex < answerButtons.Length && answerButtons[mcData.correctAnswerIndex] != null)
             {
-                var colors = answerButtons[mcData.correctAnswerIndex].colors;
-                colors.normalColor = Color.green;
-                answerButtons[mcData.correctAnswerIndex].colors = colors;
+                ApplyAnswerFeedback(answerButtons[mcData.correctAnswerIndex], true);
 
-                // Animate correct answer reveal
                 if (enableFeedbackAnimations)
                 {
                     AnimateCorrectButton(answerButtons[mcData.correctAnswerIndex].transform);

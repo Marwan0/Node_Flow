@@ -30,6 +30,10 @@ namespace QuizSystem
         [Tooltip("Hover configuration for answer point elements. Assign a PointHoverConfig asset to enable hover feedback.")]
         [SerializeField] protected PointHoverConfig pointHoverConfig;
 
+        [Header("Answer Feedback")]
+        [Tooltip("Visual/audio feedback for correct and wrong answers. Assign an AnswerFeedbackConfig asset to enable.")]
+        [SerializeField] protected AnswerFeedbackConfig answerFeedbackConfig;
+
         protected QuestionData currentQuestion;
         protected IQuestionValidator validator;
         protected QuizManager quizManager;
@@ -45,6 +49,9 @@ namespace QuizSystem
         // Hover effect tracking
         private AudioSource _hoverAudioSource;
         private List<PointHoverEffect> _registeredHoverEffects = new List<PointHoverEffect>();
+
+        // Answer feedback audio (shared, separate from hover)
+        private AudioSource _feedbackAudioSource;
 
         /// <summary>
         /// Whether hints are globally enabled (set by LoadQuestionNode via QuizState).
@@ -135,6 +142,8 @@ namespace QuizSystem
 
             if (_hoverAudioSource != null)
                 Destroy(_hoverAudioSource.gameObject);
+            if (_feedbackAudioSource != null)
+                Destroy(_feedbackAudioSource.gameObject);
         }
 
         protected abstract void SetupQuestion();
@@ -187,6 +196,74 @@ namespace QuizSystem
             _hoverAudioSource.playOnAwake = false;
             _hoverAudioSource.loop = false;
             return _hoverAudioSource;
+        }
+
+        #endregion
+
+        #region Answer Feedback Helpers
+
+        /// <summary>
+        /// Applies correct/wrong visual feedback directly to a button's Image.
+        /// Uses Image.color (not Button.colors) so it's visible even when CanvasGroup is disabled.
+        /// </summary>
+        protected void ApplyAnswerFeedback(Button button, bool isCorrect)
+        {
+            if (button == null || answerFeedbackConfig == null) return;
+
+            var image = button.GetComponent<Image>();
+            if (image == null) return;
+
+            Color targetColor = isCorrect ? answerFeedbackConfig.correctColor : answerFeedbackConfig.wrongColor;
+            Sprite targetSprite = isCorrect ? answerFeedbackConfig.correctSprite : answerFeedbackConfig.wrongSprite;
+
+            // Sprite swap (instant)
+            if (targetSprite != null)
+                image.sprite = targetSprite;
+
+            // Color transition
+            if (answerFeedbackConfig.colorTransitionDuration > 0f)
+            {
+                image.DOKill();
+                image.DOColor(targetColor, answerFeedbackConfig.colorTransitionDuration)
+                    .SetEase(answerFeedbackConfig.transitionEase)
+                    .SetTarget(image);
+            }
+            else
+            {
+                image.color = targetColor;
+            }
+
+            // Play SFX
+            PlayFeedbackSFX(isCorrect);
+        }
+
+        /// <summary>
+        /// Plays the correct or wrong SFX from the AnswerFeedbackConfig.
+        /// </summary>
+        protected void PlayFeedbackSFX(bool isCorrect)
+        {
+            if (answerFeedbackConfig == null) return;
+
+            AudioClip clip = isCorrect ? answerFeedbackConfig.correctSFX : answerFeedbackConfig.wrongSFX;
+            if (clip == null) return;
+
+            AudioSource source = GetOrCreateFeedbackAudioSource();
+            source.Stop();
+            source.clip = clip;
+            source.volume = answerFeedbackConfig.sfxVolume;
+            source.Play();
+        }
+
+        private AudioSource GetOrCreateFeedbackAudioSource()
+        {
+            if (_feedbackAudioSource != null) return _feedbackAudioSource;
+
+            var sfxObj = new GameObject("FeedbackSFX");
+            sfxObj.transform.SetParent(transform, false);
+            _feedbackAudioSource = sfxObj.AddComponent<AudioSource>();
+            _feedbackAudioSource.playOnAwake = false;
+            _feedbackAudioSource.loop = false;
+            return _feedbackAudioSource;
         }
 
         #endregion

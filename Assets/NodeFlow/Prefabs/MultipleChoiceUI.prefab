@@ -343,6 +343,8 @@ MonoBehaviour:
   submitButton: {fileID: 0}
   enableFeedbackAnimations: 0
   feedbackDuration: 0.5
+  pointHoverConfig: {fileID: 11400000, guid: 5ccc9eaafb864f5499e673e5550f06b4, type: 2}
+  answerFeedbackConfig: {fileID: 11400000, guid: a4abc108ac978d24287d3589485eda0f, type: 2}
   answerButtons:
   - {fileID: 6987800974104300205}
   - {fileID: 5989416557802021152}

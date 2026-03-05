@@ -18,6 +18,7 @@ MonoBehaviour:
   - It's a famous city known for the Eiffel Tower
   - It starts with the letter P
   - It starts with the letter P
+  showHintAfterAttempt: 0
   maxAttempts: 3
   points: 50
   explanation: Paris is the capital and largest city of France.
