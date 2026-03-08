@@ -39,32 +39,42 @@ if (app.documents.length === 0) {
 
         var counterObj = { value: 0 };
 
+        // Count total layers for progress bar
+        var totalArtLayers = countArtLayers(originalDoc.layers);
+
+        // ── Create progress window ──
+        var progress = createProgressWindow(totalArtLayers);
+        progress.show();
+
         // ── Phase 1: Create working copy & pre-process ──
+        progress.setPhase("Phase 1/3: Pre-processing", 0, totalArtLayers);
         var workDoc = originalDoc.duplicate("TEMP_EXPORT_WORK", false);
         makeBackgroundEditable(workDoc);
         unlockAllLayers(workDoc.layers);
 
-        // Pre-rasterize all non-text layers (bake effects, masks into flat pixels)
-        // This is the key optimization: after this, layers are simple bitmaps.
         var savedDM = app.displayDialogs;
         app.displayDialogs = DialogModes.NO;
-        rasterizeAllLayers(workDoc, workDoc.layers);
+        rasterizeAllLayers(workDoc, workDoc.layers, progress);
         app.displayDialogs = savedDM;
 
-        // Hide everything and take a snapshot (clean state for export loop)
+        // Hide everything and take a snapshot
         hideAllLayers(workDoc.layers);
         var snapshotId = takeSnapshot(workDoc);
 
         // ── Phase 2: Walk layer tree & export each layer ──
+        progress.setPhase("Phase 2/3: Exporting PNGs", 0, totalArtLayers);
         exportLayerCollection(
             originalDoc, workDoc, originalDoc.layers,
-            "", "", layout, outputFolder, counterObj, snapshotId
+            "", "", layout, outputFolder, counterObj, snapshotId, progress
         );
 
         // ── Phase 3: Cleanup ──
+        progress.setPhase("Phase 3/3: Saving layout.json", 0, 1);
         try { workDoc.close(SaveOptions.DONOTSAVECHANGES); } catch (e) {}
-
         writeLayoutJson(outputFolder, layout);
+
+        progress.close();
+
         alert(
             "Export finished.\n" +
             "Nodes: " + layout.nodes.length + "\n" +
@@ -83,7 +93,7 @@ app.preferences.typeUnits = _savedTypeUnits;
 //  LAYER TREE WALKER
 // =====================================================================
 
-function exportLayerCollection(originalDoc, workDoc, layers, parentId, parentPath, layout, outputFolder, counterObj, snapshotId) {
+function exportLayerCollection(originalDoc, workDoc, layers, parentId, parentPath, layout, outputFolder, counterObj, snapshotId, progress) {
     if (!layers || layers.length === 0) return;
 
     for (var i = layers.length - 1; i >= 0; i--) {
@@ -112,6 +122,7 @@ function exportLayerCollection(originalDoc, workDoc, layers, parentId, parentPat
         var finalHeight = bounds.height;
 
         if (isArtLayer && bounds.width > 0 && bounds.height > 0) {
+            progress.update(safeString(layer.name));
             var exportResult = exportSingleLayer(
                 workDoc, nodeId, outputFolder, counterObj,
                 layer.name, snapshotId
@@ -159,7 +170,7 @@ function exportLayerCollection(originalDoc, workDoc, layers, parentId, parentPat
         if (isGroup) {
             exportLayerCollection(
                 originalDoc, workDoc, layer.layers, nodeId, nodeId,
-                layout, outputFolder, counterObj, snapshotId
+                layout, outputFolder, counterObj, snapshotId, progress
             );
         }
     }
@@ -257,20 +268,22 @@ function exportSingleLayer(workDoc, layerPath, outputFolder, counterObj, sourceL
 //  Skips: text layers (preserves editable text for metadata)
 // =====================================================================
 
-function rasterizeAllLayers(doc, layers) {
+function rasterizeAllLayers(doc, layers, progress) {
     if (!layers) return;
 
     for (var i = 0; i < layers.length; i++) {
         var layer = layers[i];
 
         if (layer.typename === "LayerSet") {
-            rasterizeAllLayers(doc, layer.layers);
+            rasterizeAllLayers(doc, layer.layers, progress);
             continue;
         }
 
         if (layer.typename !== "ArtLayer") continue;
 
         // Skip text layers (we need their text content for metadata)
+        progress.update(safeString(layer.name));
+
         try {
             if (layer.kind === LayerKind.TEXT) continue;
         } catch (e) {}
@@ -551,6 +564,72 @@ function safeVisible(layer) {
 function safeString(value) {
     if (value === undefined || value === null) return "";
     return String(value);
+}
+
+
+// =====================================================================
+//  PROGRESS BAR (ScriptUI palette window)
+// =====================================================================
+
+function createProgressWindow(totalLayers) {
+    var win = new Window("palette", "PSD Export Progress", undefined, { closeButton: false });
+    win.orientation = "column";
+    win.alignChildren = ["fill", "top"];
+    win.preferredSize = [420, 140];
+
+    // Phase label
+    var phaseText = win.add("statictext", undefined, "Initializing...");
+    phaseText.alignment = ["fill", "top"];
+
+    // Layer name label
+    var layerText = win.add("statictext", undefined, " ");
+    layerText.alignment = ["fill", "top"];
+
+    // Progress bar
+    var bar = win.add("progressbar", undefined, 0, totalLayers);
+    bar.preferredSize = [400, 20];
+
+    // Counter label
+    var counterText = win.add("statictext", undefined, "0 / " + totalLayers);
+    counterText.alignment = ["center", "top"];
+
+    var current = 0;
+    var phaseTotal = totalLayers;
+
+    return {
+        show: function () { win.show(); },
+        close: function () { win.close(); },
+        setPhase: function (phaseName, startVal, total) {
+            phaseText.text = phaseName;
+            current = startVal;
+            phaseTotal = total;
+            bar.minvalue = 0;
+            bar.maxvalue = total;
+            bar.value = startVal;
+            counterText.text = startVal + " / " + total;
+            win.update();
+        },
+        update: function (layerName) {
+            current++;
+            bar.value = current;
+            layerText.text = layerName || "";
+            counterText.text = current + " / " + phaseTotal;
+            win.update();
+        }
+    };
+}
+
+function countArtLayers(layers) {
+    if (!layers) return 0;
+    var count = 0;
+    for (var i = 0; i < layers.length; i++) {
+        if (layers[i].typename === "LayerSet") {
+            count += countArtLayers(layers[i].layers);
+        } else if (layers[i].typename === "ArtLayer") {
+            count++;
+        }
+    }
+    return count;
 }
 
 
