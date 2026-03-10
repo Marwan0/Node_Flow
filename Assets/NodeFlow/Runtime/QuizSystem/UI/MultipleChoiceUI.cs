@@ -30,6 +30,7 @@ namespace QuizSystem
         private int selectedAnswerIndex = -1;
         private bool answerSubmitted = false;
         private Sprite[] originalButtonSprites;
+        private bool _needsRetryReset = false;
 
         protected override void SetupQuestion()
         {
@@ -306,11 +307,9 @@ namespace QuizSystem
 
         protected override void OnCorrectAnswer()
         {
-            base.OnCorrectAnswer();
-
+            // Apply visual feedback BEFORE base — base may unlock and advance the quiz immediately
             if (selectedAnswerIndex >= 0 && selectedAnswerIndex < answerButtons.Length && answerButtons[selectedAnswerIndex] != null)
             {
-                // Apply visual feedback (color + sprite + SFX) via Image.color directly
                 ApplyAnswerFeedback(answerButtons[selectedAnswerIndex], true);
 
                 if (enableFeedbackAnimations)
@@ -323,6 +322,8 @@ namespace QuizSystem
             {
                 submitButton.gameObject.SetActive(false);
             }
+
+            base.OnCorrectAnswer();
         }
 
         private void AnimateCorrectButton(Transform buttonTransform)
@@ -339,29 +340,48 @@ namespace QuizSystem
 
         protected override void OnWrongAnswer()
         {
-            base.OnWrongAnswer();
+            // Capture index before base potentially changes state
+            int wrongIndex = selectedAnswerIndex;
 
-            if (selectedAnswerIndex >= 0 && selectedAnswerIndex < answerButtons.Length && answerButtons[selectedAnswerIndex] != null)
+            // Apply visual feedback BEFORE base — base may unlock immediately if no feedback listeners
+            if (wrongIndex >= 0 && wrongIndex < answerButtons.Length && answerButtons[wrongIndex] != null)
             {
-                // Apply visual feedback (color + sprite + SFX) via Image.color directly
-                ApplyAnswerFeedback(answerButtons[selectedAnswerIndex], false);
+                ApplyAnswerFeedback(answerButtons[wrongIndex], false);
 
                 if (enableFeedbackAnimations)
                 {
-                    AnimateWrongButton(answerButtons[selectedAnswerIndex].transform);
+                    AnimateWrongButton(answerButtons[wrongIndex].transform);
                 }
             }
 
-            // Re-enable buttons for retry
-            answerSubmitted = false;
-            selectedAnswerIndex = -1;
-            foreach (var button in answerButtons)
+            // Mark that we need retry reset when UI unlocks (not on a fixed timer)
+            _needsRetryReset = true;
+
+            base.OnWrongAnswer();
+        }
+
+        /// <summary>
+        /// Override UnlockUI to reset retry state when the feedback chain finishes.
+        /// This ensures button sprites/colors stay in their feedback state until the
+        /// full feedback chain (including signal-linked delays) has completed.
+        /// </summary>
+        public override void UnlockUI()
+        {
+            // base.UnlockUI() calls RestoreAnswerFeedback() which restores sprites/colors
+            base.UnlockUI();
+
+            if (_needsRetryReset)
             {
-                if (button != null)
-                    button.interactable = true;
+                _needsRetryReset = false;
+                answerSubmitted = false;
+                selectedAnswerIndex = -1;
+                foreach (var button in answerButtons)
+                {
+                    if (button != null)
+                        button.interactable = true;
+                }
+                RecaptureAllHoverIdleStates();
             }
-            UpdateButtonVisuals();
-            RecaptureAllHoverIdleStates();
         }
 
         private void AnimateWrongButton(Transform buttonTransform)
@@ -374,19 +394,36 @@ namespace QuizSystem
 
         protected override void OnAutoCorrect()
         {
-            base.OnAutoCorrect();
+            // Apply WRONG feedback on the selected answer first (base will fire wrong feedback chain)
+            int wrongIndex = selectedAnswerIndex;
+            if (wrongIndex >= 0 && wrongIndex < answerButtons.Length && answerButtons[wrongIndex] != null)
+            {
+                ApplyAnswerFeedback(answerButtons[wrongIndex], false);
 
-            // Highlight the correct answer so the user can see it
-            if (mcData != null && mcData.correctAnswerIndex >= 0 && mcData.correctAnswerIndex < answerButtons.Length && answerButtons[mcData.correctAnswerIndex] != null)
+                if (enableFeedbackAnimations)
+                    AnimateWrongButton(answerButtons[wrongIndex].transform);
+            }
+            DisableAllButtons();
+
+            // base.OnAutoCorrect() fires wrong feedback chain first, then auto-correct phase via UnlockUI
+            base.OnAutoCorrect();
+        }
+
+        /// <summary>
+        /// Called by UnlockUI after wrong feedback finishes during auto-correct.
+        /// Highlights the correct answer button with correct feedback visuals.
+        /// </summary>
+        protected override void ApplyAutoCorrectVisuals()
+        {
+            if (mcData != null && mcData.correctAnswerIndex >= 0
+                && mcData.correctAnswerIndex < answerButtons.Length
+                && answerButtons[mcData.correctAnswerIndex] != null)
             {
                 ApplyAnswerFeedback(answerButtons[mcData.correctAnswerIndex], true);
 
                 if (enableFeedbackAnimations)
-                {
                     AnimateCorrectButton(answerButtons[mcData.correctAnswerIndex].transform);
-                }
             }
-            DisableAllButtons();
         }
 
         protected override string GetCorrectAnswerDisplay()

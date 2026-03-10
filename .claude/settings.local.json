@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(cd:*)",
-      "Bash(xargs grep -l \"Color\\\\|Theme\\\\|Stylesheet\\\\|Style\")"
+      "Bash(xargs grep -l \"Color\\\\|Theme\\\\|Stylesheet\\\\|Style\")",
+      "Bash(grep -r \"Image\\\\|Sprite\" e:/Work/Node_Flow/Assets/NodeFlow/Runtime/Nodes/*.cs --include=\"*.cs\")"
     ]
   }
 }

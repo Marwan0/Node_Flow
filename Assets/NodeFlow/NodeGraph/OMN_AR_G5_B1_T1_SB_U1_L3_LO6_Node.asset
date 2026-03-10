@@ -1,0 +1,550 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: efef43d2e8d2b144eba636f40d9de295, type: 3}
+  m_Name: OMN_AR_G5_B1_T1_SB_U1_L3_LO6_Node
+  m_EditorClassIdentifier: Assembly-CSharp::NodeSystem.NodeGraph
+  graphName: OMN_AR_G5_B1_T1_SB_U1_L3_LO6_Node
+  description: 
+  _jsonData: '{"nodes":[],"connections":[{"outNode":"3522b468-5151-4907-9eec-91f6188c9e36","outPort":"output","inNode":"e9ba7b03-c7c8-4ba6-8bd0-dc8d8a0633e1","inPort":"input"},{"outNode":"5657892c-fc05-47a9-8707-1936029da688","outPort":"output","inNode":"b2284c72-00f0-4228-80f9-7b3dbfdfb341","inPort":"input"},{"outNode":"b2284c72-00f0-4228-80f9-7b3dbfdfb341","outPort":"output","inNode":"3522b468-5151-4907-9eec-91f6188c9e36","inPort":"input"},{"outNode":"e9ba7b03-c7c8-4ba6-8bd0-dc8d8a0633e1","outPort":"output","inNode":"bdda3b2e-9874-4091-a891-bcca7cb47b5e","inPort":"input"},{"outNode":"eee1594f-f7bd-433a-ab0d-77965fc9923e","outPort":"output","inNode":"3724fba4-c014-4cb8-8b98-ffede4c7a718","inPort":"input"},{"outNode":"c83ee30f-8db9-4dd0-b4fe-5da4f44b584e","outPort":"output","inNode":"1de4e81d-ff10-4242-a8b3-70c9cb117c98","inPort":"input"},{"outNode":"c83ee30f-8db9-4dd0-b4fe-5da4f44b584e","outPort":"output","inNode":"0f70a756-3d5d-4e13-bf2e-2c551acb075a","inPort":"input"},{"outNode":"e442b1f8-7161-43c9-aec4-ea0c498558d4","outPort":"output","inNode":"036328d2-477c-41ec-a454-5b98be2028f8","inPort":"input"},{"outNode":"036328d2-477c-41ec-a454-5b98be2028f8","outPort":"output","inNode":"debc8b23-d999-42cb-8857-59fff781c134","inPort":"input"},{"outNode":"036328d2-477c-41ec-a454-5b98be2028f8","outPort":"output","inNode":"55ae22da-b37d-42cc-9a49-81a35d157954","inPort":"input"},{"outNode":"036328d2-477c-41ec-a454-5b98be2028f8","outPort":"output","inNode":"caa685b1-66a6-4860-8c13-1a1ff3fac1cc","inPort":"input"},{"outNode":"036328d2-477c-41ec-a454-5b98be2028f8","outPort":"output","inNode":"ddb337f4-beca-4b61-b068-aeeb5eb45f0e","inPort":"input"},{"outNode":"bdda3b2e-9874-4091-a891-bcca7cb47b5e","outPort":"complete","inNode":"852738d6-ca11-4526-a04b-f321b14334ea","inPort":"input"},{"outNode":"3522b468-5151-4907-9eec-91f6188c9e36","outPort":"output","inNode":"f34be4bb-d876-4cb2-bb75-681a88cffc98","inPort":"input"},{"outNode":"bdda3b2e-9874-4091-a891-bcca7cb47b5e","outPort":"on_correct_feedback","inNode":"0eee5315-f716-4633-99f1-2c141e68a7de","inPort":"input"},{"outNode":"bdda3b2e-9874-4091-a891-bcca7cb47b5e","outPort":"on_load","inNode":"16477459-22cf-4070-9603-ca6618d225d8","inPort":"input"},{"outNode":"bdda3b2e-9874-4091-a891-bcca7cb47b5e","outPort":"on_load","inNode":"eee1594f-f7bd-433a-ab0d-77965fc9923e","inPort":"input"},{"outNode":"ee2ced66-623b-478c-8a13-1499fb12c60c","outPort":"output","inNode":"fb0b740a-794a-4b19-ba55-c9262424f66f","inPort":"input"},{"outNode":"5e5882fd-927d-4e1a-bfe0-4ac859401cc9","outPort":"output","inNode":"84a22b28-ff9e-4cf1-8121-b91fb83af9b7","inPort":"input"},{"outNode":"84a22b28-ff9e-4cf1-8121-b91fb83af9b7","outPort":"output","inNode":"f8c17b10-feaf-4f51-8c64-da729a228481","inPort":"input"},{"outNode":"84a22b28-ff9e-4cf1-8121-b91fb83af9b7","outPort":"output","inNode":"79559701-fd2b-416a-b23e-f43a15a7fac9","inPort":"input"},{"outNode":"bdda3b2e-9874-4091-a891-bcca7cb47b5e","outPort":"on_wrong_feedback","inNode":"4173aeb2-d2e9-4426-9f35-b99c75481aa6","inPort":"input"},{"outNode":"bdda3b2e-9874-4091-a891-bcca7cb47b5e","outPort":"on_correct_feedback","inNode":"ba123dff-8af4-4dbc-8f9d-e33359e34655","inPort":"input"},{"outNode":"79559701-fd2b-416a-b23e-f43a15a7fac9","outPort":"output","inNode":"028f3af8-ad27-45e5-88dc-7b2093e119e4","inPort":"input"},{"outNode":"028f3af8-ad27-45e5-88dc-7b2093e119e4","outPort":"output","inNode":"3e95cbfb-4dfa-4bca-91ca-92dfb4bc933e","inPort":"input"},{"outNode":"f8c17b10-feaf-4f51-8c64-da729a228481","outPort":"output","inNode":"028f3af8-ad27-45e5-88dc-7b2093e119e4","inPort":"input"},{"outNode":"fb0b740a-794a-4b19-ba55-c9262424f66f","outPort":"output","inNode":"028f3af8-ad27-45e5-88dc-7b2093e119e4","inPort":"input"},{"outNode":"bdda3b2e-9874-4091-a891-bcca7cb47b5e","outPort":"correct","inNode":"58a2e848-271b-4398-bae9-05d1e77d299c","inPort":"input"},{"outNode":"bdda3b2e-9874-4091-a891-bcca7cb47b5e","outPort":"incorrect","inNode":"58a2e848-271b-4398-bae9-05d1e77d299c","inPort":"input"},{"outNode":"bdda3b2e-9874-4091-a891-bcca7cb47b5e","outPort":"on_wrong_feedback","inNode":"a40f2df2-0f2d-4025-9214-0647becbb678","inPort":"input"},{"outNode":"bdda3b2e-9874-4091-a891-bcca7cb47b5e","outPort":"on_autocorrect_feedback","inNode":"db9e5f98-8613-469f-8bb4-ae5e0937fc2b","inPort":"input"},{"outNode":"4c5042de-ceed-4295-8a3b-0fde95a764ed","outPort":"output","inNode":"95b23dd1-dba4-4d88-816d-6520538043a7","inPort":"input"},{"outNode":"95b23dd1-dba4-4d88-816d-6520538043a7","outPort":"false","inNode":"c83ee30f-8db9-4dd0-b4fe-5da4f44b584e","inPort":"input"},{"outNode":"95b23dd1-dba4-4d88-816d-6520538043a7","outPort":"true","inNode":"59594f1f-32da-4f3e-80e9-3f95ba2aa2a2","inPort":"input"}],"variables":[],"groups":[{"id":"28697d02-eee6-4aa3-9f58-8bd9757a8493","title":"On
+    Wrog Attemp SFX","x":2767.0,"y":-1635.0,"width":1107.0,"height":907.0,"nodeGuids":["c83ee30f-8db9-4dd0-b4fe-5da4f44b584e","1de4e81d-ff10-4242-a8b3-70c9cb117c98","4c5042de-ceed-4295-8a3b-0fde95a764ed","59594f1f-32da-4f3e-80e9-3f95ba2aa2a2","0f70a756-3d5d-4e13-bf2e-2c551acb075a","95b23dd1-dba4-4d88-816d-6520538043a7"]},{"id":"c3eb810c-2562-44fe-ad3c-a475ff1b251d","title":"On
+    Right Attemp SFX","x":3006.0,"y":-152.0,"width":931.0,"height":1174.0,"nodeGuids":["036328d2-477c-41ec-a454-5b98be2028f8","e442b1f8-7161-43c9-aec4-ea0c498558d4","caa685b1-66a6-4860-8c13-1a1ff3fac1cc","55ae22da-b37d-42cc-9a49-81a35d157954","debc8b23-d999-42cb-8857-59fff781c134","ddb337f4-beca-4b61-b068-aeeb5eb45f0e"]},{"id":"c26251da-0366-464c-a08d-15ab19d677d1","title":"OnLoad","x":1432.0,"y":-1541.0,"width":975.0,"height":1095.0,"nodeGuids":["eee1594f-f7bd-433a-ab0d-77965fc9923e","3724fba4-c014-4cb8-8b98-ffede4c7a718","16477459-22cf-4070-9603-ca6618d225d8"]},{"id":"9fda7468-bd44-44e0-82f7-3ece6f752f8e","title":"New
+    Group","x":699.0,"y":1282.0,"width":1995.0,"height":756.0,"nodeGuids":["3e95cbfb-4dfa-4bca-91ca-92dfb4bc933e","f8c17b10-feaf-4f51-8c64-da729a228481","79559701-fd2b-416a-b23e-f43a15a7fac9","fb0b740a-794a-4b19-ba55-c9262424f66f","ee2ced66-623b-478c-8a13-1499fb12c60c","5e5882fd-927d-4e1a-bfe0-4ac859401cc9","84a22b28-ff9e-4cf1-8121-b91fb83af9b7","028f3af8-ad27-45e5-88dc-7b2093e119e4"]}]}'
+  _nodeEvents: []
+  _nodeAssetReferences:
+  - nodeGuid: bdda3b2e-9874-4091-a891-bcca7cb47b5e
+    assetReference: {fileID: 11400000, guid: 46aec119962ef09439535baac6d36789, type: 2}
+  - nodeGuid: eee1594f-f7bd-433a-ab0d-77965fc9923e
+    assetReference: {fileID: 8300000, guid: a56e7a7fc76021e4395e3ccb4103bf0b, type: 3}
+  - nodeGuid: 3724fba4-c014-4cb8-8b98-ffede4c7a718
+    assetReference: {fileID: 8300000, guid: 39c628ddf96da8746886a79ed4a1b9d5, type: 3}
+  - nodeGuid: 1de4e81d-ff10-4242-a8b3-70c9cb117c98
+    assetReference: {fileID: 8300000, guid: 64372a949834b09429367c66f82ffcd6, type: 3}
+  - nodeGuid: 59594f1f-32da-4f3e-80e9-3f95ba2aa2a2
+    assetReference: {fileID: 8300000, guid: 53319a62ff5cff34d94913725a3dc4f4, type: 3}
+  - nodeGuid: 0f70a756-3d5d-4e13-bf2e-2c551acb075a
+    assetReference: {fileID: 8300000, guid: 4df6c9200f5e01b4ea64c27833714a71, type: 3}
+  - nodeGuid: caa685b1-66a6-4860-8c13-1a1ff3fac1cc
+    assetReference: {fileID: 8300000, guid: e6be9364ec7004d4796eaeeb6febb533, type: 3}
+  - nodeGuid: 55ae22da-b37d-42cc-9a49-81a35d157954
+    assetReference: {fileID: 8300000, guid: 6cfc873437de9d7498f742d270ddadd3, type: 3}
+  - nodeGuid: debc8b23-d999-42cb-8857-59fff781c134
+    assetReference: {fileID: 8300000, guid: a5886c1732b30dc499c64e98bf68b952, type: 3}
+  - nodeGuid: ddb337f4-beca-4b61-b068-aeeb5eb45f0e
+    assetReference: {fileID: 8300000, guid: a624ccbba46ebbb478aa0a74050f1b49, type: 3}
+  - nodeGuid: db9e5f98-8613-469f-8bb4-ae5e0937fc2b
+    assetReference: {fileID: 8300000, guid: abebf77558f7a0d47a3f12c12c99f2bf, type: 3}
+  _serializedNodes:
+  - rid: 6105214444800311446
+  - rid: 6105214444800311447
+  - rid: 6105214444800311448
+  - rid: 6105214444800311449
+  - rid: 6105214444800311450
+  - rid: 6105214444800311451
+  - rid: 6105214444800311452
+  - rid: 6105214444800311453
+  - rid: 6105214444800311454
+  - rid: 6105214444800311455
+  - rid: 6105214444800311456
+  - rid: 6105214444800311457
+  - rid: 6105214444800311458
+  - rid: 6105214444800311459
+  - rid: 6105214444800311460
+  - rid: 6105214444800311461
+  - rid: 6105214444800311462
+  - rid: 6105214444800311463
+  - rid: 6105214444800311464
+  - rid: 6105214444800311465
+  - rid: 6105214444800311466
+  - rid: 6105214444800311467
+  - rid: 6105214444800311468
+  - rid: 6105214444800311469
+  - rid: 6105214444800311470
+  - rid: 6105214444800311471
+  - rid: 6105214444800311472
+  - rid: 6105214444800311473
+  - rid: 6105214444800311474
+  - rid: 6105214444800311475
+  - rid: 6105214444800311476
+  - rid: 6105214444800311477
+  - rid: 6105214444800311478
+  - rid: 6105214444800311479
+  - rid: 6105214444800311658
+  - rid: 6105214444800311663
+  references:
+    version: 2
+    RefIds:
+    - rid: 6105214444800311446
+      type: {class: StartNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: 5657892c-fc05-47a9-8707-1936029da688
+        _position: {x: -60, y: 140}
+        _groupId: 
+        hasBreakpoint: 0
+        displayLabel: 
+    - rid: 6105214444800311447
+      type: {class: ButtonActionNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: 3522b468-5151-4907-9eec-91f6188c9e36
+        _position: {x: 461, y: 90}
+        _groupId: 
+        hasBreakpoint: 0
+        displayLabel: 
+        buttonPath: PS_Layout_Canvas/OMN_AR_G5_B1_T1_SB_U1_L3_LO6_ACT/intro/StartBtn
+        disableAfterClick: 1
+    - rid: 6105214444800311448
+      type: {class: SetActiveNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: e9ba7b03-c7c8-4ba6-8bd0-dc8d8a0633e1
+        _position: {x: 776, y: 193}
+        _groupId: 
+        hasBreakpoint: 0
+        displayLabel: 
+        targetPath: PS_Layout_Canvas/OMN_AR_G5_B1_T1_SB_U1_L3_LO6_ACT/intro
+        setActive: 0
+    - rid: 6105214444800311449
+      type: {class: StartQuizNode, ns: NodeSystem.Nodes.Quiz, asm: Assembly-CSharp}
+      data:
+        _guid: b2284c72-00f0-4228-80f9-7b3dbfdfb341
+        _position: {x: 164, y: 140}
+        _groupId: 
+        hasBreakpoint: 0
+        displayLabel: 
+        totalQuestions: 1
+        maxScore: 50
+        startTimer: 0
+        timerDuration: 300
+        quizManagerPath: QuizManager
+    - rid: 6105214444800311450
+      type: {class: LoadQuestionNode, ns: NodeSystem.Nodes.Quiz, asm: Assembly-CSharp}
+      data:
+        _guid: bdda3b2e-9874-4091-a891-bcca7cb47b5e
+        _position: {x: 1116, y: 43}
+        _groupId: 
+        hasBreakpoint: 0
+        displayLabel: 
+        questionRef: {fileID: 11400000, guid: 46aec119962ef09439535baac6d36789, type: 2}
+        questionAssetPath: Assets/_Project/Questions_presets/Q1.asset
+        quizManagerPath: QuizManager
+        questionContainerRef: {fileID: 0}
+        layoutOverridePrefab: {fileID: 8530522693806145453, guid: 538536c4c8a71d44a9a768f6f84872f9, type: 3}
+        layoutOverridePrefabPath: Assets/_Project/Prefabs/Q1.prefab
+        questionContainerPath: PS_Layout_Canvas/OMN_AR_G5_B1_T1_SB_U1_L3_LO6_ACT
+        waitForAnswer: 1
+        trackInQuizState: 1
+        animationType: 1
+        animationDuration: 0.3
+        staggerDelay: 0.1
+        easeType: 27
+        scaleMultiplier: 1
+        slideDistance: 100
+        enableAnimations: 0
+        showHints: 1
+    - rid: 6105214444800311451
+      type: {class: PlaySoundNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: eee1594f-f7bd-433a-ab0d-77965fc9923e
+        _position: {x: 1926, y: -740}
+        _groupId: c26251da-0366-464c-a08d-15ab19d677d1
+        hasBreakpoint: 0
+        displayLabel: 
+        audioClipRef: {fileID: 8300000, guid: a56e7a7fc76021e4395e3ccb4103bf0b, type: 3}
+        audioClipPath: Assets/_Project/Sound/8.mp3
+        playMode: 0
+        audioSourcePath: 
+        volume: 1
+        pitch: 1
+        waitForCompletion: 1
+        loop: 0
+    - rid: 6105214444800311452
+      type: {class: PlaySoundNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: 3724fba4-c014-4cb8-8b98-ffede4c7a718
+        _position: {x: 2162, y: -803}
+        _groupId: c26251da-0366-464c-a08d-15ab19d677d1
+        hasBreakpoint: 0
+        displayLabel: 
+        audioClipRef: {fileID: 8300000, guid: 39c628ddf96da8746886a79ed4a1b9d5, type: 3}
+        audioClipPath: Assets/_Project/Sound/9.mp3
+        playMode: 0
+        audioSourcePath: 
+        volume: 1
+        pitch: 1
+        waitForCompletion: 1
+        loop: 0
+    - rid: 6105214444800311453
+      type: {class: RandomBranchNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: c83ee30f-8db9-4dd0-b4fe-5da4f44b584e
+        _position: {x: 3309.975, y: -1178.9045}
+        _groupId: 28697d02-eee6-4aa3-9f58-8bd9757a8493
+        hasBreakpoint: 0
+        displayLabel: 
+        weights: []
+    - rid: 6105214444800311454
+      type: {class: PlaySoundNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: 1de4e81d-ff10-4242-a8b3-70c9cb117c98
+        _position: {x: 3628.975, y: -1575.9045}
+        _groupId: 28697d02-eee6-4aa3-9f58-8bd9757a8493
+        hasBreakpoint: 0
+        displayLabel: 
+        audioClipRef: {fileID: 8300000, guid: 64372a949834b09429367c66f82ffcd6, type: 3}
+        audioClipPath: Assets/_Project/Sound/5.mp3
+        playMode: 0
+        audioSourcePath: 
+        volume: 1
+        pitch: 1
+        waitForCompletion: 1
+        loop: 0
+    - rid: 6105214444800311455
+      type: {class: ReceiveSignalNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: 4c5042de-ceed-4295-8a3b-0fde95a764ed
+        _position: {x: 2791.975, y: -1247.9045}
+        _groupId: 28697d02-eee6-4aa3-9f58-8bd9757a8493
+        hasBreakpoint: 0
+        displayLabel: 
+        signalId: WrongAnswer
+    - rid: 6105214444800311456
+      type: {class: SendSignalNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: a40f2df2-0f2d-4025-9214-0647becbb678
+        _position: {x: 1611, y: -77}
+        _groupId: 
+        hasBreakpoint: 0
+        displayLabel: 
+        signalId: WrongAnswer
+    - rid: 6105214444800311457
+      type: {class: PlaySoundNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: 59594f1f-32da-4f3e-80e9-3f95ba2aa2a2
+        _position: {x: 3628.975, y: -1296.9045}
+        _groupId: 28697d02-eee6-4aa3-9f58-8bd9757a8493
+        hasBreakpoint: 0
+        displayLabel: 
+        audioClipRef: {fileID: 8300000, guid: 53319a62ff5cff34d94913725a3dc4f4, type: 3}
+        audioClipPath: Assets/_Project/Sound/6.mp3
+        playMode: 0
+        audioSourcePath: 
+        volume: 1
+        pitch: 1
+        waitForCompletion: 1
+        loop: 0
+    - rid: 6105214444800311458
+      type: {class: PlaySoundNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: 0f70a756-3d5d-4e13-bf2e-2c551acb075a
+        _position: {x: 3628.975, y: -1021.90454}
+        _groupId: 28697d02-eee6-4aa3-9f58-8bd9757a8493
+        hasBreakpoint: 0
+        displayLabel: 
+        audioClipRef: {fileID: 8300000, guid: 4df6c9200f5e01b4ea64c27833714a71, type: 3}
+        audioClipPath: Assets/_Project/Sound/7.mp3
+        playMode: 0
+        audioSourcePath: 
+        volume: 1
+        pitch: 1
+        waitForCompletion: 1
+        loop: 0
+    - rid: 6105214444800311459
+      type: {class: RandomBranchNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: 036328d2-477c-41ec-a454-5b98be2028f8
+        _position: {x: 3328, y: -16}
+        _groupId: c3eb810c-2562-44fe-ad3c-a475ff1b251d
+        hasBreakpoint: 0
+        displayLabel: 
+        weights:
+        - nodeGuid: debc8b23-d999-42cb-8857-59fff781c134
+          weight: 1
+    - rid: 6105214444800311460
+      type: {class: ReceiveSignalNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: e442b1f8-7161-43c9-aec4-ea0c498558d4
+        _position: {x: 3031, y: -16}
+        _groupId: c3eb810c-2562-44fe-ad3c-a475ff1b251d
+        hasBreakpoint: 0
+        displayLabel: 
+        signalId: RightAnswer
+    - rid: 6105214444800311461
+      type: {class: PlaySoundNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: caa685b1-66a6-4860-8c13-1a1ff3fac1cc
+        _position: {x: 3692, y: 455}
+        _groupId: c3eb810c-2562-44fe-ad3c-a475ff1b251d
+        hasBreakpoint: 0
+        displayLabel: 
+        audioClipRef: {fileID: 8300000, guid: e6be9364ec7004d4796eaeeb6febb533, type: 3}
+        audioClipPath: Assets/_Project/Sound/3.mp3
+        playMode: 0
+        audioSourcePath: 
+        volume: 1
+        pitch: 1
+        waitForCompletion: 1
+        loop: 0
+    - rid: 6105214444800311462
+      type: {class: PlaySoundNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: 55ae22da-b37d-42cc-9a49-81a35d157954
+        _position: {x: 3692, y: 186}
+        _groupId: c3eb810c-2562-44fe-ad3c-a475ff1b251d
+        hasBreakpoint: 0
+        displayLabel: 
+        audioClipRef: {fileID: 8300000, guid: 6cfc873437de9d7498f742d270ddadd3, type: 3}
+        audioClipPath: Assets/_Project/Sound/2.mp3
+        playMode: 0
+        audioSourcePath: 
+        volume: 1
+        pitch: 1
+        waitForCompletion: 1
+        loop: 0
+    - rid: 6105214444800311463
+      type: {class: PlaySoundNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: debc8b23-d999-42cb-8857-59fff781c134
+        _position: {x: 3692, y: -93}
+        _groupId: c3eb810c-2562-44fe-ad3c-a475ff1b251d
+        hasBreakpoint: 0
+        displayLabel: 
+        audioClipRef: {fileID: 8300000, guid: a5886c1732b30dc499c64e98bf68b952, type: 3}
+        audioClipPath: Assets/_Project/Sound/1.mp3
+        playMode: 0
+        audioSourcePath: 
+        volume: 1
+        pitch: 1
+        waitForCompletion: 1
+        loop: 0
+    - rid: 6105214444800311464
+      type: {class: SendSignalNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: 0eee5315-f716-4633-99f1-2c141e68a7de
+        _position: {x: 1611, y: 43}
+        _groupId: 
+        hasBreakpoint: 0
+        displayLabel: 
+        signalId: RightAnswer
+    - rid: 6105214444800311465
+      type: {class: PlaySoundNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: ddb337f4-beca-4b61-b068-aeeb5eb45f0e
+        _position: {x: 3691.5552, y: 727.7944}
+        _groupId: c3eb810c-2562-44fe-ad3c-a475ff1b251d
+        hasBreakpoint: 0
+        displayLabel: 
+        audioClipRef: {fileID: 8300000, guid: a624ccbba46ebbb478aa0a74050f1b49, type: 3}
+        audioClipPath: Assets/_Project/Sound/4.mp3
+        playMode: 0
+        audioSourcePath: 
+        volume: 1
+        pitch: 1
+        waitForCompletion: 1
+        loop: 0
+    - rid: 6105214444800311466
+      type: {class: DebugLogNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: 852738d6-ca11-4526-a04b-f321b14334ea
+        _position: {x: 1910, y: 360}
+        _groupId: 
+        hasBreakpoint: 0
+        displayLabel: 
+        logType: 0
+        message: Q1 Answerd
+    - rid: 6105214444800311467
+      type: {class: SetActiveNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: f34be4bb-d876-4cb2-bb75-681a88cffc98
+        _position: {x: 776, y: -2}
+        _groupId: 
+        hasBreakpoint: 0
+        displayLabel: 
+        targetPath: PS_Layout_Canvas/OMN_AR_G5_B1_T1_SB_U1_L3_LO6_ACT/BG
+        setActive: 1
+    - rid: 6105214444800311468
+      type: {class: AnimationSequencerNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: 16477459-22cf-4070-9603-ca6618d225d8
+        _position: {x: 1457.3405, y: -1481.7712}
+        _groupId: c26251da-0366-464c-a08d-15ab19d677d1
+        hasBreakpoint: 0
+        displayLabel: 
+        targetPath: "PS_Layout_Canvas/OMN_AR_G5_B1_T1_SB_U1_L3_LO6_ACT/BG/layout
+          01/\u0627\u062E\u0652\u062A\u064E\u0631\u0650 \u0627\u0644\u0652\u0625\u0650\u062C\u064E\u0627\u0628\u064E\u0629\u064E
+          \u0627\u0644\u0635\u0651\u064E\u062D\u0650\u064A\u062D\u064E\u0629\u064E:  "
+        autoCreateIfMissing: 1
+    - rid: 6105214444800311469
+      type: {class: ChangeSpriteNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: 3e95cbfb-4dfa-4bca-91ca-92dfb4bc933e
+        _position: {x: 2361, y: 1656}
+        _groupId: 9fda7468-bd44-44e0-82f7-3ece6f752f8e
+        hasBreakpoint: 0
+        displayLabel: 
+        targetPath: PS_Layout_Canvas/OMN_AR_G5_B1_T1_SB_U1_L3_LO6_ACT/BG/layout 01/Group
+          2/Emoji
+        sprite: {fileID: 21300000, guid: ff131d3f815c0b540a16ad7275f0ee8e, type: 3}
+        changeColor: 0
+        targetColor: {r: 1, g: 1, b: 1, a: 1}
+    - rid: 6105214444800311470
+      type: {class: ChangeSpriteNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: f8c17b10-feaf-4f51-8c64-da729a228481
+        _position: {x: 1385, y: 1341}
+        _groupId: 9fda7468-bd44-44e0-82f7-3ece6f752f8e
+        hasBreakpoint: 0
+        displayLabel: 
+        targetPath: PS_Layout_Canvas/OMN_AR_G5_B1_T1_SB_U1_L3_LO6_ACT/BG/layout 01/Group
+          2/Emoji
+        sprite: {fileID: 21300000, guid: 7fa65f29ba846d34090f73a222c454c7, type: 3}
+        changeColor: 0
+        targetColor: {r: 1, g: 1, b: 1, a: 1}
+    - rid: 6105214444800311471
+      type: {class: ChangeSpriteNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: 79559701-fd2b-416a-b23e-f43a15a7fac9
+        _position: {x: 1384, y: 1577}
+        _groupId: 9fda7468-bd44-44e0-82f7-3ece6f752f8e
+        hasBreakpoint: 0
+        displayLabel: 
+        targetPath: PS_Layout_Canvas/OMN_AR_G5_B1_T1_SB_U1_L3_LO6_ACT/BG/layout 01/Group
+          2/Emoji
+        sprite: {fileID: 21300000, guid: 861e06d90abbfb243a8714fb32de6fef, type: 3}
+        changeColor: 0
+        targetColor: {r: 1, g: 1, b: 1, a: 1}
+    - rid: 6105214444800311472
+      type: {class: ChangeSpriteNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: fb0b740a-794a-4b19-ba55-c9262424f66f
+        _position: {x: 1385, y: 1777}
+        _groupId: 9fda7468-bd44-44e0-82f7-3ece6f752f8e
+        hasBreakpoint: 0
+        displayLabel: 
+        targetPath: PS_Layout_Canvas/OMN_AR_G5_B1_T1_SB_U1_L3_LO6_ACT/BG/layout 01/Group
+          2/Emoji
+        sprite: {fileID: 21300000, guid: d937d43685578e142a482f5b9dc567eb, type: 3}
+        changeColor: 0
+        targetColor: {r: 1, g: 1, b: 1, a: 1}
+    - rid: 6105214444800311473
+      type: {class: ReceiveSignalNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: ee2ced66-623b-478c-8a13-1499fb12c60c
+        _position: {x: 775, y: 1689}
+        _groupId: 9fda7468-bd44-44e0-82f7-3ece6f752f8e
+        hasBreakpoint: 0
+        displayLabel: 
+        signalId: Win_Emoji
+    - rid: 6105214444800311474
+      type: {class: ReceiveSignalNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: 5e5882fd-927d-4e1a-bfe0-4ac859401cc9
+        _position: {x: 724, y: 1451}
+        _groupId: 9fda7468-bd44-44e0-82f7-3ece6f752f8e
+        hasBreakpoint: 0
+        displayLabel: 
+        signalId: Lose_Emoji
+    - rid: 6105214444800311475
+      type: {class: RandomBranchNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: 84a22b28-ff9e-4cf1-8121-b91fb83af9b7
+        _position: {x: 1028, y: 1451}
+        _groupId: 9fda7468-bd44-44e0-82f7-3ece6f752f8e
+        hasBreakpoint: 0
+        displayLabel: 
+        weights: []
+    - rid: 6105214444800311476
+      type: {class: SendSignalNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: 4173aeb2-d2e9-4426-9f35-b99c75481aa6
+        _position: {x: 1611, y: 360}
+        _groupId: 
+        hasBreakpoint: 0
+        displayLabel: 
+        signalId: Lose_Emoji
+    - rid: 6105214444800311477
+      type: {class: SendSignalNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: ba123dff-8af4-4dbc-8f9d-e33359e34655
+        _position: {x: 1614, y: 193}
+        _groupId: 
+        hasBreakpoint: 0
+        displayLabel: 
+        signalId: Win_Emoji
+    - rid: 6105214444800311478
+      type: {class: DelayNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: 028f3af8-ad27-45e5-88dc-7b2093e119e4
+        _position: {x: 1822.6815, y: 1523.0023}
+        _groupId: 9fda7468-bd44-44e0-82f7-3ece6f752f8e
+        hasBreakpoint: 0
+        displayLabel: 
+        delaySeconds: 2
+    - rid: 6105214444800311479
+      type: {class: ScoreProgressBarNode, ns: NodeSystem.Nodes.Quiz, asm: Assembly-CSharp}
+      data:
+        _guid: 58a2e848-271b-4398-bae9-05d1e77d299c
+        _position: {x: 1611, y: 683}
+        _groupId: 
+        hasBreakpoint: 0
+        displayLabel: 
+        displayMode: 2
+        targetRef: {fileID: 0}
+        targetPath: PS_Layout_Canvas/OMN_AR_G5_B1_T1_SB_U1_L3_LO6_ACT/BG/layout 01/Group
+          2/Vector Smart Object
+        valueSource: 0
+        valueVariableName: 
+        useQuizRange: 1
+        minLiteral: 0
+        minVariableName: 
+        maxLiteral: 100
+        maxVariableName: 
+        animateFill: 1
+        animationDuration: 0.3
+        liveUpdateFromScoreEvents: 1
+        filledImageUseFinalAnswers: 0
+        filledImageAnswerSource: 0
+        filledImageAnswerFilter: 0
+        filledImageUseTotalQuestionsAsMax: 1
+        filledImageMaxCount: 10
+        slotDefaultColor: {r: 1, g: 1, b: 1, a: 1}
+        slotCorrectColor: {r: 1, g: 1, b: 1, a: 1}
+        slotWrongColor: {r: 1, g: 1, b: 1, a: 1}
+        slotDefaultSprite: {fileID: 21300000, guid: 4715a39ba3598a741918466c680ff36d, type: 3}
+        slotCorrectSprite: {fileID: 21300000, guid: 5713ad3fac51b4346bfa9280d0ade4ff, type: 3}
+        slotWrongSprite: {fileID: 21300000, guid: b50631ac38652ce46846040a49b10aec, type: 3}
+        slotAnimateOnFill: 1
+        slotAnimationDuration: 0.2
+        slotCountWrongAttempts: 0
+    - rid: 6105214444800311658
+      type: {class: PlaySoundNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
+      data:
+        _guid: db9e5f98-8613-469f-8bb4-ae5e0937fc2b
+        _position: {x: 1910, y: 90}
+        _groupId: 
+        hasBreakpoint: 0
+        displayLabel: 
+        audioClipRef: {fileID: 8300000, guid: abebf77558f7a0d47a3f12c12c99f2bf, type: 3}
+        audioClipPath: Assets/_Project/Sound/10.mp3
+        playMode: 0
+        audioSourcePath: 
+        volume: 1
+        pitch: 1
+        waitForCompletion: 1
+        loop: 0
+    - rid: 6105214444800311663
+      type: {class: QuizBranchNode, ns: NodeSystem.Nodes.Quiz, asm: Assembly-CSharp}
+      data:
+        _guid: 95b23dd1-dba4-4d88-816d-6520538043a7
+        _position: {x: 3061.975, y: -1275.9045}
+        _groupId: 28697d02-eee6-4aa3-9f58-8bd9757a8493
+        hasBreakpoint: 0
+        displayLabel: 
+        condition: 11
+        thresholdValue: 2

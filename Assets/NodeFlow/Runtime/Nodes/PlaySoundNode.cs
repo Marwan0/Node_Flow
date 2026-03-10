@@ -67,7 +67,7 @@ namespace NodeSystem.Nodes
         {
             return new List<PortData>
             {
-                new PortData("input", "Execute", PortDirection.Input)
+                new PortData("input", "Execute", PortDirection.Input, PortCapacity.Multi)
             };
         }
 
@@ -83,7 +83,7 @@ namespace NodeSystem.Nodes
         {
             // Load the AudioClip
             AudioClip clip = LoadAudioClip();
-            
+
             if (clip == null)
             {
                 Debug.LogWarning($"[PlaySoundNode] No audio clip to play. Path: {audioClipPath}");
@@ -136,7 +136,7 @@ namespace NodeSystem.Nodes
             // At runtime, try multiple sources in order:
             // 1. Direct reference (might be null in WebGL)
             _runtimeClip = audioClipRef;
-            
+
             // 2. Try NodeGraph's separate storage (works in WebGL)
             if (_runtimeClip == null && Runner != null && Runner.Graph != null)
             {
@@ -148,7 +148,7 @@ namespace NodeSystem.Nodes
                     Debug.Log($"[PlaySoundNode] Restored audio clip from NodeGraph storage: {storedClip.name}");
                 }
             }
-            
+
             // 3. If still null, try Resources as fallback
             if (_runtimeClip == null && !string.IsNullOrEmpty(audioClipPath))
             {
@@ -159,16 +159,16 @@ namespace NodeSystem.Nodes
                     .Replace(".wav", "")
                     .Replace(".mp3", "")
                     .Replace(".ogg", "");
-                
+
                 _runtimeClip = Resources.Load<AudioClip>(resourcePath);
-                
+
                 // Try filename only
                 if (_runtimeClip == null)
                 {
                     string fileName = System.IO.Path.GetFileNameWithoutExtension(audioClipPath);
                     _runtimeClip = Resources.Load<AudioClip>(fileName);
                 }
-                
+
                 // Try common Resources subfolders
                 if (_runtimeClip == null)
                 {
@@ -179,7 +179,7 @@ namespace NodeSystem.Nodes
                         _runtimeClip = Resources.Load<AudioClip>($"Sounds/{fileName}");
                     }
                 }
-                
+
                 if (_runtimeClip != null)
                 {
                     Debug.Log($"[PlaySoundNode] Loaded audio clip from Resources: {_runtimeClip.name}");
@@ -191,9 +191,19 @@ namespace NodeSystem.Nodes
 
         private void PlayOneShot(AudioClip clip)
         {
-            // Get or create shared AudioSource
+            // When a quiz is active, route through the centralized QuizState audio source
+            // so all quiz sounds (hover, feedback, node sounds) share one source and respect overlap settings
+            var quizState = QuizSystem.QuizState.Instance;
+            if (quizState != null && quizState.quizActive)
+            {
+                quizState.PlaySound(clip, volume, pitch);
+                Debug.Log($"[PlaySoundNode] PlayOneShot via QuizState: {clip.name}");
+                return;
+            }
+
+            // Fallback: non-quiz context — use the static shared AudioSource
             AudioSource source = GetOrCreateSharedAudioSource();
-            
+
             if (source != null)
             {
                 source.pitch = pitch;
@@ -205,7 +215,7 @@ namespace NodeSystem.Nodes
         private float PlayOnSource(AudioClip clip)
         {
             AudioSource source = FindAudioSource();
-            
+
             if (source == null)
             {
                 Debug.LogWarning($"[PlaySoundNode] AudioSource not found: {audioSourcePath}. Using shared source.");
@@ -220,7 +230,7 @@ namespace NodeSystem.Nodes
                 source.loop = loop;
                 source.Play();
                 Debug.Log($"[PlaySoundNode] Playing on source: {clip.name}");
-                
+
                 return loop ? 0 : clip.length / pitch; // Don't wait if looping
             }
 
@@ -262,7 +272,7 @@ namespace NodeSystem.Nodes
             audioObject.hideFlags = HideFlags.DontSave; // Don't save in scene
             _sharedAudioSource = audioObject.AddComponent<AudioSource>();
             _sharedAudioSource.playOnAwake = false;
-            
+
             // Keep alive across scenes (optional - remove if you want scene-specific audio)
             UnityEngine.Object.DontDestroyOnLoad(audioObject);
 

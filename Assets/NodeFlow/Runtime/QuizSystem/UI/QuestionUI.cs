@@ -34,6 +34,10 @@ namespace QuizSystem
         [Tooltip("Visual/audio feedback for correct and wrong answers. Assign an AnswerFeedbackConfig asset to enable.")]
         [SerializeField] protected AnswerFeedbackConfig answerFeedbackConfig;
 
+        [Header("Audio")]
+        [Tooltip("When enabled, hover and feedback sounds can overlap. When disabled, each new sound stops the previous one.")]
+        [SerializeField] protected bool allowAudioOverlap = false;
+
         protected QuestionData currentQuestion;
         protected IQuestionValidator validator;
         protected QuizManager quizManager;
@@ -45,13 +49,20 @@ namespace QuizSystem
         private bool _isLocked = false;
         // Action deferred until after feedback chain completes (e.g. quizManager.OnQuestionAnswered)
         private System.Action _pendingOnAnswered;
+        // When true, UnlockUI fires auto-correct feedback instead of completing the question
+        private bool _pendingAutoCorrectFeedback = false;
 
         // Hover effect tracking
-        private AudioSource _hoverAudioSource;
         private List<PointHoverEffect> _registeredHoverEffects = new List<PointHoverEffect>();
 
-        // Answer feedback audio (shared, separate from hover)
-        private AudioSource _feedbackAudioSource;
+        // Tracks original button state so we can restore after feedback
+        private struct FeedbackSnapshot
+        {
+            public Image image;
+            public Sprite originalSprite;
+            public Color originalColor;
+        }
+        private List<FeedbackSnapshot> _feedbackSnapshots = new List<FeedbackSnapshot>();
 
         /// <summary>
         /// Whether hints are globally enabled (set by LoadQuestionNode via QuizState).
@@ -103,6 +114,10 @@ namespace QuizSystem
             validator = questionValidator;
             quizManager = manager;
 
+            // Reset per-question attempt counter for node graph branching
+            if (QuizState.Instance != null)
+                QuizState.Instance.currentQuestionAttempt = 0;
+
             if (questionText != null)
                 questionText.text = question.questionText;
 
@@ -127,6 +142,9 @@ namespace QuizSystem
                 hintButton.gameObject.SetActive(false); // hidden until first qualifying wrong attempt
             }
 
+            // Sync audio overlap setting to the centralized QuizState audio source
+            QuizState.Instance.allowAudioOverlap = allowAudioOverlap;
+
             UpdateAttemptCounter();
             SetupQuestion();
 
@@ -139,11 +157,6 @@ namespace QuizSystem
         {
             QuizState.OnUIUnlockRequested -= UnlockUI;
             QuizState.OnUILockRequested -= LockUI;
-
-            if (_hoverAudioSource != null)
-                Destroy(_hoverAudioSource.gameObject);
-            if (_feedbackAudioSource != null)
-                Destroy(_feedbackAudioSource.gameObject);
         }
 
         protected abstract void SetupQuestion();
@@ -153,14 +166,22 @@ namespace QuizSystem
 
         protected PointHoverEffect RegisterHoverEffect(GameObject answerElement)
         {
-            if (answerElement == null || pointHoverConfig == null) return null;
+            if (answerElement == null) return null;
 
             var effect = answerElement.GetComponent<PointHoverEffect>();
-            if (effect == null)
-                effect = answerElement.AddComponent<PointHoverEffect>();
 
-            effect.SetConfig(pointHoverConfig);
-            effect.SetSharedAudioSource(GetOrCreateHoverAudioSource());
+            // Only add a NEW component if we have a config to give it
+            if (effect == null)
+            {
+                if (pointHoverConfig == null) return null;
+                effect = answerElement.AddComponent<PointHoverEffect>();
+            }
+
+            // Always configure existing effects with shared audio + overlap setting
+            if (pointHoverConfig != null)
+                effect.SetConfig(pointHoverConfig);
+            effect.SetSharedAudioSource(QuizState.Instance.QuizAudioSource);
+            effect.SetAudioOverlapAllowed(allowAudioOverlap);
             _registeredHoverEffects.Add(effect);
             return effect;
         }
@@ -186,16 +207,16 @@ namespace QuizSystem
             _registeredHoverEffects.Clear();
         }
 
-        private AudioSource GetOrCreateHoverAudioSource()
+        /// <summary>
+        /// Enables or disables hover interactions on all registered effects.
+        /// When active, hover enter/exit is blocked so answer feedback visuals aren't overridden.
+        /// </summary>
+        protected void SetHoverFeedbackActive(bool active)
         {
-            if (_hoverAudioSource != null) return _hoverAudioSource;
-
-            var sfxObj = new GameObject("HoverSFX");
-            sfxObj.transform.SetParent(transform, false);
-            _hoverAudioSource = sfxObj.AddComponent<AudioSource>();
-            _hoverAudioSource.playOnAwake = false;
-            _hoverAudioSource.loop = false;
-            return _hoverAudioSource;
+            foreach (var effect in _registeredHoverEffects)
+            {
+                if (effect != null) effect.SetFeedbackActive(active);
+            }
         }
 
         #endregion
@@ -205,13 +226,26 @@ namespace QuizSystem
         /// <summary>
         /// Applies correct/wrong visual feedback directly to a button's Image.
         /// Uses Image.color (not Button.colors) so it's visible even when CanvasGroup is disabled.
+        /// Also disables hover effects so they don't fight with feedback visuals.
         /// </summary>
         protected void ApplyAnswerFeedback(Button button, bool isCorrect)
         {
             if (button == null || answerFeedbackConfig == null) return;
 
+            // Disable hover effects so they don't override feedback visuals
+            ForceExitAllHoverEffects();
+            SetHoverFeedbackActive(true);
+
             var image = button.GetComponent<Image>();
             if (image == null) return;
+
+            // Save original state so we can restore after feedback completes
+            _feedbackSnapshots.Add(new FeedbackSnapshot
+            {
+                image = image,
+                originalSprite = image.sprite,
+                originalColor = image.color
+            });
 
             Color targetColor = isCorrect ? answerFeedbackConfig.correctColor : answerFeedbackConfig.wrongColor;
             Sprite targetSprite = isCorrect ? answerFeedbackConfig.correctSprite : answerFeedbackConfig.wrongSprite;
@@ -238,7 +272,43 @@ namespace QuizSystem
         }
 
         /// <summary>
-        /// Plays the correct or wrong SFX from the AnswerFeedbackConfig.
+        /// Restores all buttons that had feedback applied back to their original sprite and color.
+        /// Called automatically from UnlockUI when the feedback chain finishes.
+        /// </summary>
+        protected void RestoreAnswerFeedback()
+        {
+            if (_feedbackSnapshots.Count == 0) return;
+
+            float duration = answerFeedbackConfig != null ? answerFeedbackConfig.colorTransitionDuration : 0f;
+
+            foreach (var snapshot in _feedbackSnapshots)
+            {
+                if (snapshot.image == null) continue;
+
+                // Restore sprite
+                snapshot.image.sprite = snapshot.originalSprite;
+
+                // Restore color (with transition if configured)
+                if (duration > 0f)
+                {
+                    snapshot.image.DOKill();
+                    snapshot.image.DOColor(snapshot.originalColor, duration)
+                        .SetEase(Ease.OutQuad)
+                        .SetTarget(snapshot.image);
+                }
+                else
+                {
+                    snapshot.image.color = snapshot.originalColor;
+                }
+            }
+            _feedbackSnapshots.Clear();
+
+            // Re-enable hover effects now that feedback visuals are restored
+            SetHoverFeedbackActive(false);
+        }
+
+        /// <summary>
+        /// Plays the correct or wrong SFX from the AnswerFeedbackConfig using the centralized quiz audio source.
         /// </summary>
         protected void PlayFeedbackSFX(bool isCorrect)
         {
@@ -247,23 +317,7 @@ namespace QuizSystem
             AudioClip clip = isCorrect ? answerFeedbackConfig.correctSFX : answerFeedbackConfig.wrongSFX;
             if (clip == null) return;
 
-            AudioSource source = GetOrCreateFeedbackAudioSource();
-            source.Stop();
-            source.clip = clip;
-            source.volume = answerFeedbackConfig.sfxVolume;
-            source.Play();
-        }
-
-        private AudioSource GetOrCreateFeedbackAudioSource()
-        {
-            if (_feedbackAudioSource != null) return _feedbackAudioSource;
-
-            var sfxObj = new GameObject("FeedbackSFX");
-            sfxObj.transform.SetParent(transform, false);
-            _feedbackAudioSource = sfxObj.AddComponent<AudioSource>();
-            _feedbackAudioSource.playOnAwake = false;
-            _feedbackAudioSource.loop = false;
-            return _feedbackAudioSource;
+            QuizState.Instance.PlaySound(clip, answerFeedbackConfig.sfxVolume);
         }
 
         #endregion
@@ -289,7 +343,7 @@ namespace QuizSystem
                 else AnimateWrongAnswer();
             }
 
-            // Fire feedback event — auto-unlock if nothing is connected
+            // Fire feedback event — wait for chain to finish before unlocking
             bool hasFeedbackListeners = QuizState.Instance != null &&
                 (wasCorrect
                     ? QuizState.Instance.NotifyCorrectAnswerFeedback()
@@ -297,7 +351,8 @@ namespace QuizSystem
 
             if (!hasFeedbackListeners)
             {
-                UnlockUI(); // also fires _pendingOnAnswered
+                // No feedback chain wired — still delay so the user sees the feedback visuals
+                DOVirtual.DelayedCall(feedbackDuration, UnlockUI).SetTarget(gameObject);
             }
         }
 
@@ -429,12 +484,12 @@ namespace QuizSystem
             // Defer OnQuestionAnswered until after all feedback nodes finish
             _pendingOnAnswered = () => quizManager?.OnQuestionAnswered(true, currentQuestion.points, currentQuestion);
 
-            // Notify quiz system — if no feedback nodes are wired, unlock (and fire pending) right away
+            // Notify quiz system — if no feedback nodes are wired, delay unlock so feedback is visible
             bool hasFeedbackListeners = QuizState.Instance != null &&
                 QuizState.Instance.NotifyCorrectAnswerFeedback();
             if (!hasFeedbackListeners)
             {
-                UnlockUI();
+                DOVirtual.DelayedCall(feedbackDuration, UnlockUI).SetTarget(gameObject);
             }
         }
 
@@ -455,12 +510,12 @@ namespace QuizSystem
             // This does NOT complete the question - user can still try again after feedback
             QuizState.Instance?.NotifyWrongAttempt();
 
-            // Fire feedback nodes — if nothing is wired, unlock immediately
+            // Fire feedback nodes — if nothing is wired, delay unlock so feedback is visible
             bool hasFeedbackListeners = QuizState.Instance != null &&
                 QuizState.Instance.NotifyWrongAnswerFeedback();
             if (!hasFeedbackListeners)
             {
-                UnlockUI();
+                DOVirtual.DelayedCall(feedbackDuration, UnlockUI).SetTarget(gameObject);
             }
         }
 
@@ -491,14 +546,53 @@ namespace QuizSystem
         public virtual void UnlockUI()
         {
             if (!_isLocked) return;
-            _isLocked = false;
 
-            if (_uiLockCanvasGroup != null)
+            bool isCompletion = _pendingOnAnswered != null;
+
+            // --- Auto-correct phase transition ---
+            // Wrong feedback just finished. Now show correct-answer visuals and run auto-correct chain.
+            if (_pendingAutoCorrectFeedback)
             {
-                _uiLockCanvasGroup.interactable = true;
-                _uiLockCanvasGroup.blocksRaycasts = true;
+                _pendingAutoCorrectFeedback = false;
+
+                // Restore wrong-answer visuals before applying correct-answer visuals
+                RestoreAnswerFeedback();
+
+                // Apply correct-answer highlight (subclass fills in the specifics)
+                ApplyAutoCorrectVisuals();
+
+                Debug.Log("[QuestionUI] Wrong feedback done — starting auto-correct feedback phase");
+
+                // Fire auto-correct feedback chain (stays locked)
+                bool hasListeners = QuizState.Instance != null &&
+                    QuizState.Instance.NotifyAutoCorrectFeedback();
+                if (!hasListeners)
+                {
+                    // No auto-correct chain wired — delay then unlock
+                    DOVirtual.DelayedCall(feedbackDuration, UnlockUI).SetTarget(gameObject);
+                }
+                return; // Don't fire _pendingOnAnswered yet — wait for auto-correct chain to finish
             }
-            Debug.Log("[QuestionUI] UI unlocked");
+
+            // --- Retry vs Completion ---
+            // On retry (wrong answer → try again): restore visuals and fully unlock.
+            // On completion (correct / auto-correct): keep visuals and UI locked.
+            if (!isCompletion)
+            {
+                RestoreAnswerFeedback();
+                _isLocked = false;
+
+                if (_uiLockCanvasGroup != null)
+                {
+                    _uiLockCanvasGroup.interactable = true;
+                    _uiLockCanvasGroup.blocksRaycasts = true;
+                }
+                Debug.Log("[QuestionUI] UI unlocked (retry)");
+            }
+            else
+            {
+                Debug.Log("[QuestionUI] Feedback done — UI stays locked until next question loads");
+            }
 
             // Fire any deferred action (e.g. quizManager.OnQuestionAnswered) now that feedback is done
             var pending = _pendingOnAnswered;
@@ -546,17 +640,36 @@ namespace QuizSystem
 
             if (hintButton != null) hintButton.gameObject.SetActive(false);
 
-            // Defer OnQuestionAnswered until after feedback chain finishes
+            // Defer OnQuestionAnswered until after ALL feedback chains finish
             _pendingOnAnswered = () => quizManager?.OnQuestionAnswered(false, 0, currentQuestion);
 
-            // Notify quiz system — reuse wrong feedback event (all attempts exhausted = wrong outcome)
+            // Flag: when wrong feedback finishes, fire auto-correct feedback before completing
+            _pendingAutoCorrectFeedback = true;
+
+            // Count this as a wrong attempt so AttemptCountAbove branches work correctly
+            // (NotifyWrongAttempt is NOT called here to avoid firing the on_wrong port)
+            if (QuizState.Instance != null)
+                QuizState.Instance.currentQuestionAttempt++;
+
+            // Animate wrong answer first
+            if (enableFeedbackAnimations)
+                AnimateWrongAnswer();
+
+            // Fire wrong feedback chain first — when it finishes, UnlockUI will
+            // detect _pendingAutoCorrectFeedback and start the auto-correct phase
             bool hasFeedbackListeners = QuizState.Instance != null &&
                 QuizState.Instance.NotifyWrongAnswerFeedback();
             if (!hasFeedbackListeners)
             {
-                UnlockUI();
+                DOVirtual.DelayedCall(feedbackDuration, UnlockUI).SetTarget(gameObject);
             }
         }
+
+        /// <summary>
+        /// Called by UnlockUI during the auto-correct phase (after wrong feedback finishes).
+        /// Override in subclasses to apply correct-answer visuals (e.g. highlight the correct button).
+        /// </summary>
+        protected virtual void ApplyAutoCorrectVisuals() { }
 
         protected abstract string GetCorrectAnswerDisplay();
     }

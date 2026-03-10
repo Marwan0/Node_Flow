@@ -231,6 +231,12 @@ namespace NodeSystem.Nodes.Quiz
                 if (slotCountWrongAttempts)
                     SubscribeToWrongAttemptEventsIfNeeded();
                 SubscribeToQuestionResultEventsIfNeeded();
+
+                // Catch up with any answers that were recorded BEFORE we subscribed.
+                // This happens when the node is connected to correct/incorrect ports,
+                // which fire AFTER QuizState events have already been emitted.
+                CatchUpMissedSlots();
+
                 Complete();
                 return;
             }
@@ -411,6 +417,52 @@ namespace NodeSystem.Nodes.Quiz
                 if (slotDefaultSprite != null)
                     img.sprite = slotDefaultSprite;
                 img.transform.localScale = Vector3.one;
+            }
+        }
+
+        /// <summary>
+        /// Fills slots for any answers that were already recorded in QuizState
+        /// before this node subscribed to events. Handles both step-based
+        /// questions (PartialAnswerTimeline) and simple questions (AnswerTimeline).
+        /// </summary>
+        private void CatchUpMissedSlots()
+        {
+            var state = QuizState.Instance;
+            if (state == null || _cachedSlotImages == null || _cachedSlotImages.Length == 0) return;
+
+            // Check partial timeline for step results (multi-step questions)
+            var partial = state.PartialAnswerTimeline;
+            int stepResultCount = 0;
+            if (partial != null)
+            {
+                for (int i = 0; i < partial.Count; i++)
+                {
+                    if (partial[i].eventType == QuizState.PartialAnswerEventType.StepResult)
+                        stepResultCount++;
+                }
+            }
+
+            if (stepResultCount > _slotFillIndex)
+            {
+                int step = 0;
+                for (int i = 0; i < partial.Count && _slotFillIndex < _cachedSlotImages.Length; i++)
+                {
+                    if (partial[i].eventType != QuizState.PartialAnswerEventType.StepResult)
+                        continue;
+                    if (step >= _slotFillIndex)
+                        FillNextSlot(partial[i].wasCorrect, "catchup_step");
+                    step++;
+                }
+                return;
+            }
+
+            // Use final answer timeline for simple question types
+            var answers = state.AnswerTimeline;
+            if (answers == null) return;
+
+            while (_slotFillIndex < answers.Count && _slotFillIndex < _cachedSlotImages.Length)
+            {
+                FillNextSlot(answers[_slotFillIndex].wasCorrect, "catchup");
             }
         }
 

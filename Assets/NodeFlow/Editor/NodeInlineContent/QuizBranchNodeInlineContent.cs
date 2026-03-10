@@ -24,11 +24,14 @@ namespace NodeSystem.Editor
                                   node.condition == BranchCondition.CorrectPercentageAbove ||
                                   node.condition == BranchCondition.CorrectPercentageBelow ||
                                   node.condition == BranchCondition.ConsecutiveCorrectAbove ||
-                                  node.condition == BranchCondition.ConsecutiveWrongAbove;
+                                  node.condition == BranchCondition.ConsecutiveWrongAbove ||
+                                  node.condition == BranchCondition.AttemptCountAbove;
 
             if (needsThreshold)
             {
-                string label = node.condition.ToString().Contains("Percentage") ? "Percentage" : "Value";
+                string label = node.condition.ToString().Contains("Percentage") ? "Percentage"
+                             : node.condition == BranchCondition.AttemptCountAbove ? "Min Attempts"
+                             : "Value";
                 CreateIntField(label, node.thresholdValue, v => node.thresholdValue = v);
             }
         }

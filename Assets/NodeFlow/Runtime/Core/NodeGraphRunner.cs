@@ -534,6 +534,12 @@ namespace NodeSystem
                 return;
             }
 
+            // AttemptBranchNode: route to the single selected attempt port
+            if (completedNode is Nodes.Quiz.AttemptBranchNode attemptBranch && !string.IsNullOrEmpty(attemptBranch.SelectedPortId))
+            {
+                outputPort = attemptBranch.SelectedPortId;
+            }
+
             // Get connected nodes from the appropriate output port
             var nextNodes = _graph.GetConnectedNodes(completedNode.Guid, outputPort);
 

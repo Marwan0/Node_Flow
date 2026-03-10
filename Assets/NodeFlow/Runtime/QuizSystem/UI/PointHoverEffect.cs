@@ -30,6 +30,8 @@ namespace QuizSystem
         private Tweener _scaleTween;
         private bool _isHovered;
         private bool _initialized;
+        private bool _feedbackActive;
+        private bool _allowOverlap;
 
         public void SetConfig(PointHoverConfig hoverConfig)
         {
@@ -40,6 +42,13 @@ namespace QuizSystem
         public void SetSharedAudioSource(AudioSource audioSource)
         {
             _sharedAudioSource = audioSource;
+
+            // Destroy any per-button standalone source — all audio goes through the shared one now
+            if (_sharedAudioSource != null && standaloneAudioSource != null)
+            {
+                Destroy(standaloneAudioSource);
+                standaloneAudioSource = null;
+            }
         }
 
         public void RecaptureIdleState()
@@ -54,6 +63,24 @@ namespace QuizSystem
                 _isHovered = false;
                 TransitionToIdle();
             }
+        }
+
+        /// <summary>
+        /// When active, blocks all hover enter/exit so answer feedback visuals aren't overridden.
+        /// </summary>
+        public void SetFeedbackActive(bool active)
+        {
+            _feedbackActive = active;
+            if (active)
+            {
+                KillTweens();
+                _isHovered = false;
+            }
+        }
+
+        public void SetAudioOverlapAllowed(bool allow)
+        {
+            _allowOverlap = allow;
         }
 
         private void Awake()
@@ -80,7 +107,7 @@ namespace QuizSystem
 
         public void OnPointerEnter(PointerEventData eventData)
         {
-            if (config == null || _image == null) return;
+            if (config == null || _image == null || _feedbackActive) return;
             _isHovered = true;
             TransitionToHover();
             PlayHoverSFX();
@@ -88,7 +115,7 @@ namespace QuizSystem
 
         public void OnPointerExit(PointerEventData eventData)
         {
-            if (config == null || _image == null) return;
+            if (config == null || _image == null || _feedbackActive) return;
             _isHovered = false;
             TransitionToIdle();
         }
@@ -191,10 +218,17 @@ namespace QuizSystem
                 source = standaloneAudioSource;
             }
 
-            source.Stop();
-            source.clip = config.hoverSFX;
-            source.volume = config.sfxVolume;
-            source.Play();
+            if (_allowOverlap)
+            {
+                source.PlayOneShot(config.hoverSFX, config.sfxVolume);
+            }
+            else
+            {
+                source.Stop();
+                source.clip = config.hoverSFX;
+                source.volume = config.sfxVolume;
+                source.Play();
+            }
         }
 
         private void KillTweens()

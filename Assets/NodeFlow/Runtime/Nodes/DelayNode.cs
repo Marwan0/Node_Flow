@@ -22,7 +22,7 @@ namespace NodeSystem.Nodes
         {
             return new List<PortData>
             {
-                new PortData("input", "Execute", PortDirection.Input)
+                new PortData("input", "Execute", PortDirection.Input, PortCapacity.Multi)
             };
         }
 

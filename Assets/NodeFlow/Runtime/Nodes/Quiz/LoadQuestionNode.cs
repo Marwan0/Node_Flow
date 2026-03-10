@@ -134,6 +134,7 @@ namespace NodeSystem.Nodes.Quiz
                 new PortData("on_wrong", "On Wrong Attempt", PortDirection.Output, PortCapacity.Multi, "Fires on every wrong partial action or attempt."),
                 new PortData("on_correct_feedback", "On Correct Feedback", PortDirection.Output, PortCapacity.Multi, "Starts the feedback chain for a correct answer."),
                 new PortData("on_wrong_feedback", "On Wrong Feedback", PortDirection.Output, PortCapacity.Multi, "Starts the feedback chain for a wrong answer."),
+                new PortData("on_autocorrect_feedback", "On Auto-Correct Feedback", PortDirection.Output, PortCapacity.Multi, "Starts the feedback chain for auto-correction (after wrong feedback finishes)."),
                 new PortData("complete", "Complete", PortDirection.Output, PortCapacity.Multi, "Fires when the node finishes execution (regardless of result).")
             };
         }
@@ -293,6 +294,7 @@ namespace NodeSystem.Nodes.Quiz
                 QuizState.OnWrongAttempt += OnWrongAttemptReceived;
                 QuizState.OnCorrectAnswerFeedbackStart += OnCorrectAnswerFeedbackReceived;
                 QuizState.OnWrongAnswerFeedbackStart += OnWrongAnswerFeedbackReceived;
+                QuizState.OnAutoCorrectFeedbackStart += OnAutoCorrectFeedbackReceived;
                 Runner?.StartCoroutine(LoadAndWaitForAnswer(questionIndex));
             }
             else
@@ -329,6 +331,7 @@ namespace NodeSystem.Nodes.Quiz
             QuizState.OnWrongAttempt -= OnWrongAttemptReceived;
             QuizState.OnCorrectAnswerFeedbackStart -= OnCorrectAnswerFeedbackReceived;
             QuizState.OnWrongAnswerFeedbackStart -= OnWrongAnswerFeedbackReceived;
+            QuizState.OnAutoCorrectFeedbackStart -= OnAutoCorrectFeedbackReceived;
 
             // Note: QuizState.RecordAnswer is now called by QuizManager.OnQuestionAnswered()
             // so we don't need to call it here anymore
@@ -382,6 +385,11 @@ namespace NodeSystem.Nodes.Quiz
             ExecuteFeedbackChain("on_wrong_feedback");
         }
 
+        private void OnAutoCorrectFeedbackReceived()
+        {
+            ExecuteFeedbackChain("on_autocorrect_feedback");
+        }
+
         /// <summary>
         /// Fires all nodes connected to the given feedback port.
         /// Tracks every node in the chain by GUID using NodeGraphRunner.OnNodeCompleted
@@ -421,6 +429,65 @@ namespace NodeSystem.Nodes.Quiz
             {
                 Runner.ExecuteNode(node);
             }
+
+            // Safety: if all tracked nodes completed synchronously, walk their downstream
+            // chains to find any Running nodes we should track instead (e.g. a DelayNode
+            // deeper in a signal-linked chain). Only force-unlock if truly nothing is running.
+            if (_feedbackTrackedGuids.Count > 0)
+            {
+                bool anyRunning = false;
+                foreach (var guid in _feedbackTrackedGuids)
+                {
+                    var tn = Runner.Graph.GetNode(guid);
+                    if (tn != null && tn.State == NodeState.Running) { anyRunning = true; break; }
+                }
+
+                if (!anyRunning)
+                {
+                    // Walk downstream of all completed tracked nodes to find Running ones
+                    var completedGuids = new List<string>(_feedbackTrackedGuids);
+                    _feedbackTrackedGuids.Clear();
+
+                    var toVisit = new Queue<NodeData>();
+                    var visited = new HashSet<string>();
+                    foreach (var guid in completedGuids)
+                    {
+                        visited.Add(guid);
+                        var tn = Runner.Graph.GetNode(guid);
+                        if (tn == null) continue;
+                        foreach (var port in tn.GetOutputPorts())
+                        {
+                            var ds = Runner.Graph.GetConnectedNodes(guid, port.id);
+                            if (ds != null) foreach (var d in ds) if (d != null) toVisit.Enqueue(d);
+                        }
+                    }
+
+                    while (toVisit.Count > 0)
+                    {
+                        var dn = toVisit.Dequeue();
+                        if (!visited.Add(dn.Guid)) continue;
+                        if (dn.State == NodeState.Running)
+                        {
+                            _feedbackTrackedGuids.Add(dn.Guid);
+                        }
+                        else
+                        {
+                            foreach (var port in dn.GetOutputPorts())
+                            {
+                                var next = Runner.Graph.GetConnectedNodes(dn.Guid, port.id);
+                                if (next != null) foreach (var n in next) if (n != null) toVisit.Enqueue(n);
+                            }
+                        }
+                    }
+
+                    if (_feedbackTrackedGuids.Count == 0)
+                    {
+                        Debug.LogWarning("[LoadQuestionNode] Feedback chain fully completed — forcing UI unlock.");
+                        NodeGraphRunner.OnNodeCompleted -= OnFeedbackChainNodeCompleted;
+                        QuizState.RequestUIUnlock();
+                    }
+                }
+            }
         }
 
         private void OnFeedbackChainNodeCompleted(NodeGraphRunner runner, NodeData completedNode)
@@ -449,8 +516,8 @@ namespace NodeSystem.Nodes.Quiz
                 // If the completed node is a SendSignalNode, follow the wireless link:
                 // ReceiveSignalNodes complete synchronously BEFORE SendSignalNode (because
                 // BroadcastSignal is called before Complete()), so we can't track them —
-                // their completion event has already fired. Instead, track their DOWNSTREAM
-                // nodes which are the ones still running (e.g. PlaySoundNode).
+                // their completion event has already fired. Walk the downstream chain
+                // recursively, skipping completed nodes, until we find Running nodes.
                 if (completedNode is NodeSystem.Nodes.SendSignalNode sendSignal
                     && !string.IsNullOrEmpty(sendSignal.signalId))
                 {
@@ -459,16 +526,36 @@ namespace NodeSystem.Nodes.Quiz
                         if (node is NodeSystem.Nodes.ReceiveSignalNode recv
                             && recv.signalId == sendSignal.signalId)
                         {
-                            // Add the receiver's downstream nodes to tracking
+                            // Seed with receiver's direct downstream
+                            var toVisit = new Queue<NodeData>();
                             foreach (var recvPort in recv.GetOutputPorts())
                             {
                                 var recvDownstream = Runner.Graph.GetConnectedNodes(recv.Guid, recvPort.id);
                                 if (recvDownstream != null)
-                                {
                                     foreach (var dn in recvDownstream)
+                                        if (dn != null) toVisit.Enqueue(dn);
+                            }
+
+                            // Walk the chain: track Running nodes, follow through completed ones
+                            var visited = new HashSet<string>();
+                            while (toVisit.Count > 0)
+                            {
+                                var dn = toVisit.Dequeue();
+                                if (!visited.Add(dn.Guid)) continue;
+
+                                if (dn.State == NodeState.Running)
+                                {
+                                    _feedbackTrackedGuids.Add(dn.Guid);
+                                }
+                                else
+                                {
+                                    // Already completed — follow its downstream
+                                    foreach (var port in dn.GetOutputPorts())
                                     {
-                                        if (dn != null)
-                                            _feedbackTrackedGuids.Add(dn.Guid);
+                                        var next = Runner.Graph.GetConnectedNodes(dn.Guid, port.id);
+                                        if (next != null)
+                                            foreach (var n in next)
+                                                if (n != null) toVisit.Enqueue(n);
                                     }
                                 }
                             }
@@ -632,6 +719,7 @@ namespace NodeSystem.Nodes.Quiz
             QuizState.OnWrongAttempt -= OnWrongAttemptReceived;
             QuizState.OnCorrectAnswerFeedbackStart -= OnCorrectAnswerFeedbackReceived;
             QuizState.OnWrongAnswerFeedbackStart -= OnWrongAnswerFeedbackReceived;
+            QuizState.OnAutoCorrectFeedbackStart -= OnAutoCorrectFeedbackReceived;
 
             // Clean up feedback chain tracking
             NodeGraphRunner.OnNodeCompleted -= OnFeedbackChainNodeCompleted;

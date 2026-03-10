@@ -95,6 +95,8 @@ namespace QuizSystem
         public static event Action OnCorrectAnswerFeedbackStart;
         /// <summary>Fires after the UI is locked on a wrong answer. Connect feedback nodes here.</summary>
         public static event Action OnWrongAnswerFeedbackStart;
+        /// <summary>Fires after wrong feedback finishes on auto-correct. Connect auto-correct feedback nodes here.</summary>
+        public static event Action OnAutoCorrectFeedbackStart;
         /// <summary>Fires when feedback nodes finish and the UI should be unlocked.</summary>
         public static event Action OnUIUnlockRequested;
         /// <summary>Fires when the UI should be locked before any interaction (e.g. for on_load intro nodes).</summary>
@@ -114,6 +116,9 @@ namespace QuizSystem
         [Header("Score")]
         public int currentScore = 0;
         public int maxPossibleScore = 0;
+
+        [Header("Current Question")]
+        public int currentQuestionAttempt = 0;
 
         [Header("Last Answer")]
         public bool lastAnswerWasCorrect = false;
@@ -151,9 +156,16 @@ namespace QuizSystem
         [NonSerialized]
         public QuizManager quizManagerRef;
 
+        [Header("Audio")]
+        [Tooltip("When enabled, quiz sounds (hover, feedback, node sounds) can overlap. When disabled, each new sound stops the previous one.")]
+        public bool allowAudioOverlap = false;
+
         [Header("Answer Animations")]
         [NonSerialized]
         public NodeSystem.Nodes.Quiz.AnswerAnimationSettings[] currentAnswerAnimations = null;
+
+        // Centralized audio source for all quiz sounds
+        private AudioSource _quizAudioSource;
 
         private void Update()
         {
@@ -310,9 +322,10 @@ namespace QuizSystem
         /// </summary>
         public void NotifyWrongAttempt()
         {
+            currentQuestionAttempt++;
             RecordPartialAnswerEvent(false, -1, PartialAnswerEventType.WrongAttempt);
             OnWrongAttempt?.Invoke();
-            Debug.Log("[QuizState] Wrong attempt - user can try again");
+            Debug.Log($"[QuizState] Wrong attempt #{currentQuestionAttempt} - user can try again");
         }
 
         /// <summary>
@@ -362,6 +375,20 @@ namespace QuizSystem
             bool hasListeners = OnWrongAnswerFeedbackStart != null;
             OnWrongAnswerFeedbackStart?.Invoke();
             Debug.Log("[QuizState] Wrong answer feedback started (UI locked)");
+            return hasListeners;
+        }
+
+        /// <summary>
+        /// Called by QuestionUI after wrong feedback finishes during auto-correct.
+        /// Fires OnAutoCorrectFeedbackStart so LoadQuestionNode can run auto-correct feedback nodes.
+        /// Returns true if any listeners are registered (so UI knows to wait for explicit unlock).
+        /// </summary>
+        public bool NotifyAutoCorrectFeedback()
+        {
+            UILocked = true;
+            bool hasListeners = OnAutoCorrectFeedbackStart != null;
+            OnAutoCorrectFeedbackStart?.Invoke();
+            Debug.Log("[QuizState] Auto-correct feedback started (UI locked)");
             return hasListeners;
         }
 
@@ -447,12 +474,53 @@ namespace QuizSystem
             currentAnswerAnimations = animations;
         }
 
+        /// <summary>
+        /// Centralized audio source for all quiz sounds (hover, feedback, PlaySoundNode).
+        /// All quiz audio routes through this so overlap/stop behavior is consistent.
+        /// </summary>
+        public AudioSource QuizAudioSource
+        {
+            get
+            {
+                if (_quizAudioSource == null)
+                {
+                    _quizAudioSource = gameObject.AddComponent<AudioSource>();
+                    _quizAudioSource.playOnAwake = false;
+                    _quizAudioSource.loop = false;
+                }
+                return _quizAudioSource;
+            }
+        }
+
+        /// <summary>
+        /// Plays a sound through the centralized quiz audio source, respecting the overlap setting.
+        /// </summary>
+        public void PlaySound(AudioClip clip, float volume, float pitch = 1f)
+        {
+            if (clip == null) return;
+            var source = QuizAudioSource;
+            source.pitch = pitch;
+
+            if (allowAudioOverlap)
+            {
+                source.PlayOneShot(clip, volume);
+            }
+            else
+            {
+                source.Stop();
+                source.clip = clip;
+                source.volume = volume;
+                source.Play();
+            }
+        }
+
         public void ResetState()
         {
             totalQuestions = 0;
             questionsAnswered = 0;
             correctAnswers = 0;
             wrongAnswers = 0;
+            currentQuestionAttempt = 0;
             currentScore = 0;
             maxPossibleScore = 0;
             lastAnswerWasCorrect = false;

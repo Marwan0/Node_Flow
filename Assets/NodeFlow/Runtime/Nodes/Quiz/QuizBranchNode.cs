@@ -17,7 +17,8 @@ namespace NodeSystem.Nodes.Quiz
         ConsecutiveWrongAbove,
         QuizComplete,
         TimerExpired,
-        AllQuestionsAnswered
+        AllQuestionsAnswered,
+        AttemptCountAbove
     }
 
     /// <summary>
@@ -103,6 +104,10 @@ namespace NodeSystem.Nodes.Quiz
 
                 case BranchCondition.AllQuestionsAnswered:
                     conditionMet = state.questionsAnswered >= state.totalQuestions && state.totalQuestions > 0;
+                    break;
+
+                case BranchCondition.AttemptCountAbove:
+                    conditionMet = state.currentQuestionAttempt >= thresholdValue;
                     break;
             }
 
