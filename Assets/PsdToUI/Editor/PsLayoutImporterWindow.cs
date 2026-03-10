@@ -16,7 +16,22 @@ namespace Object_Flow.PsdToUI.Editor
         private bool createTextObjects = true;
         private bool respectVisibility = true;
         private bool copyImagesIntoProject = true;
-        private PsdImporterWindow.PivotMode pivotMode = PsdImporterWindow.PivotMode.Center;
+        private PivotMode pivotMode = PivotMode.Center;
+
+        public enum PivotMode
+        {
+            Center,
+            TopLeft
+        }
+
+        private static Vector2 PivotModeToVector(PivotMode mode)
+        {
+            switch (mode)
+            {
+                case PivotMode.TopLeft: return new Vector2(0f, 1f);
+                default:               return new Vector2(0.5f, 0.5f);
+            }
+        }
 
         private class RuntimeNode
         {
@@ -52,7 +67,7 @@ namespace Object_Flow.PsdToUI.Editor
             createTextObjects = EditorGUILayout.Toggle("Create Text Objects", createTextObjects);
             respectVisibility = EditorGUILayout.Toggle("Respect Visibility", respectVisibility);
             copyImagesIntoProject = EditorGUILayout.Toggle("Copy Images Into Project", copyImagesIntoProject);
-            pivotMode = (PsdImporterWindow.PivotMode)EditorGUILayout.EnumPopup("Layer Pivot", pivotMode);
+            pivotMode = (PivotMode)EditorGUILayout.EnumPopup("Layer Pivot", pivotMode);
 
             EditorGUILayout.Space();
             GUI.enabled = File.Exists(jsonPath);
@@ -383,7 +398,7 @@ namespace Object_Flow.PsdToUI.Editor
                     parentY = parentRuntime.Data.y;
                 }
 
-                Vector2 pivot = PsdImporterWindow.PivotModeToVector(pivotMode);
+                Vector2 pivot = PivotModeToVector(pivotMode);
                 RectTransform rt = runtime.RectTransform;
                 rt.SetParent(parentRt, false);
                 rt.anchorMin = new Vector2(0f, 1f);
