@@ -89,7 +89,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 54eab771cba6dcb45a80f18a91053549, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  configMode: 0
   config: {fileID: 11400000, guid: a093fb4fb1f445d48ac6acd9e8c58fc6, type: 2}
+  inlineIdleColor: {r: 1, g: 1, b: 1, a: 1}
+  inlineIdleSprite: {fileID: 0}
+  inlineHoverColor: {r: 0.8, g: 0.9, b: 1, a: 1}
+  inlineHoverSprite: {fileID: 0}
+  inlineHoverSFX: {fileID: 0}
+  inlineTransitionDuration: 0.15
+  inlineTransitionEase: 6
+  inlineEnableScalePunch: 0
+  inlineScalePunchAmount: 1.08
+  inlineScalePunchDuration: 0.15
+  inlineSfxVolume: 1
   targetImage: {fileID: 0}
   standaloneAudioSource: {fileID: 0}
 --- !u!114 &1122613165225715281
@@ -338,7 +350,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 54eab771cba6dcb45a80f18a91053549, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  configMode: 0
   config: {fileID: 11400000, guid: dc4b4adb5b4b7824c8804f349eaf7047, type: 2}
+  inlineIdleColor: {r: 1, g: 1, b: 1, a: 1}
+  inlineIdleSprite: {fileID: 0}
+  inlineHoverColor: {r: 0.8, g: 0.9, b: 1, a: 1}
+  inlineHoverSprite: {fileID: 0}
+  inlineHoverSFX: {fileID: 0}
+  inlineTransitionDuration: 0.15
+  inlineTransitionEase: 6
+  inlineEnableScalePunch: 0
+  inlineScalePunchAmount: 1.08
+  inlineScalePunchDuration: 0.15
+  inlineSfxVolume: 1
   targetImage: {fileID: 0}
   standaloneAudioSource: {fileID: 0}
 --- !u!114 &9000682303295863473
@@ -704,7 +728,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 54eab771cba6dcb45a80f18a91053549, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  configMode: 0
   config: {fileID: 11400000, guid: 718f1607ae2abcf4788a23a120e0368c, type: 2}
+  inlineIdleColor: {r: 1, g: 1, b: 1, a: 1}
+  inlineIdleSprite: {fileID: 0}
+  inlineHoverColor: {r: 0.8, g: 0.9, b: 1, a: 1}
+  inlineHoverSprite: {fileID: 0}
+  inlineHoverSFX: {fileID: 0}
+  inlineTransitionDuration: 0.15
+  inlineTransitionEase: 6
+  inlineEnableScalePunch: 0
+  inlineScalePunchAmount: 1.08
+  inlineScalePunchDuration: 0.15
+  inlineSfxVolume: 1
   targetImage: {fileID: 0}
   standaloneAudioSource: {fileID: 0}
 --- !u!114 &592986085186252490
@@ -840,7 +876,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 54eab771cba6dcb45a80f18a91053549, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  configMode: 0
   config: {fileID: 11400000, guid: fbe7fc65b44021c45941a0913e05a9ac, type: 2}
+  inlineIdleColor: {r: 1, g: 1, b: 1, a: 1}
+  inlineIdleSprite: {fileID: 0}
+  inlineHoverColor: {r: 0.8, g: 0.9, b: 1, a: 1}
+  inlineHoverSprite: {fileID: 0}
+  inlineHoverSFX: {fileID: 0}
+  inlineTransitionDuration: 0.15
+  inlineTransitionEase: 6
+  inlineEnableScalePunch: 0
+  inlineScalePunchAmount: 1.08
+  inlineScalePunchDuration: 0.15
+  inlineSfxVolume: 1
   targetImage: {fileID: 0}
   standaloneAudioSource: {fileID: 0}
 --- !u!114 &558631307793638639

@@ -3,7 +3,9 @@
     "allow": [
       "Bash(cd:*)",
       "Bash(xargs grep -l \"Color\\\\|Theme\\\\|Stylesheet\\\\|Style\")",
-      "Bash(grep -r \"Image\\\\|Sprite\" e:/Work/Node_Flow/Assets/NodeFlow/Runtime/Nodes/*.cs --include=\"*.cs\")"
+      "Bash(grep -r \"Image\\\\|Sprite\" e:/Work/Node_Flow/Assets/NodeFlow/Runtime/Nodes/*.cs --include=\"*.cs\")",
+      "Bash(xargs grep -l \"edge.*label\\\\|label.*edge\\\\|edge.*text\\\\|text.*edge\")",
+      "Bash(xargs grep -l \"abstract class.*Node\")"
     ]
   }
 }
