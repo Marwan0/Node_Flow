@@ -1743,7 +1743,7 @@ namespace NodeSystem.Editor
 
             var view = new NodeView(data);
             view.OnNodeSelected = OnNodeSelected;
-            view.OnDataChanged = () => 
+            view.OnDataChanged = () =>
             {
                 if (Graph != null)
                 {
@@ -1752,7 +1752,18 @@ namespace NodeSystem.Editor
                     EditorUtility.SetDirty(Graph);
                 }
             };
-            
+            view.OnPortsChanged = () =>
+            {
+                if (Graph != null)
+                {
+                    // Remove connections to ports that no longer exist
+                    Graph.CleanupOrphanedConnections();
+                    RefreshEdgesForNode(data.Guid);
+                    Graph.SaveToJson();
+                    EditorUtility.SetDirty(Graph);
+                }
+            };
+
             // Apply current zoom level to new node
             view.SetZoomDetailLevel(_currentZoom);
             

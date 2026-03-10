@@ -919,6 +919,27 @@ namespace NodeSystem
             SaveAndMarkDirty();
         }
 
+        /// <summary>
+        /// Remove connections that reference ports no longer present on their nodes.
+        /// </summary>
+        public void CleanupOrphanedConnections()
+        {
+            EnsureLoaded();
+            int removed = _runtimeConnections.RemoveAll(c =>
+            {
+                var node = GetNode(c.outputNodeGuid);
+                if (node == null) return true;
+                var ports = node.GetOutputPorts();
+                return ports == null || !ports.Exists(p => p.id == c.outputPortId);
+            });
+
+            if (removed > 0)
+            {
+                InvalidateIndices();
+                Debug.Log($"[NodeGraph] Cleaned up {removed} orphaned connection(s)");
+            }
+        }
+
         private void SaveAndMarkDirty()
         {
             SaveToJson();

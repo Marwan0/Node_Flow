@@ -34,6 +34,8 @@ namespace NodeSystem.Editor
         
         /// <summary>Called when node data changes (for saving)</summary>
         public Action OnDataChanged;
+        /// <summary>Called when ports are rebuilt (so graph view can refresh edges)</summary>
+        public Action OnPortsChanged;
 
         public NodeView(NodeData data)
         {
@@ -265,9 +267,9 @@ namespace NodeSystem.Editor
             var content = NodeInlineContentFactory.GetContent(Data);
             if (content != null)
             {
-                content.Initialize(Data, _inlineContentContainer, 
+                content.Initialize(Data, _inlineContentContainer,
                     () => OnDataChanged?.Invoke(),
-                    () => RefreshInlineContent()); // Refresh callback
+                    () => { RefreshPorts(); OnPortsChanged?.Invoke(); RefreshInlineContent(); }); // Refresh callback
                 content.Draw();
             }
         }

@@ -140,6 +140,10 @@ namespace NodeSystem
             foreach (var node in _graph.Nodes)
             {
                 node.Runner = this;
+
+                // Reset step counters for SequenceStepNodes on graph start
+                if (node is Nodes.SequenceStepNode stepNode)
+                    stepNode.ResetStepCounter();
             }
 
             // Start from entry node
@@ -532,6 +536,12 @@ namespace NodeSystem
                     Debug.LogWarning($"[NodeGraphRunner] RandomBranch selected node not found: {randomBranch.SelectedNodeGuid}");
                 }
                 return;
+            }
+
+            // SequenceStepNode: route to the selected step port
+            if (completedNode is Nodes.SequenceStepNode sequenceStep && !string.IsNullOrEmpty(sequenceStep.SelectedPortId))
+            {
+                outputPort = sequenceStep.SelectedPortId;
             }
 
             // AttemptBranchNode: route to the single selected attempt port
