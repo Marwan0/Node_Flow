@@ -5,12 +5,34 @@ using DG.Tweening;
 
 namespace QuizSystem
 {
+    public enum HoverConfigMode { Asset, Inline }
+
     [DisallowMultipleComponent]
     public class PointHoverEffect : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
     {
         [Header("Configuration")]
-        [Tooltip("Hover config asset. If null, no hover effects are applied.")]
+        [Tooltip("Use an existing PointHoverConfig asset, or define settings inline on this component.")]
+        [SerializeField] private HoverConfigMode configMode = HoverConfigMode.Asset;
+
+        [Tooltip("Hover config asset (used when Mode = Asset).")]
         [SerializeField] private PointHoverConfig config;
+
+        [Header("Inline Settings (used when Mode = Inline)")]
+        [SerializeField] private Color inlineIdleColor = Color.white;
+        [SerializeField] private Sprite inlineIdleSprite;
+        [SerializeField] private Color inlineHoverColor = new Color(0.8f, 0.9f, 1f, 1f);
+        [SerializeField] private Sprite inlineHoverSprite;
+        [SerializeField] private AudioClip inlineHoverSFX;
+        [Range(0f, 1f)]
+        [SerializeField] private float inlineTransitionDuration = 0.15f;
+        [SerializeField] private Ease inlineTransitionEase = Ease.OutQuad;
+        [SerializeField] private bool inlineEnableScalePunch = false;
+        [Range(1f, 1.5f)]
+        [SerializeField] private float inlineScalePunchAmount = 1.08f;
+        [Range(0.05f, 0.5f)]
+        [SerializeField] private float inlineScalePunchDuration = 0.15f;
+        [Range(0f, 1f)]
+        [SerializeField] private float inlineSfxVolume = 1f;
 
         [Header("Override Target (Optional)")]
         [Tooltip("If set, hover effects apply to this Image instead of the Image on this GameObject.")]
@@ -33,9 +55,24 @@ namespace QuizSystem
         private bool _feedbackActive;
         private bool _allowOverlap;
 
+        // --- Accessors: read from config asset or inline fields ---
+        private bool HasConfig => configMode == HoverConfigMode.Asset ? config != null : true;
+        private Color IdleColor => configMode == HoverConfigMode.Asset ? config.idleColor : inlineIdleColor;
+        private Sprite IdleSprite => configMode == HoverConfigMode.Asset ? config.idleSprite : inlineIdleSprite;
+        private Color HoverColor => configMode == HoverConfigMode.Asset ? config.hoverColor : inlineHoverColor;
+        private Sprite HoverSprite => configMode == HoverConfigMode.Asset ? config.hoverSprite : inlineHoverSprite;
+        private AudioClip HoverSFX => configMode == HoverConfigMode.Asset ? config.hoverSFX : inlineHoverSFX;
+        private float TransitionDuration => configMode == HoverConfigMode.Asset ? config.transitionDuration : inlineTransitionDuration;
+        private Ease TransitionEase => configMode == HoverConfigMode.Asset ? config.transitionEase : inlineTransitionEase;
+        private bool EnableScalePunch => configMode == HoverConfigMode.Asset ? config.enableScalePunch : inlineEnableScalePunch;
+        private float ScalePunchAmount => configMode == HoverConfigMode.Asset ? config.scalePunchAmount : inlineScalePunchAmount;
+        private float ScalePunchDuration => configMode == HoverConfigMode.Asset ? config.scalePunchDuration : inlineScalePunchDuration;
+        private float SfxVolume => configMode == HoverConfigMode.Asset ? config.sfxVolume : inlineSfxVolume;
+
         public void SetConfig(PointHoverConfig hoverConfig)
         {
             config = hoverConfig;
+            configMode = HoverConfigMode.Asset;
             if (_initialized) CaptureOriginalState();
         }
 
@@ -107,7 +144,7 @@ namespace QuizSystem
 
         public void OnPointerEnter(PointerEventData eventData)
         {
-            if (config == null || _image == null || _feedbackActive) return;
+            if (!HasConfig || _image == null || _feedbackActive) return;
             _isHovered = true;
             TransitionToHover();
             PlayHoverSFX();
@@ -115,7 +152,7 @@ namespace QuizSystem
 
         public void OnPointerExit(PointerEventData eventData)
         {
-            if (config == null || _image == null || _feedbackActive) return;
+            if (!HasConfig || _image == null || _feedbackActive) return;
             _isHovered = false;
             TransitionToIdle();
         }
@@ -134,11 +171,11 @@ namespace QuizSystem
         {
             if (_image != null)
             {
-                _originalColor = (config != null && config.idleColor != Color.white)
-                    ? config.idleColor
+                _originalColor = (HasConfig && IdleColor != Color.white)
+                    ? IdleColor
                     : _image.color;
-                _originalSprite = (config != null && config.idleSprite != null)
-                    ? config.idleSprite
+                _originalSprite = (HasConfig && IdleSprite != null)
+                    ? IdleSprite
                     : _image.sprite;
             }
             _originalScale = transform.localScale;
@@ -148,28 +185,28 @@ namespace QuizSystem
         {
             KillTweens();
 
-            if (config.hoverSprite != null && _image != null)
-                _image.sprite = config.hoverSprite;
+            if (HoverSprite != null && _image != null)
+                _image.sprite = HoverSprite;
 
             if (_image != null)
             {
-                if (config.transitionDuration > 0f)
+                if (TransitionDuration > 0f)
                 {
-                    _colorTween = _image.DOColor(config.hoverColor, config.transitionDuration)
-                        .SetEase(config.transitionEase)
+                    _colorTween = _image.DOColor(HoverColor, TransitionDuration)
+                        .SetEase(TransitionEase)
                         .SetTarget(_image);
                 }
                 else
                 {
-                    _image.color = config.hoverColor;
+                    _image.color = HoverColor;
                 }
             }
 
-            if (config.enableScalePunch)
+            if (EnableScalePunch)
             {
                 _scaleTween = transform.DOScale(
-                    _originalScale * config.scalePunchAmount,
-                    config.scalePunchDuration
+                    _originalScale * ScalePunchAmount,
+                    ScalePunchDuration
                 ).SetEase(Ease.OutBack).SetTarget(transform);
             }
         }
@@ -183,10 +220,10 @@ namespace QuizSystem
 
             if (_image != null)
             {
-                if (config != null && config.transitionDuration > 0f)
+                if (HasConfig && TransitionDuration > 0f)
                 {
-                    _colorTween = _image.DOColor(_originalColor, config.transitionDuration)
-                        .SetEase(config.transitionEase)
+                    _colorTween = _image.DOColor(_originalColor, TransitionDuration)
+                        .SetEase(TransitionEase)
                         .SetTarget(_image);
                 }
                 else
@@ -195,18 +232,18 @@ namespace QuizSystem
                 }
             }
 
-            if (config != null && config.enableScalePunch)
+            if (HasConfig && EnableScalePunch)
             {
                 _scaleTween = transform.DOScale(
                     _originalScale,
-                    config.scalePunchDuration
+                    ScalePunchDuration
                 ).SetEase(Ease.InQuad).SetTarget(transform);
             }
         }
 
         private void PlayHoverSFX()
         {
-            if (config.hoverSFX == null) return;
+            if (HoverSFX == null) return;
 
             AudioSource source = _sharedAudioSource != null ? _sharedAudioSource : standaloneAudioSource;
             if (source == null)
@@ -220,13 +257,13 @@ namespace QuizSystem
 
             if (_allowOverlap)
             {
-                source.PlayOneShot(config.hoverSFX, config.sfxVolume);
+                source.PlayOneShot(HoverSFX, SfxVolume);
             }
             else
             {
                 source.Stop();
-                source.clip = config.hoverSFX;
-                source.volume = config.sfxVolume;
+                source.clip = HoverSFX;
+                source.volume = SfxVolume;
                 source.Play();
             }
         }

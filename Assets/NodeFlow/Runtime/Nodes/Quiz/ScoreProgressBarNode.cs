@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 using QuizSystem;
 
 namespace NodeSystem.Nodes.Quiz
@@ -149,6 +150,19 @@ namespace NodeSystem.Nodes.Quiz
         [Tooltip("If enabled, each wrong attempt fills a wrong slot immediately. Disable for per-point results when retries are allowed.")]
         public bool slotCountWrongAttempts = false;
 
+        [SerializeField]
+        [Tooltip("Show attempt count as text on each slot. Requires a Text or TextMeshProUGUI child on each slot Image.")]
+        public bool slotShowAttemptCount = false;
+
+        [SerializeField]
+        [Tooltip("Color for slots answered correctly but after multiple attempts.")]
+        public Color slotMultiAttemptColor = new Color(0.9f, 0.75f, 0.2f, 1f);
+
+        [SerializeField]
+        [Tooltip("Number of total attempts at which the multi-attempt color is used instead of correct color.")]
+        [Range(2, 10)]
+        public int slotMultiAttemptThreshold = 2;
+
         [NonSerialized]
         private bool _isScoreEventSubscribed;
 
@@ -187,6 +201,12 @@ namespace NodeSystem.Nodes.Quiz
 
         [NonSerialized]
         private int _lastWrongAttemptFrame = -9999;
+
+        [NonSerialized]
+        private int _currentPointWrongAttempts;
+
+        [NonSerialized]
+        private Component[] _cachedSlotTexts;
 
         public override string Name => "Score Progress Bar";
         public override Color Color => new Color(0.85f, 0.65f, 0.25f); // Amber/Gold
@@ -228,7 +248,7 @@ namespace NodeSystem.Nodes.Quiz
                     _slotsInitialized = true;
                 }
                 SubscribeToAnswerEventsIfNeeded();
-                if (slotCountWrongAttempts)
+                if (slotCountWrongAttempts || slotShowAttemptCount)
                     SubscribeToWrongAttemptEventsIfNeeded();
                 SubscribeToQuestionResultEventsIfNeeded();
 
@@ -384,17 +404,28 @@ namespace NodeSystem.Nodes.Quiz
             {
                 Debug.LogWarning("[ScoreProgressBarNode] No target for slots: assign a parent GameObject.");
                 _cachedSlotImages = Array.Empty<Image>();
+                _cachedSlotTexts = Array.Empty<Component>();
                 return;
             }
 
-            var list = new List<Image>();
+            var imageList = new List<Image>();
+            var textList = new List<Component>();
             for (int i = 0; i < targetGo.transform.childCount; i++)
             {
-                var img = targetGo.transform.GetChild(i).GetComponent<Image>();
+                var child = targetGo.transform.GetChild(i);
+                var img = child.GetComponent<Image>();
                 if (img != null)
-                    list.Add(img);
+                {
+                    imageList.Add(img);
+                    // Find text child: prefer TMPro, fall back to legacy Text
+                    Component txt = child.GetComponentInChildren<TextMeshProUGUI>();
+                    if (txt == null)
+                        txt = child.GetComponentInChildren<Text>();
+                    textList.Add(txt);
+                }
             }
-            _cachedSlotImages = list.ToArray();
+            _cachedSlotImages = imageList.ToArray();
+            _cachedSlotTexts = textList.ToArray();
 
             if (_cachedSlotImages.Length == 0)
                 Debug.LogWarning($"[ScoreProgressBarNode] No child Images found under: {targetGo.name}");
@@ -409,6 +440,7 @@ namespace NodeSystem.Nodes.Quiz
             _sawStepResultSinceLastQuestionResult = false;
             _sawWrongAttemptSinceLastStepResult = false;
             _lastWrongAttemptFrame = -9999;
+            _currentPointWrongAttempts = 0;
 
             foreach (var img in _cachedSlotImages)
             {
@@ -417,6 +449,12 @@ namespace NodeSystem.Nodes.Quiz
                 if (slotDefaultSprite != null)
                     img.sprite = slotDefaultSprite;
                 img.transform.localScale = Vector3.one;
+            }
+
+            if (_cachedSlotTexts != null)
+            {
+                for (int i = 0; i < _cachedSlotTexts.Length; i++)
+                    SetSlotText(i, "");
             }
         }
 
@@ -513,19 +551,43 @@ namespace NodeSystem.Nodes.Quiz
 
             // Wrong-attempt events are emitted before auto-corrected step results in sequential
             // question types. Skip this immediate false step record to avoid double-filling.
-            if (slotCountWrongAttempts && !wasCorrect && _sawWrongAttemptSinceLastStepResult && Time.frameCount <= _lastWrongAttemptFrame + 1)
+            bool skipDuplicate = (slotCountWrongAttempts || slotShowAttemptCount) && !wasCorrect
+                && _sawWrongAttemptSinceLastStepResult && Time.frameCount <= _lastWrongAttemptFrame + 1;
+            if (skipDuplicate)
             {
                 _sawWrongAttemptSinceLastStepResult = false;
                 return;
             }
 
             _sawWrongAttemptSinceLastStepResult = false;
-            FillNextSlot(wasCorrect, "step");
+
+            if (slotShowAttemptCount)
+            {
+                int totalAttempts = _currentPointWrongAttempts + 1;
+                FillNextSlotWithAttempts(wasCorrect, totalAttempts, "step");
+                _currentPointWrongAttempts = 0;
+            }
+            else
+            {
+                FillNextSlot(wasCorrect, "step");
+            }
         }
 
         private void OnWrongAttemptReceived()
         {
             if (displayMode != DisplayMode.Slots) return;
+
+            if (slotShowAttemptCount)
+            {
+                // In attempt-count mode: update the current slot text, don't fill/advance
+                _currentPointWrongAttempts++;
+                _sawWrongAttemptSinceLastStepResult = true;
+                _lastWrongAttemptFrame = Time.frameCount;
+                if (Runner != null && Runner.IsRunning)
+                    SetSlotText(_slotFillIndex, _currentPointWrongAttempts.ToString());
+                return;
+            }
+
             if (!slotCountWrongAttempts) return;
             _sawWrongAttemptSinceLastStepResult = true;
             _lastWrongAttemptFrame = Time.frameCount;
@@ -544,7 +606,16 @@ namespace NodeSystem.Nodes.Quiz
                 return;
             }
 
-            FillNextSlot(wasCorrect, "question");
+            if (slotShowAttemptCount)
+            {
+                int totalAttempts = _currentPointWrongAttempts + 1;
+                FillNextSlotWithAttempts(wasCorrect, totalAttempts, "question");
+                _currentPointWrongAttempts = 0;
+            }
+            else
+            {
+                FillNextSlot(wasCorrect, "question");
+            }
             _sawStepResultSinceLastQuestionResult = false;
             _sawWrongAttemptSinceLastStepResult = false;
         }
@@ -923,6 +994,54 @@ namespace NodeSystem.Nodes.Quiz
             _slotFillIndex++;
         }
 
+        private void FillNextSlotWithAttempts(bool wasCorrect, int totalAttempts, string source)
+        {
+            Debug.Log($"[ScoreProgressBarNode] Slot attempt event ({source}): wasCorrect={wasCorrect}, attempts={totalAttempts}, slotIndex={_slotFillIndex}");
+
+            if (Runner == null || !Runner.IsRunning) return;
+            if (_cachedSlotImages == null || _slotFillIndex >= _cachedSlotImages.Length) return;
+
+            var slot = _cachedSlotImages[_slotFillIndex];
+            if (slot == null) { _slotFillIndex++; return; }
+
+            // Choose color: wrong → slotWrongColor, correct first-try → slotCorrectColor,
+            // correct multi-attempt → slotMultiAttemptColor
+            if (!wasCorrect)
+            {
+                slot.color = slotWrongColor;
+                if (slotWrongSprite != null) slot.sprite = slotWrongSprite;
+            }
+            else if (totalAttempts >= slotMultiAttemptThreshold)
+            {
+                slot.color = slotMultiAttemptColor;
+                if (slotCorrectSprite != null) slot.sprite = slotCorrectSprite;
+            }
+            else
+            {
+                slot.color = slotCorrectColor;
+                if (slotCorrectSprite != null) slot.sprite = slotCorrectSprite;
+            }
+
+            SetSlotText(_slotFillIndex, totalAttempts.ToString());
+
+            if (slotAnimateOnFill && slotAnimationDuration > 0f && Runner != null)
+                Runner.StartCoroutine(AnimateSlotPop(slot.transform, slotAnimationDuration));
+
+            Debug.Log($"[ScoreProgressBarNode] Filled slot {_slotFillIndex} with {totalAttempts} attempts ({(wasCorrect ? "Correct" : "Wrong")}), advancing to {_slotFillIndex + 1}");
+            _slotFillIndex++;
+        }
+
+        private void SetSlotText(int slotIndex, string text)
+        {
+            if (_cachedSlotTexts == null || slotIndex < 0 || slotIndex >= _cachedSlotTexts.Length) return;
+            var comp = _cachedSlotTexts[slotIndex];
+            if (comp == null) return;
+
+            if (comp is TextMeshProUGUI tmp)
+                tmp.text = text;
+            else if (comp is Text legacyText)
+                legacyText.text = text;
+        }
 
         private IEnumerator AnimateSlotPop(Transform slotTransform, float duration)
         {

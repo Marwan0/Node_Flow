@@ -95,6 +95,17 @@ namespace NodeSystem.Editor
                     node.slotCountWrongAttempts = v;
                     RequestRefresh();
                 });
+
+                CreateToggle("Show attempt count", node.slotShowAttemptCount, v =>
+                {
+                    node.slotShowAttemptCount = v;
+                    RequestRefresh();
+                });
+                if (node.slotShowAttemptCount)
+                {
+                    CreateColorField("Multi-attempt", node.slotMultiAttemptColor, v => node.slotMultiAttemptColor = v);
+                    CreateIntField("Multi-attempt threshold", node.slotMultiAttemptThreshold, v => node.slotMultiAttemptThreshold = Mathf.Clamp(v, 2, 10));
+                }
             }
             else
             {
