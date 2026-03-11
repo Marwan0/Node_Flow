@@ -22,6 +22,9 @@ namespace NodeSystem.Editor
     /// </summary>
     public class PlaySoundNodeInlineContent : NodeInlineContentBase
     {
+        private VisualElement _previewContainer;
+        private Label _pathLabel;
+
         public override void Draw()
         {
             var node = Node as PlaySoundNode;
@@ -36,14 +39,23 @@ namespace NodeSystem.Editor
             }
 
             CreateLabel("Audio Clip:");
-            
+
+            // Create containers for parts that update when clip changes
+            _pathLabel = null;
+            _previewContainer = new VisualElement();
+
             // Create ObjectField for AudioClip
+            // IMPORTANT: Do NOT call RequestRefresh() here - it destroys/recreates the ObjectField,
+            // which breaks the Object Picker window since it still references the old (destroyed) field.
             CreateObjectField<AudioClip>("", currentClip, clip =>
             {
                 // Set both direct reference and path for compatibility
                 node.audioClipRef = clip;
                 node.audioClipPath = clip != null ? AssetDatabase.GetAssetPath(clip) : "";
-                
+
+                // Clear cached runtime clip so it reloads with the new reference
+                node.Reset();
+
                 // Save the graph to persist the direct reference (stored separately for WebGL)
                 var graph = GetNodeGraph();
                 if (graph != null)
@@ -53,18 +65,23 @@ namespace NodeSystem.Editor
                     graph.SaveToJson();
                     EditorUtility.SetDirty(graph);
                 }
-                
-                MarkDirty();
+
+                // Update path label and preview button without destroying the ObjectField
+                UpdatePathLabel(node);
+                UpdatePreviewSection(node, clip);
             });
 
             // Show the path (for debugging/info)
-            if (!string.IsNullOrEmpty(node.audioClipPath))
-            {
-                CreateLabel($"Path: {node.audioClipPath}");
-            }
+            _pathLabel = new Label(!string.IsNullOrEmpty(node.audioClipPath) ? $"Path: {node.audioClipPath}" : "");
+            _pathLabel.style.color = new Color(0.6f, 0.6f, 0.6f);
+            _pathLabel.style.fontSize = 10;
+            _pathLabel.style.marginTop = 2;
+            if (string.IsNullOrEmpty(node.audioClipPath))
+                _pathLabel.style.display = DisplayStyle.None;
+            Container.Add(_pathLabel);
 
             // === Play Mode ===
-            CreateEnumField("Mode", node.playMode, v => 
+            CreateEnumField("Mode", node.playMode, v =>
             {
                 node.playMode = v;
                 RequestRefresh(); // Refresh to show/hide mode-specific options
@@ -74,7 +91,7 @@ namespace NodeSystem.Editor
             if (node.playMode == AudioPlayMode.PlayOnSource)
             {
                 CreateTextField(node.audioSourcePath, v => node.audioSourcePath = v, "AudioSource path (optional)");
-                
+
                 // Loop option (only makes sense with a dedicated source)
                 CreateToggle("Loop", node.loop, v => node.loop = v);
             }
@@ -87,7 +104,30 @@ namespace NodeSystem.Editor
             CreateToggle("Wait for completion", node.waitForCompletion, v => node.waitForCompletion = v);
 
             // === Preview Button (Editor only) ===
+            Container.Add(_previewContainer);
             AddPreviewButton(node, currentClip);
+        }
+
+        private void UpdatePathLabel(PlaySoundNode node)
+        {
+            if (_pathLabel == null) return;
+            if (!string.IsNullOrEmpty(node.audioClipPath))
+            {
+                _pathLabel.text = $"Path: {node.audioClipPath}";
+                _pathLabel.style.display = DisplayStyle.Flex;
+            }
+            else
+            {
+                _pathLabel.text = "";
+                _pathLabel.style.display = DisplayStyle.None;
+            }
+        }
+
+        private void UpdatePreviewSection(PlaySoundNode node, AudioClip clip)
+        {
+            if (_previewContainer == null) return;
+            _previewContainer.Clear();
+            AddPreviewButton(node, clip);
         }
 
         /// <summary>
@@ -96,6 +136,8 @@ namespace NodeSystem.Editor
         private void AddPreviewButton(PlaySoundNode node, AudioClip clip)
         {
             if (clip == null) return;
+
+            var target = _previewContainer ?? Container;
 
             var buttonContainer = new VisualElement();
             buttonContainer.style.flexDirection = FlexDirection.Row;
@@ -124,8 +166,8 @@ namespace NodeSystem.Editor
             infoLabel.style.color = new Color(0.6f, 0.6f, 0.6f);
             infoLabel.style.marginTop = 2;
 
-            Container.Add(buttonContainer);
-            Container.Add(infoLabel);
+            target.Add(buttonContainer);
+            target.Add(infoLabel);
         }
 
         /// <summary>

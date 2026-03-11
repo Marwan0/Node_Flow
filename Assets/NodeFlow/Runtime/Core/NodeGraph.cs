@@ -957,6 +957,9 @@ namespace NodeSystem
         {
             _loaded = false;
             _loadFailed = false;
+            // Clear stale editor groups so SaveToJson uses freshly loaded
+            // _runtimeGroups from JSON instead of outdated editor state.
+            _editorGroups = null;
             InvalidateIndices();
             EnsureLoaded();
         }

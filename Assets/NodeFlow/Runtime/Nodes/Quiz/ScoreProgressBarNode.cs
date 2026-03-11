@@ -247,6 +247,7 @@ namespace NodeSystem.Nodes.Quiz
                     InitializeSlotsToDefault();
                     _slotsInitialized = true;
                 }
+
                 SubscribeToAnswerEventsIfNeeded();
                 if (slotCountWrongAttempts || slotShowAttemptCount)
                     SubscribeToWrongAttemptEventsIfNeeded();
@@ -488,7 +489,7 @@ namespace NodeSystem.Nodes.Quiz
                     if (partial[i].eventType != QuizState.PartialAnswerEventType.StepResult)
                         continue;
                     if (step >= _slotFillIndex)
-                        FillNextSlot(partial[i].wasCorrect, "catchup_step");
+                        FillSlotDirect(partial[i].wasCorrect, "catchup_step");
                     step++;
                 }
                 return;
@@ -500,8 +501,38 @@ namespace NodeSystem.Nodes.Quiz
 
             while (_slotFillIndex < answers.Count && _slotFillIndex < _cachedSlotImages.Length)
             {
-                FillNextSlot(answers[_slotFillIndex].wasCorrect, "catchup");
+                FillSlotDirect(answers[_slotFillIndex].wasCorrect, "catchup");
             }
+        }
+
+        /// <summary>
+        /// Fills the current slot and advances _slotFillIndex. Unlike FillNextSlot,
+        /// this does NOT check Runner.IsRunning — used by CatchUpMissedSlots which
+        /// runs inside OnExecute where the Runner is guaranteed to be valid.
+        /// Always increments _slotFillIndex to prevent infinite loops.
+        /// </summary>
+        private void FillSlotDirect(bool wasCorrect, string source)
+        {
+            if (_cachedSlotImages == null || _slotFillIndex >= _cachedSlotImages.Length)
+            {
+                _slotFillIndex++;
+                return;
+            }
+
+            var slot = _cachedSlotImages[_slotFillIndex];
+            if (slot == null) { _slotFillIndex++; return; }
+
+            slot.color = wasCorrect ? slotCorrectColor : slotWrongColor;
+
+            if (wasCorrect && slotCorrectSprite != null)
+                slot.sprite = slotCorrectSprite;
+            else if (!wasCorrect && slotWrongSprite != null)
+                slot.sprite = slotWrongSprite;
+
+            if (slotAnimateOnFill && slotAnimationDuration > 0f && Runner != null)
+                Runner.StartCoroutine(AnimateSlotPop(slot.transform, slotAnimationDuration));
+
+            _slotFillIndex++;
         }
 
         private void SubscribeToAnswerEventsIfNeeded()
@@ -971,8 +1002,6 @@ namespace NodeSystem.Nodes.Quiz
 
         private void FillNextSlot(bool wasCorrect, string source)
         {
-            Debug.Log($"[ScoreProgressBarNode] Slot event ({source}): wasCorrect={wasCorrect}, slotIndex={_slotFillIndex}, Runner={Runner != null}, IsRunning={Runner?.IsRunning}, slotCount={_cachedSlotImages?.Length ?? -1}");
-
             if (Runner == null || !Runner.IsRunning) return;
             if (_cachedSlotImages == null || _slotFillIndex >= _cachedSlotImages.Length) return;
 
@@ -981,7 +1010,6 @@ namespace NodeSystem.Nodes.Quiz
 
             slot.color = wasCorrect ? slotCorrectColor : slotWrongColor;
 
-            // Apply the correct sprite — use the wrong sprite even if it's the same as default
             if (wasCorrect && slotCorrectSprite != null)
                 slot.sprite = slotCorrectSprite;
             else if (!wasCorrect && slotWrongSprite != null)
@@ -990,14 +1018,11 @@ namespace NodeSystem.Nodes.Quiz
             if (slotAnimateOnFill && slotAnimationDuration > 0f && Runner != null)
                 Runner.StartCoroutine(AnimateSlotPop(slot.transform, slotAnimationDuration));
 
-            Debug.Log($"[ScoreProgressBarNode] Filled slot {_slotFillIndex} with {(wasCorrect ? "Correct" : "Wrong")} color, advancing to {_slotFillIndex + 1}");
             _slotFillIndex++;
         }
 
         private void FillNextSlotWithAttempts(bool wasCorrect, int totalAttempts, string source)
         {
-            Debug.Log($"[ScoreProgressBarNode] Slot attempt event ({source}): wasCorrect={wasCorrect}, attempts={totalAttempts}, slotIndex={_slotFillIndex}");
-
             if (Runner == null || !Runner.IsRunning) return;
             if (_cachedSlotImages == null || _slotFillIndex >= _cachedSlotImages.Length) return;
 
@@ -1027,7 +1052,6 @@ namespace NodeSystem.Nodes.Quiz
             if (slotAnimateOnFill && slotAnimationDuration > 0f && Runner != null)
                 Runner.StartCoroutine(AnimateSlotPop(slot.transform, slotAnimationDuration));
 
-            Debug.Log($"[ScoreProgressBarNode] Filled slot {_slotFillIndex} with {totalAttempts} attempts ({(wasCorrect ? "Correct" : "Wrong")}), advancing to {_slotFillIndex + 1}");
             _slotFillIndex++;
         }
 

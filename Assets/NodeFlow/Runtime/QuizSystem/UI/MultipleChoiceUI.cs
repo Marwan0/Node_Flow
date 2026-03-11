@@ -118,19 +118,20 @@ namespace QuizSystem
                 if (answerButtons[i] == null || answerButtons[i].transform == null) continue;
 
                 bool usedCustom = false;
-                
+
                 // PRIORITY 1: Try custom animation from LoadQuestionNode if available
                 if (hasCustomAnimations && i < customAnimations.Length && customAnimations[i] != null)
                 {
+                    // Custom array exists — this overrides default prefab animations.
+                    // If enabled, play it. If disabled, skip all animations for this button.
+                    usedCustom = true;
                     if (customAnimations[i].enabled)
                     {
-                        // Use custom animation settings from LoadQuestionNode
                         AnimateAnswerWithSettings(answerButtons[i].transform, customAnimations[i]);
-                        usedCustom = true;
                     }
                 }
 
-                // PRIORITY 2: Fall back to default animation ONLY if no custom animation was used
+                // PRIORITY 2: Fall back to default animation ONLY if no custom animation config was provided
                 if (!usedCustom && enableFeedbackAnimations && enableButtonEntrance)
                 {
                     // Use default animation from inspector

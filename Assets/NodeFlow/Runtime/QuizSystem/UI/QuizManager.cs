@@ -2,6 +2,9 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using DG.Tweening;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace QuizSystem
 {
@@ -226,6 +229,27 @@ namespace QuizSystem
             }
         }
 
+        /// <summary>
+        /// Safely destroy a question GameObject, clearing the Editor selection first
+        /// to prevent SerializedObjectNotCreatableException spam in the console.
+        /// </summary>
+        private void SafeDestroyQuestionObject(GameObject go)
+        {
+            if (go == null) return;
+#if UNITY_EDITOR
+            // If the Inspector is currently showing any child of the object we're about to
+            // destroy, clear the selection first. Otherwise the Editor tries to serialize a
+            // null target and logs errors.
+            var sel = Selection.activeGameObject;
+            if (sel != null && (sel == go || sel.transform.IsChildOf(go.transform)))
+            {
+                Selection.activeGameObject = null;
+            }
+#endif
+            go.SetActive(false);
+            Destroy(go);
+        }
+
         private void LoadQuestion(int index)
         {
             EnsureQuizStarted();
@@ -252,12 +276,12 @@ namespace QuizSystem
                 // No transition, remove current question (and its wrapper) then load next
                 if (currentQuestionWrapper != null)
                 {
-                    Destroy(currentQuestionWrapper.gameObject);
+                    SafeDestroyQuestionObject(currentQuestionWrapper.gameObject);
                     currentQuestionWrapper = null;
                 }
                 else if (currentQuestionUI != null)
                 {
-                    Destroy(currentQuestionUI.gameObject);
+                    SafeDestroyQuestionObject(currentQuestionUI.gameObject);
                 }
                 currentQuestionUI = null;
                 LoadNewQuestion(index);
@@ -274,7 +298,10 @@ namespace QuizSystem
             Transform target = currentQuestionWrapper != null ? currentQuestionWrapper : questionContainer;
             if (target == null)
             {
-                if (currentQuestionUI != null) Destroy(currentQuestionUI.gameObject);
+                if (currentQuestionUI != null)
+                {
+                    SafeDestroyQuestionObject(currentQuestionUI.gameObject);
+                }
                 onComplete?.Invoke();
                 return;
             }
@@ -305,12 +332,12 @@ namespace QuizSystem
             {
                 if (currentQuestionWrapper != null)
                 {
-                    Destroy(currentQuestionWrapper.gameObject);
+                    SafeDestroyQuestionObject(currentQuestionWrapper.gameObject);
                     currentQuestionWrapper = null;
                 }
                 else if (currentQuestionUI != null)
                 {
-                    Destroy(currentQuestionUI.gameObject);
+                    SafeDestroyQuestionObject(currentQuestionUI.gameObject);
                 }
                 currentQuestionUI = null;
                 onComplete?.Invoke();
@@ -354,7 +381,7 @@ namespace QuizSystem
             if (currentQuestionUI == null)
             {
                 Debug.LogError($"UI prefab doesn't have QuestionUI component!");
-                Destroy(currentQuestionWrapper.gameObject);
+                SafeDestroyQuestionObject(currentQuestionWrapper.gameObject);
                 currentQuestionWrapper = null;
                 return;
             }
@@ -821,7 +848,7 @@ namespace QuizSystem
         {
             if (currentQuestionUI != null)
             {
-                Destroy(currentQuestionUI.gameObject);
+                SafeDestroyQuestionObject(currentQuestionUI.gameObject);
             }
             currentQuestionUI = null;
             currentValidator = null;

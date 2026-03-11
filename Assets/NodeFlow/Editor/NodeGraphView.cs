@@ -836,9 +836,7 @@ namespace NodeSystem.Editor
                     if (Graph != null)
                     {
                         SyncGroupsToGraph();
-                        Graph.SaveToJson();
-                        EditorUtility.SetDirty(Graph);
-                        AssetDatabase.SaveAssets();
+                        Graph.Save(); // Use Save() instead of SaveToJson() to sync asset references
                     }
                     break;
 
@@ -1333,14 +1331,22 @@ namespace NodeSystem.Editor
         /// </summary>
         public void LoadGraph(NodeGraph graph)
         {
+            // Guard group events during clear — without this, removing nodes
+            // from groups fires OnElementsRemovedFromGroup which corrupts
+            // group membership data before the new graph starts loading.
+            _isLoadingGraph = true;
+
             // Always clear first to prevent duplicates
             ClearGraph();
-            
+
             Graph = graph;
 
-            if (graph == null) return;
-            
-            _isLoadingGraph = true;
+            if (graph == null)
+            {
+                _isLoadingGraph = false;
+                return;
+            }
+
             try
             {
                 // Ensure graph is fully loaded
@@ -2398,6 +2404,14 @@ namespace NodeSystem.Editor
                 newNode.Position = position + relativePos;
 
                 Graph.AddNode(newNode);
+
+                // Copy asset reference from original node to cloned node
+                var oldAssetRef = Graph.GetNodeAssetReference(oldGuid);
+                if (oldAssetRef != null)
+                {
+                    Graph.SetNodeAssetReference(newNode.Guid, oldAssetRef);
+                }
+
                 var view = CreateNodeView(newNode);
                 newNodeViews.Add(view);
             }

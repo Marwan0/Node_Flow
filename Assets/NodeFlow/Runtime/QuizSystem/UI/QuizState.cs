@@ -395,10 +395,11 @@ namespace QuizSystem
         /// <summary>
         /// Called by LoadQuestionNode to lock the UI before question interaction begins
         /// (e.g. while playing "on_load" intro nodes like sounds/animations).
+        /// Always fires the event even if already locked, because a freshly created
+        /// QuestionUI needs to receive the lock signal regardless of prior state.
         /// </summary>
         public static void RequestUILockForLoad()
         {
-            if (UILocked) return;
             UILocked = true;
             OnUILockRequested?.Invoke();
             Debug.Log("[QuizState] UI lock requested for load");

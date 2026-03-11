@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace NodeSystem.Nodes
 {
@@ -55,9 +58,21 @@ namespace NodeSystem.Nodes
                 return;
             }
 
+            // When deactivating, clear the Editor selection if it points to a child
+            // of the target to prevent Inspector serialization errors.
+#if UNITY_EDITOR
+            if (!setActive)
+            {
+                var sel = Selection.activeGameObject;
+                if (sel != null && (sel == target || sel.transform.IsChildOf(target.transform)))
+                {
+                    Selection.activeGameObject = null;
+                }
+            }
+#endif
             // Set active state
             target.SetActive(setActive);
-            
+
             Complete();
         }
 

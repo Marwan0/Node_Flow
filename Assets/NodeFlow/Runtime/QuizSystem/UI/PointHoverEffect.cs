@@ -100,6 +100,7 @@ namespace QuizSystem
                 _isHovered = false;
                 TransitionToIdle();
             }
+            StopHoverSFX();
         }
 
         /// <summary>
@@ -112,6 +113,7 @@ namespace QuizSystem
             {
                 KillTweens();
                 _isHovered = false;
+                StopHoverSFX();
             }
         }
 
@@ -266,6 +268,13 @@ namespace QuizSystem
                 source.volume = SfxVolume;
                 source.Play();
             }
+        }
+
+        private void StopHoverSFX()
+        {
+            AudioSource source = _sharedAudioSource != null ? _sharedAudioSource : standaloneAudioSource;
+            if (source != null && source.isPlaying)
+                source.Stop();
         }
 
         private void KillTweens()

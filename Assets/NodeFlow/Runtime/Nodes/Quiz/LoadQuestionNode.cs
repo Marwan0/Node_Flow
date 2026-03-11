@@ -144,28 +144,26 @@ namespace NodeSystem.Nodes.Quiz
             _questionAnswered = false;
             _lastAnswerCorrect = false;
 
-            // Create animation settings array from single settings (applied to all answers with stagger)
-            _answerAnimations = null;
-            if (enableAnimations)
+            // Create animation settings array from single settings (applied to all answers with stagger).
+            // When enableAnimations is false, we still create an array with enabled=false so the
+            // QuestionUI knows NOT to fall back to its own default prefab animations.
+            _answerAnimations = new AnswerAnimationSettings[4];
+            for (int i = 0; i < 4; i++)
             {
-                _answerAnimations = new AnswerAnimationSettings[4];
-                for (int i = 0; i < 4; i++)
+                _answerAnimations[i] = new AnswerAnimationSettings
                 {
-                    _answerAnimations[i] = new AnswerAnimationSettings
-                    {
-                        enabled = true,
-                        animationType = animationType,
-                        duration = animationDuration,
-                        delay = i * staggerDelay, // Stagger each answer
+                    enabled = enableAnimations,
+                    animationType = animationType,
+                    duration = animationDuration,
+                    delay = i * staggerDelay,
 #if DOTWEEN
-                        easeType = easeType,
+                    easeType = easeType,
 #else
-                        easeType = 0,
+                    easeType = 0,
 #endif
-                        scaleMultiplier = scaleMultiplier,
-                        slideDistance = slideDistance
-                    };
-                }
+                    scaleMultiplier = scaleMultiplier,
+                    slideDistance = slideDistance
+                };
             }
 
             // Find QuizManager: use shared ref from StartQuizNode first, then fallback to path
@@ -581,16 +579,18 @@ namespace NodeSystem.Nodes.Quiz
         {
             if (Runner == null || Runner.Graph == null)
             {
+                Debug.LogWarning($"[LoadQuestionNode] ExecuteLoadChain skipped — Runner or Graph is null");
                 return;
             }
 
             var loadNodes = Runner.Graph.GetConnectedNodes(Guid, "on_load");
             if (loadNodes == null || loadNodes.Count == 0)
             {
-                // Nothing connected, UI remains interactive (or unlocks if locked elsewhere)
+                Debug.Log($"[LoadQuestionNode] No on_load nodes connected — UI stays interactive");
                 return;
             }
 
+            Debug.Log($"[LoadQuestionNode] Locking UI for on_load chain ({loadNodes.Count} nodes)");
             // Lock UI before question interaction
             QuizState.RequestUILockForLoad();
 

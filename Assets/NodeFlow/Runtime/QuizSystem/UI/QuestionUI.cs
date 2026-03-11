@@ -151,6 +151,14 @@ namespace QuizSystem
             // Subscribe to lock/unlock events so this UI can be controlled by nodes
             QuizState.OnUIUnlockRequested += UnlockUI;
             QuizState.OnUILockRequested += LockUI;
+
+            // If the UI is already locked (e.g. on_load chain started before this UI was
+            // created due to async transitions), apply the lock immediately so the user
+            // can't interact until the on_load chain finishes.
+            if (QuizState.UILocked)
+            {
+                LockUI();
+            }
         }
 
         protected virtual void OnDestroy()
