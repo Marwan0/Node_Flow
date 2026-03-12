@@ -82,6 +82,7 @@ namespace QuizSystem
                 if (hotspotData.IsPointInHotspot(normalizedPoint, i))
                 {
                     selectedHotspotIndex = i;
+                    lastSelectedPointIndex = i;
                     Debug.Log($"Hotspot {i} clicked at normalized position: {normalizedPoint}");
 
                     if (submitButton != null)
@@ -115,6 +116,11 @@ namespace QuizSystem
         public override void OnAnswerSubmitted()
         {
             OnSubmitClicked();
+        }
+
+        protected override int GetCorrectAnswerPointIndex()
+        {
+            return hotspotData != null ? hotspotData.correctHotspotIndex : -1;
         }
 
         protected override string GetCorrectAnswerDisplay()

@@ -119,6 +119,7 @@ namespace QuizSystem
 
         [Header("Current Question")]
         public int currentQuestionAttempt = 0;
+        public int lastAnsweredPointIndex = -1;
 
         [Header("Last Answer")]
         public bool lastAnswerWasCorrect = false;
@@ -326,22 +327,24 @@ namespace QuizSystem
         /// Call when user submits a wrong answer but still has attempts left.
         /// This fires OnWrongAttempt for VFX/sounds without completing the question.
         /// </summary>
-        public void NotifyWrongAttempt()
+        public void NotifyWrongAttempt(int pointIndex = -1)
         {
             currentQuestionAttempt++;
+            lastAnsweredPointIndex = pointIndex;
             RecordPartialAnswerEvent(false, -1, PartialAnswerEventType.WrongAttempt);
             OnWrongAttempt?.Invoke();
-            Debug.Log($"[QuizState] Wrong attempt #{currentQuestionAttempt} - user can try again");
+            Debug.Log($"[QuizState] Wrong attempt #{currentQuestionAttempt} (point: {pointIndex}) - user can try again");
         }
 
         /// <summary>
         /// Call when user performs a correct step (e.g. one correct connect pair)
         /// before the full question is complete.
         /// </summary>
-        public void NotifyCorrectAttempt()
+        public void NotifyCorrectAttempt(int pointIndex = -1)
         {
+            lastAnsweredPointIndex = pointIndex;
             OnCorrectAttempt?.Invoke();
-            Debug.Log("[QuizState] Correct attempt");
+            Debug.Log($"[QuizState] Correct attempt (point: {pointIndex})");
         }
 
         /// <summary>
@@ -553,6 +556,7 @@ namespace QuizSystem
             maxPossibleScore = 0;
             lastAnswerWasCorrect = false;
             lastQuestionIndex = -1;
+            lastAnsweredPointIndex = -1;
             consecutiveCorrect = 0;
             consecutiveWrong = 0;
             timerDuration = 0;

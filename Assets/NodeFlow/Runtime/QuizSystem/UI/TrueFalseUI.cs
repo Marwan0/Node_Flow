@@ -39,6 +39,7 @@ namespace QuizSystem
             if (answerSelected) return;
 
             answerSelected = true;
+            lastSelectedPointIndex = answer ? 0 : 1;
             EnableButtons(false);
 
             var result = validator.ValidateAnswer(answer);
@@ -54,6 +55,11 @@ namespace QuizSystem
         public override void OnAnswerSubmitted()
         {
             // True/False doesn't need a submit button - answers are submitted immediately
+        }
+
+        protected override int GetCorrectAnswerPointIndex()
+        {
+            return currentQuestion is TrueFalseQuestionData tfData ? (tfData.correctAnswer ? 0 : 1) : -1;
         }
 
         protected override string GetCorrectAnswerDisplay()

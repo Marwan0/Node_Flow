@@ -550,6 +550,12 @@ namespace NodeSystem
                 outputPort = attemptBranch.SelectedPortId;
             }
 
+            // PointRouterNode: route to the single selected point port
+            if (completedNode is Nodes.Quiz.PointRouterNode pointRouter && !string.IsNullOrEmpty(pointRouter.SelectedPortId))
+            {
+                outputPort = pointRouter.SelectedPortId;
+            }
+
             // Get connected nodes from the appropriate output port
             var nextNodes = _graph.GetConnectedNodes(completedNode.Guid, outputPort);
 

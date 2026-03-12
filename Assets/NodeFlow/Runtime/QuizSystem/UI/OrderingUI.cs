@@ -256,7 +256,7 @@ namespace QuizSystem
                 placedItems.Add(item);
 
                 starsCollected++;
-                QuizState.Instance?.NotifyCorrectAttempt();
+                QuizState.Instance?.NotifyCorrectAttempt(currentSlotIndex);
                 QuizState.Instance?.NotifyStepResult(true);
                 quizManager?.UpdateQuestionProgress(currentQuestion, starsCollected, totalSlots);
 

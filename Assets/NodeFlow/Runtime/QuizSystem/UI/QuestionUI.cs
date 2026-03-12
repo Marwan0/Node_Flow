@@ -43,6 +43,7 @@ namespace QuizSystem
         protected QuizManager quizManager;
         protected RectTransform hintPanelRectTransform;
         protected CanvasGroup hintPanelCanvasGroup;
+        protected int lastSelectedPointIndex = -1;
 
         // Used for UI lock/unlock during answer feedback
         private CanvasGroup _uiLockCanvasGroup;
@@ -338,6 +339,10 @@ namespace QuizSystem
         /// </summary>
         protected void FinalizeQuestion(bool wasCorrect, int points)
         {
+            // Publish which answer/point was selected (for PointRouterNode routing)
+            if (QuizState.Instance != null)
+                QuizState.Instance.lastAnsweredPointIndex = lastSelectedPointIndex;
+
             // Lock UI immediately
             LockUI();
 
@@ -480,6 +485,9 @@ namespace QuizSystem
             if (submitButton != null)
                 submitButton.interactable = false;
 
+            // Fire per-answer event so on_correct port works for all question types
+            QuizState.Instance?.NotifyCorrectAttempt(lastSelectedPointIndex);
+
             // Lock UI immediately so user cannot re-submit during feedback
             LockUI();
 
@@ -516,7 +524,7 @@ namespace QuizSystem
 
             // Notify QuizState of wrong attempt (for VFX/sounds via node system)
             // This does NOT complete the question - user can still try again after feedback
-            QuizState.Instance?.NotifyWrongAttempt();
+            QuizState.Instance?.NotifyWrongAttempt(lastSelectedPointIndex);
 
             // Fire feedback nodes — if nothing is wired, delay unlock so feedback is visible
             bool hasFeedbackListeners = QuizState.Instance != null &&
@@ -654,10 +662,9 @@ namespace QuizSystem
             // Flag: when wrong feedback finishes, fire auto-correct feedback before completing
             _pendingAutoCorrectFeedback = true;
 
-            // Count this as a wrong attempt so AttemptCountAbove branches work correctly
-            // (NotifyWrongAttempt is NOT called here to avoid firing the on_wrong port)
-            if (QuizState.Instance != null)
-                QuizState.Instance.currentQuestionAttempt++;
+            // Count this as a wrong attempt and fire on_wrong port.
+            // Use the correct answer index so PointRouterNode routes to the correct answer during auto-correct.
+            QuizState.Instance?.NotifyWrongAttempt(GetCorrectAnswerPointIndex());
 
             // Animate wrong answer first
             if (enableFeedbackAnimations)
@@ -680,5 +687,11 @@ namespace QuizSystem
         protected virtual void ApplyAutoCorrectVisuals() { }
 
         protected abstract string GetCorrectAnswerDisplay();
+
+        /// <summary>
+        /// Returns the point index of the correct answer (for PointRouterNode routing during auto-correct).
+        /// Override in subclasses that know the correct answer index.
+        /// </summary>
+        protected virtual int GetCorrectAnswerPointIndex() => -1;
     }
 }

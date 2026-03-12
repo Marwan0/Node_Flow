@@ -253,6 +253,7 @@ namespace QuizSystem
 
             // Update selection (user can click different answers to change selection)
             selectedAnswerIndex = index;
+            lastSelectedPointIndex = index;
             UpdateButtonVisuals();
 
             // Auto-submit immediately on click (no submit button needed)
@@ -425,6 +426,11 @@ namespace QuizSystem
                 if (enableFeedbackAnimations)
                     AnimateCorrectButton(answerButtons[mcData.correctAnswerIndex].transform);
             }
+        }
+
+        protected override int GetCorrectAnswerPointIndex()
+        {
+            return mcData != null ? mcData.correctAnswerIndex : -1;
         }
 
         protected override string GetCorrectAnswerDisplay()

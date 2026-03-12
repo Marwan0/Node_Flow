@@ -433,7 +433,7 @@ namespace QuizSystem
                 _correctZoneIndices.Add(dropIndex);
                 
                 // Keep per-drop feedback for VFX/sfx.
-                QuizState.Instance?.NotifyCorrectAttempt();
+                QuizState.Instance?.NotifyCorrectAttempt(dragIndex);
                 HandleAnswerUnitProgressUpdate(dragIndex, wasAutoPlaced: false);
 
                 // Disable zone if it has received all its correct items

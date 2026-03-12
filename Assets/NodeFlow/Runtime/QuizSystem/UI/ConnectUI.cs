@@ -367,7 +367,7 @@ namespace QuizSystem
                 starsCollected++;
                 PlayPointAudio();
                 PlayCorrectAudio();
-                QuizState.Instance?.NotifyCorrectAttempt();
+                QuizState.Instance?.NotifyCorrectAttempt(leftIdx);
                 QuizState.Instance?.NotifyStepResult(true);
                 quizManager?.UpdateQuestionProgress(currentQuestion, starsCollected, totalConnections);
 

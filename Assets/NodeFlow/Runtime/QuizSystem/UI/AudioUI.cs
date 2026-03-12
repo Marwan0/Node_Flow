@@ -128,6 +128,7 @@ namespace QuizSystem
         private void OnOptionSelected(int index)
         {
             selectedAnswerIndex = index;
+            lastSelectedPointIndex = index;
             // Visual feedback could be added here
         }
 
@@ -209,6 +210,12 @@ namespace QuizSystem
         public override void OnAnswerSubmitted()
         {
             OnSubmitClicked();
+        }
+
+        protected override int GetCorrectAnswerPointIndex()
+        {
+            return audioData != null && audioData.answerType == AudioAnswerType.MultipleChoice
+                ? audioData.correctAnswerIndex : -1;
         }
 
         protected override string GetCorrectAnswerDisplay()
