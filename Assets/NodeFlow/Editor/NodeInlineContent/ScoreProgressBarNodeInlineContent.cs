@@ -72,6 +72,12 @@ namespace NodeSystem.Editor
             if (isSlots)
             {
                 // === Slots-specific fields ===
+                CreateEnumField("Score Mode", node.slotScoreMode, v =>
+                {
+                    node.slotScoreMode = v;
+                    RequestRefresh();
+                });
+
                 CreateLabel("Slot Colors");
                 CreateColorField("Default", node.slotDefaultColor, v => node.slotDefaultColor = v);
                 CreateColorField("Correct", node.slotCorrectColor, v => node.slotCorrectColor = v);

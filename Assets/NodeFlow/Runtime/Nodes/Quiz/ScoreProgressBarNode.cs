@@ -44,6 +44,12 @@ namespace NodeSystem.Nodes.Quiz
             PartialAnswers
         }
 
+        public enum SlotScoreMode
+        {
+            PerPoint,
+            PerQuestion
+        }
+
         [Header("Display Mode")]
         [SerializeField]
         public DisplayMode displayMode = DisplayMode.Slider;
@@ -121,6 +127,10 @@ namespace NodeSystem.Nodes.Quiz
         public int filledImageMaxCount = 10;
 
         [Header("Slots Settings")]
+        [SerializeField]
+        [Tooltip("PerPoint: each step/connection fills its own slot. PerQuestion: the entire question fills one slot.")]
+        public SlotScoreMode slotScoreMode = SlotScoreMode.PerPoint;
+
         [SerializeField]
         public Color slotDefaultColor = new Color(0.5f, 0.5f, 0.5f, 1f);
 
@@ -204,6 +214,9 @@ namespace NodeSystem.Nodes.Quiz
 
         [NonSerialized]
         private int _currentPointWrongAttempts;
+
+        [NonSerialized]
+        private bool _perQuestionHadWrongStep;
 
         [NonSerialized]
         private Component[] _cachedSlotTexts;
@@ -442,6 +455,7 @@ namespace NodeSystem.Nodes.Quiz
             _sawWrongAttemptSinceLastStepResult = false;
             _lastWrongAttemptFrame = -9999;
             _currentPointWrongAttempts = 0;
+            _perQuestionHadWrongStep = false;
 
             foreach (var img in _cachedSlotImages)
             {
@@ -469,7 +483,20 @@ namespace NodeSystem.Nodes.Quiz
             var state = QuizState.Instance;
             if (state == null || _cachedSlotImages == null || _cachedSlotImages.Length == 0) return;
 
-            // Check partial timeline for step results (multi-step questions)
+            if (slotScoreMode == SlotScoreMode.PerQuestion)
+            {
+                // PerQuestion mode: only use final answer timeline (one slot per question).
+                var answers = state.AnswerTimeline;
+                if (answers == null) return;
+
+                while (_slotFillIndex < answers.Count && _slotFillIndex < _cachedSlotImages.Length)
+                {
+                    FillSlotDirect(answers[_slotFillIndex].wasCorrect, "catchup_question");
+                }
+                return;
+            }
+
+            // PerPoint mode: check partial timeline for step results (multi-step questions)
             var partial = state.PartialAnswerTimeline;
             int stepResultCount = 0;
             if (partial != null)
@@ -496,12 +523,12 @@ namespace NodeSystem.Nodes.Quiz
             }
 
             // Use final answer timeline for simple question types
-            var answers = state.AnswerTimeline;
-            if (answers == null) return;
+            var answers2 = state.AnswerTimeline;
+            if (answers2 == null) return;
 
-            while (_slotFillIndex < answers.Count && _slotFillIndex < _cachedSlotImages.Length)
+            while (_slotFillIndex < answers2.Count && _slotFillIndex < _cachedSlotImages.Length)
             {
-                FillSlotDirect(answers[_slotFillIndex].wasCorrect, "catchup");
+                FillSlotDirect(answers2[_slotFillIndex].wasCorrect, "catchup");
             }
         }
 
@@ -580,6 +607,15 @@ namespace NodeSystem.Nodes.Quiz
             if (displayMode != DisplayMode.Slots) return;
             _sawStepResultSinceLastQuestionResult = true;
 
+            // In PerQuestion mode, step results don't fill slots — we wait for the final question result.
+            // But track whether any step was wrong so the final slot reflects overall correctness.
+            if (slotScoreMode == SlotScoreMode.PerQuestion)
+            {
+                if (!wasCorrect)
+                    _perQuestionHadWrongStep = true;
+                return;
+            }
+
             // Wrong-attempt events are emitted before auto-corrected step results in sequential
             // question types. Skip this immediate false step record to avoid double-filling.
             bool skipDuplicate = (slotCountWrongAttempts || slotShowAttemptCount) && !wasCorrect
@@ -608,6 +644,14 @@ namespace NodeSystem.Nodes.Quiz
         {
             if (displayMode != DisplayMode.Slots) return;
 
+            // In PerQuestion mode, accumulate wrong attempts silently — no slot filling until question ends.
+            if (slotScoreMode == SlotScoreMode.PerQuestion)
+            {
+                if (slotShowAttemptCount)
+                    _currentPointWrongAttempts++;
+                return;
+            }
+
             if (slotShowAttemptCount)
             {
                 // In attempt-count mode: update the current slot text, don't fill/advance
@@ -628,7 +672,33 @@ namespace NodeSystem.Nodes.Quiz
         private void OnQuestionResultReceived(bool wasCorrect)
         {
             if (displayMode != DisplayMode.Slots) return;
-            // Step-based questions already emit per-step slot events.
+
+            if (slotScoreMode == SlotScoreMode.PerQuestion)
+            {
+                // PerQuestion mode: always fill one slot per question, regardless of step events.
+                // For multi-step questions, use step-level tracking: if ANY step was wrong,
+                // the entire question slot is marked wrong. For simple questions, use the direct result.
+                bool effectiveCorrect = _sawStepResultSinceLastQuestionResult
+                    ? !_perQuestionHadWrongStep
+                    : wasCorrect;
+
+                if (slotShowAttemptCount)
+                {
+                    int totalAttempts = _currentPointWrongAttempts + 1;
+                    FillNextSlotWithAttempts(effectiveCorrect, totalAttempts, "question");
+                    _currentPointWrongAttempts = 0;
+                }
+                else
+                {
+                    FillNextSlot(effectiveCorrect, "question");
+                }
+                _sawStepResultSinceLastQuestionResult = false;
+                _sawWrongAttemptSinceLastStepResult = false;
+                _perQuestionHadWrongStep = false;
+                return;
+            }
+
+            // PerPoint mode: step-based questions already emit per-step slot events.
             // Skip the final question result in that case to avoid double-filling.
             if (_sawStepResultSinceLastQuestionResult)
             {
