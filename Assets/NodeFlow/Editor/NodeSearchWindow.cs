@@ -79,6 +79,7 @@ namespace NodeSystem.Editor
                 // If the search window was opened via drag-from-port, auto-connect
                 if (createdNode != null && _graphView.PendingConnectPort != null)
                 {
+                    Debug.Log($"[EdgeDrop] Auto-connecting pending port to new node '{createdNode.Name}'");
                     _graphView.AutoConnectPendingPort(createdNode);
                 }
 
