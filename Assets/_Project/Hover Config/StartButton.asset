@@ -17,7 +17,7 @@ MonoBehaviour:
   hoverColor: {r: 1, g: 1, b: 1, a: 1}
   hoverSprite: {fileID: 0}
   hoverSFX: {fileID: 8300000, guid: 51cc2846ceb680048a19d94445800b9f, type: 3}
-  transitionDuration: 0.15
+  transitionDuration: 0.1
   transitionEase: 6
   enableScalePunch: 1
   scalePunchAmount: 1.08

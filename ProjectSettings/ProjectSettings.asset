@@ -134,7 +134,6 @@ PlayerSettings:
   switchNVNMaxPublicSamplerIDCount: 0
   switchMaxWorkerMultiple: 8
   switchNVNGraphicsFirmwareMemory: 32
-  switchGraphicsJobsSyncAfterKick: 1
   vulkanNumSwapchainBuffers: 3
   vulkanEnableSetSRGBWrite: 0
   vulkanEnablePreTransform: 0
@@ -177,7 +176,6 @@ PlayerSettings:
   AndroidMinSdkVersion: 25
   AndroidTargetSdkVersion: 0
   AndroidPreferredInstallLocation: 1
-  AndroidPreferredDataLocation: 1
   aotOptions: 
   stripEngineCode: 1
   iPhoneStrippingLevel: 0
@@ -266,7 +264,6 @@ PlayerSettings:
   useCustomGradleSettingsTemplate: 0
   useCustomProguardFile: 0
   AndroidTargetArchitectures: 2
-  AndroidAllowedArchitectures: -13
   AndroidSplashScreenScale: 0
   androidSplashScreen: {fileID: 0}
   AndroidKeystoreName: 
@@ -669,31 +666,31 @@ PlayerSettings:
   webGLMemoryLinearGrowthStep: 16
   webGLMemoryGeometricGrowthStep: 0.2
   webGLMemoryGeometricGrowthCap: 96
+  webGLEnableWebGPU: 0
   webGLPowerPreference: 2
   webGLWebAssemblyTable: 0
   webGLWebAssemblyBigInt: 0
   webGLCloseOnQuit: 0
   webWasm2023: 0
-  webEnableSubmoduleStrippingCompatibility: 0
   scriptingDefineSymbols:
-    Android: DOTWEEN;DOTWEEN_UITOOLKIT;dUI_MANAGER
-    EmbeddedLinux: DOTWEEN;DOTWEEN_UITOOLKIT;dUI_MANAGER
-    GameCoreScarlett: DOTWEEN;DOTWEEN_UITOOLKIT;dUI_MANAGER
-    GameCoreXboxOne: DOTWEEN;DOTWEEN_UITOOLKIT;dUI_MANAGER
-    Kepler: DOTWEEN;DOTWEEN_UITOOLKIT;dUI_MANAGER
-    LinuxHeadlessSimulation: DOTWEEN;DOTWEEN_UITOOLKIT;dUI_MANAGER
-    Nintendo Switch: DOTWEEN;DOTWEEN_UITOOLKIT;dUI_MANAGER
-    Nintendo Switch 2: DOTWEEN;DOTWEEN_UITOOLKIT;dUI_MANAGER
-    PS4: DOTWEEN;DOTWEEN_UITOOLKIT;dUI_MANAGER
-    PS5: DOTWEEN;DOTWEEN_UITOOLKIT;dUI_MANAGER
-    QNX: DOTWEEN;DOTWEEN_UITOOLKIT;dUI_MANAGER
-    Standalone: ODIN_INSPECTOR;ODIN_INSPECTOR_3;ODIN_INSPECTOR_3_1;ODIN_INSPECTOR_3_2;ODIN_INSPECTOR_3_3;DOTWEEN;DOTWEEN_ENABLED;DOTWEEN_UITOOLKIT;dUI_MANAGER
-    VisionOS: DOTWEEN;DOTWEEN_UITOOLKIT;dUI_MANAGER
-    WebGL: DOTWEEN;DOTWEEN_UITOOLKIT;dUI_MANAGER
-    Windows Store Apps: DOTWEEN;DOTWEEN_UITOOLKIT;dUI_MANAGER
-    XboxOne: DOTWEEN;DOTWEEN_UITOOLKIT;dUI_MANAGER
-    iPhone: DOTWEEN;DOTWEEN_UITOOLKIT;dUI_MANAGER
-    tvOS: DOTWEEN;DOTWEEN_UITOOLKIT;dUI_MANAGER
+    Android: DOTWEEN;DOTWEEN_UITOOLKIT
+    EmbeddedLinux: DOTWEEN;DOTWEEN_UITOOLKIT
+    GameCoreScarlett: DOTWEEN;DOTWEEN_UITOOLKIT
+    GameCoreXboxOne: DOTWEEN;DOTWEEN_UITOOLKIT
+    Kepler: DOTWEEN;DOTWEEN_UITOOLKIT
+    LinuxHeadlessSimulation: DOTWEEN;DOTWEEN_UITOOLKIT
+    Nintendo Switch: DOTWEEN;DOTWEEN_UITOOLKIT
+    Nintendo Switch 2: DOTWEEN;DOTWEEN_UITOOLKIT
+    PS4: DOTWEEN;DOTWEEN_UITOOLKIT
+    PS5: DOTWEEN;DOTWEEN_UITOOLKIT
+    QNX: DOTWEEN;DOTWEEN_UITOOLKIT
+    Standalone: ODIN_INSPECTOR;ODIN_INSPECTOR_3;ODIN_INSPECTOR_3_1;ODIN_INSPECTOR_3_2;ODIN_INSPECTOR_3_3;DOTWEEN;DOTWEEN_ENABLED;DOTWEEN_UITOOLKIT
+    VisionOS: DOTWEEN;DOTWEEN_UITOOLKIT
+    WebGL: DOTWEEN;DOTWEEN_UITOOLKIT
+    Windows Store Apps: DOTWEEN;DOTWEEN_UITOOLKIT
+    XboxOne: DOTWEEN;DOTWEEN_UITOOLKIT
+    iPhone: DOTWEEN;DOTWEEN_UITOOLKIT
+    tvOS: DOTWEEN;DOTWEEN_UITOOLKIT
   additionalCompilerArguments: {}
   platformArchitecture: {}
   scriptingBackend:
@@ -805,6 +802,3 @@ PlayerSettings:
   insecureHttpOption: 0
   androidVulkanDenyFilterList: []
   androidVulkanAllowFilterList: []
-  androidVulkanDeviceFilterListAsset: {fileID: 0}
-  d3d12DeviceFilterListAsset: {fileID: 0}
-  allowedHttpConnections: 3

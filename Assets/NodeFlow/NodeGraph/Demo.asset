@@ -146,6 +146,17 @@ MonoBehaviour:
         scaleMultiplier: 1
         slideDistance: 100
         enableAnimations: 1
+        overrideTransitions: 0
+        enterTransition:
+          transitionType: 1
+          duration: 0.3
+          easeType: 6
+          slideDistance: 1000
+        exitTransition:
+          transitionType: 1
+          duration: 0.3
+          easeType: 6
+          slideDistance: 1000
         showHints: 1
     - rid: 6105214317843185874
       type: {class: LoadQuestionNode, ns: NodeSystem.Nodes.Quiz, asm: Assembly-CSharp}
@@ -171,6 +182,17 @@ MonoBehaviour:
         scaleMultiplier: 1
         slideDistance: 100
         enableAnimations: 1
+        overrideTransitions: 0
+        enterTransition:
+          transitionType: 1
+          duration: 0.3
+          easeType: 6
+          slideDistance: 1000
+        exitTransition:
+          transitionType: 1
+          duration: 0.3
+          easeType: 6
+          slideDistance: 1000
         showHints: 1
     - rid: 6105214317843185875
       type: {class: SendSignalNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
@@ -270,6 +292,7 @@ MonoBehaviour:
         filledImageAnswerFilter: 0
         filledImageUseTotalQuestionsAsMax: 1
         filledImageMaxCount: 10
+        slotScoreMode: 0
         slotDefaultColor: {r: 1, g: 1, b: 1, a: 1}
         slotCorrectColor: {r: 1, g: 1, b: 1, a: 1}
         slotWrongColor: {r: 1, g: 1, b: 1, a: 1}
@@ -315,6 +338,17 @@ MonoBehaviour:
         scaleMultiplier: 1
         slideDistance: 100
         enableAnimations: 1
+        overrideTransitions: 0
+        enterTransition:
+          transitionType: 1
+          duration: 0.3
+          easeType: 6
+          slideDistance: 1000
+        exitTransition:
+          transitionType: 1
+          duration: 0.3
+          easeType: 6
+          slideDistance: 1000
         showHints: 1
     - rid: 6105214317843185886
       type: {class: SendSignalNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}
@@ -421,6 +455,7 @@ MonoBehaviour:
         filledImageAnswerFilter: 2
         filledImageUseTotalQuestionsAsMax: 1
         filledImageMaxCount: 10
+        slotScoreMode: 0
         slotDefaultColor: {r: 1, g: 1, b: 1, a: 1}
         slotCorrectColor: {r: 1, g: 1, b: 1, a: 1}
         slotWrongColor: {r: 1, g: 1, b: 1, a: 1}
@@ -458,6 +493,17 @@ MonoBehaviour:
         scaleMultiplier: 1
         slideDistance: 100
         enableAnimations: 1
+        overrideTransitions: 0
+        enterTransition:
+          transitionType: 1
+          duration: 0.3
+          easeType: 6
+          slideDistance: 1000
+        exitTransition:
+          transitionType: 1
+          duration: 0.3
+          easeType: 6
+          slideDistance: 1000
         showHints: 1
     - rid: 6105214317843185900
       type: {class: SendSignalNode, ns: NodeSystem.Nodes, asm: Assembly-CSharp}

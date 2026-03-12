@@ -21,7 +21,7 @@ MonoBehaviour:
   - Egypt ya 7ywan
   showHintAfterAttempt: 1
   maxAttempts: 2
-  points: 50
+  points: 10
   explanation: Paris->France, Berlin->Germany, Madrid->Spain
   customUIPrefab: {fileID: 0}
   dragItems:

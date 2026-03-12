@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using DG.Tweening;
+using NodeSystem.Nodes.Quiz;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -86,6 +87,7 @@ namespace QuizSystem
         private float _scoreRemainder;
         private Dictionary<int, int> _awardedRawByQuestion = new Dictionary<int, int>();
         private int _lastScoreConfigSignature = int.MinValue;
+        private QuestionTransitionSettings _cachedExitTransition;
 
         private struct ScoreAwardResult
         {
@@ -299,35 +301,73 @@ namespace QuizSystem
             if (target == null)
             {
                 if (currentQuestionUI != null)
+                    SafeDestroyQuestionObject(currentQuestionUI.gameObject);
+                onComplete?.Invoke();
+                return;
+            }
+
+            // Use cached exit settings from when this question was loaded
+            ResolveExitSettings(_cachedExitTransition,
+                out var exitType, out var exitDuration, out var exitEase, out var exitSlideDistance);
+
+            if (exitType == QuestionTransitionType.None)
+            {
+                if (currentQuestionWrapper != null)
+                {
+                    SafeDestroyQuestionObject(currentQuestionWrapper.gameObject);
+                    currentQuestionWrapper = null;
+                }
+                else if (currentQuestionUI != null)
                 {
                     SafeDestroyQuestionObject(currentQuestionUI.gameObject);
                 }
+                currentQuestionUI = null;
                 onComplete?.Invoke();
                 return;
             }
 
             currentTransitionSequence = DOTween.Sequence();
+            RectTransform rt = target as RectTransform ?? target.GetComponent<RectTransform>();
 
-            switch (transitionStyle)
+            switch (exitType)
             {
-                case TransitionStyle.Fade:
-                    var cgOut = target.GetComponent<CanvasGroup>();
-                    if (cgOut == null) cgOut = target.gameObject.AddComponent<CanvasGroup>();
-                    currentTransitionSequence.Append(cgOut.DOFade(0f, transitionDuration));
+                case QuestionTransitionType.Fade:
+                {
+                    var cg = target.GetComponent<CanvasGroup>();
+                    if (cg == null) cg = target.gameObject.AddComponent<CanvasGroup>();
+                    currentTransitionSequence.Append(cg.DOFade(0f, exitDuration));
                     break;
-
-                case TransitionStyle.Slide:
-                    RectTransform rtOut = target as RectTransform;
-                    if (rtOut == null) rtOut = target.GetComponent<RectTransform>();
-                    if (rtOut != null)
-                        currentTransitionSequence.Append(rtOut.DOAnchorPosX(rtOut.anchoredPosition.x - 1000f, transitionDuration));
+                }
+                case QuestionTransitionType.SlideFromLeft:
+                    if (rt != null)
+                        currentTransitionSequence.Append(rt.DOAnchorPosX(rt.anchoredPosition.x + exitSlideDistance, exitDuration));
                     break;
-
-                case TransitionStyle.Scale:
-                    currentTransitionSequence.Append(target.DOScale(0f, transitionDuration));
+                case QuestionTransitionType.SlideFromRight:
+                    if (rt != null)
+                        currentTransitionSequence.Append(rt.DOAnchorPosX(rt.anchoredPosition.x - exitSlideDistance, exitDuration));
                     break;
+                case QuestionTransitionType.SlideFromTop:
+                    if (rt != null)
+                        currentTransitionSequence.Append(rt.DOAnchorPosY(rt.anchoredPosition.y + exitSlideDistance, exitDuration));
+                    break;
+                case QuestionTransitionType.SlideFromBottom:
+                    if (rt != null)
+                        currentTransitionSequence.Append(rt.DOAnchorPosY(rt.anchoredPosition.y - exitSlideDistance, exitDuration));
+                    break;
+                case QuestionTransitionType.Scale:
+                    currentTransitionSequence.Append(target.DOScale(0f, exitDuration));
+                    break;
+                case QuestionTransitionType.ScaleAndFade:
+                {
+                    var cg = target.GetComponent<CanvasGroup>();
+                    if (cg == null) cg = target.gameObject.AddComponent<CanvasGroup>();
+                    currentTransitionSequence.Append(target.DOScale(0f, exitDuration));
+                    currentTransitionSequence.Join(cg.DOFade(0f, exitDuration));
+                    break;
+                }
             }
 
+            currentTransitionSequence.SetEase(exitEase);
             currentTransitionSequence.OnComplete(() =>
             {
                 if (currentQuestionWrapper != null)
@@ -391,10 +431,16 @@ namespace QuizSystem
                 ResetWrapperForTransitionIn(currentQuestionWrapper);
             }
 
+            // Cache the exit transition for this question so TransitionOut uses the correct settings
+            var state = QuizState.Instance;
+            _cachedExitTransition = (state != null && state.currentExitTransition != null)
+                ? state.currentExitTransition
+                : null;
+
             // Note: Animations should be set in QuizState BEFORE Initialize() is called
             // This is done by LoadQuestionNode or other nodes that control question loading
             // The QuestionUI will check QuizState.Instance.currentAnswerAnimations in SetupQuestion()
-            
+
             currentQuestionUI.Initialize(question, currentValidator, this);
 
             // Animate transition in
@@ -418,7 +464,11 @@ namespace QuizSystem
                 wrapperRt.sizeDelta = Vector2.zero;
                 wrapperRt.anchoredPosition = Vector2.zero;
             }
-            if (transitionStyle == TransitionStyle.Fade)
+
+            ResolveEnterSettings(out var enterType, out _, out _, out _);
+
+            if (enterType == QuestionTransitionType.Fade ||
+                enterType == QuestionTransitionType.ScaleAndFade)
             {
                 var cg = wrapperGo.AddComponent<CanvasGroup>();
                 cg.alpha = 0f;
@@ -429,26 +479,59 @@ namespace QuizSystem
         private void ResetWrapperForTransitionIn(Transform wrapper)
         {
             if (wrapper == null) return;
-            switch (transitionStyle)
+
+            ResolveEnterSettings(out var enterType, out _, out _, out var enterSlideDistance);
+
+            switch (enterType)
             {
-                case TransitionStyle.Fade:
+                case QuestionTransitionType.None:
+                    break;
+                case QuestionTransitionType.Fade:
+                {
                     var cg = wrapper.GetComponent<CanvasGroup>();
                     if (cg == null) cg = wrapper.gameObject.AddComponent<CanvasGroup>();
                     cg.alpha = 0f;
                     break;
-
-                case TransitionStyle.Slide:
+                }
+                case QuestionTransitionType.SlideFromLeft:
+                {
                     RectTransform rt = wrapper as RectTransform ?? wrapper.GetComponent<RectTransform>();
                     if (rt != null)
-                    {
-                        Vector2 pos = rt.anchoredPosition;
-                        rt.anchoredPosition = new Vector2(pos.x + 1000f, pos.y);
-                    }
+                        rt.anchoredPosition = new Vector2(rt.anchoredPosition.x - enterSlideDistance, rt.anchoredPosition.y);
                     break;
-
-                case TransitionStyle.Scale:
+                }
+                case QuestionTransitionType.SlideFromRight:
+                {
+                    RectTransform rt = wrapper as RectTransform ?? wrapper.GetComponent<RectTransform>();
+                    if (rt != null)
+                        rt.anchoredPosition = new Vector2(rt.anchoredPosition.x + enterSlideDistance, rt.anchoredPosition.y);
+                    break;
+                }
+                case QuestionTransitionType.SlideFromTop:
+                {
+                    RectTransform rt = wrapper as RectTransform ?? wrapper.GetComponent<RectTransform>();
+                    if (rt != null)
+                        rt.anchoredPosition = new Vector2(rt.anchoredPosition.x, rt.anchoredPosition.y + enterSlideDistance);
+                    break;
+                }
+                case QuestionTransitionType.SlideFromBottom:
+                {
+                    RectTransform rt = wrapper as RectTransform ?? wrapper.GetComponent<RectTransform>();
+                    if (rt != null)
+                        rt.anchoredPosition = new Vector2(rt.anchoredPosition.x, rt.anchoredPosition.y - enterSlideDistance);
+                    break;
+                }
+                case QuestionTransitionType.Scale:
                     wrapper.localScale = Vector3.zero;
                     break;
+                case QuestionTransitionType.ScaleAndFade:
+                {
+                    wrapper.localScale = Vector3.zero;
+                    var cg = wrapper.GetComponent<CanvasGroup>();
+                    if (cg == null) cg = wrapper.gameObject.AddComponent<CanvasGroup>();
+                    cg.alpha = 0f;
+                    break;
+                }
             }
         }
 
@@ -462,32 +545,51 @@ namespace QuizSystem
             Transform target = currentQuestionWrapper != null ? currentQuestionWrapper : questionContainer;
             if (target == null) return;
 
-            currentTransitionSequence = DOTween.Sequence();
+            ResolveEnterSettings(out var enterType, out var enterDuration, out var enterEase, out _);
 
-            switch (transitionStyle)
+            if (enterType == QuestionTransitionType.None)
             {
-                case TransitionStyle.Fade:
-                    var cgIn = target.GetComponent<CanvasGroup>();
-                    if (cgIn != null)
-                        currentTransitionSequence.Append(cgIn.DOFade(1f, transitionDuration));
-                    break;
-
-                case TransitionStyle.Slide:
-                    RectTransform rtIn = target as RectTransform ?? target.GetComponent<RectTransform>();
-                    if (rtIn != null)
-                    {
-                        Vector2 targetPos = rtIn.anchoredPosition;
-                        targetPos.x -= 1000f;
-                        currentTransitionSequence.Append(rtIn.DOAnchorPos(targetPos, transitionDuration));
-                    }
-                    break;
-
-                case TransitionStyle.Scale:
-                    currentTransitionSequence.Append(target.DOScale(1f, transitionDuration));
-                    break;
+                var cg = target.GetComponent<CanvasGroup>();
+                if (cg != null) cg.alpha = 1f;
+                target.localScale = Vector3.one;
+                return;
             }
 
-            currentTransitionSequence.SetEase(Ease.OutQuad);
+            currentTransitionSequence = DOTween.Sequence();
+            RectTransform rt = target as RectTransform ?? target.GetComponent<RectTransform>();
+
+            switch (enterType)
+            {
+                case QuestionTransitionType.Fade:
+                {
+                    var cg = target.GetComponent<CanvasGroup>();
+                    if (cg != null)
+                        currentTransitionSequence.Append(cg.DOFade(1f, enterDuration));
+                    break;
+                }
+                case QuestionTransitionType.SlideFromLeft:
+                case QuestionTransitionType.SlideFromRight:
+                case QuestionTransitionType.SlideFromTop:
+                case QuestionTransitionType.SlideFromBottom:
+                {
+                    if (rt != null)
+                        currentTransitionSequence.Append(rt.DOAnchorPos(Vector2.zero, enterDuration));
+                    break;
+                }
+                case QuestionTransitionType.Scale:
+                    currentTransitionSequence.Append(target.DOScale(1f, enterDuration));
+                    break;
+                case QuestionTransitionType.ScaleAndFade:
+                {
+                    currentTransitionSequence.Append(target.DOScale(1f, enterDuration));
+                    var cg = target.GetComponent<CanvasGroup>();
+                    if (cg != null)
+                        currentTransitionSequence.Join(cg.DOFade(1f, enterDuration));
+                    break;
+                }
+            }
+
+            currentTransitionSequence.SetEase(enterEase);
         }
 
         private GameObject GetUIPrefabForQuestion(QuestionData question)
@@ -842,6 +944,70 @@ namespace QuizSystem
         {
             Debug.Log($"Quiz Complete! Final Score: {currentScore}");
             // You can add UI for quiz completion here
+        }
+
+        /// <summary>
+        /// Resolves enter transition settings: per-question override from QuizState, or QuizManager defaults.
+        /// </summary>
+        private void ResolveEnterSettings(out QuestionTransitionType enterType, out float enterDuration, out Ease enterEase, out float enterSlideDistance)
+        {
+            var state = QuizState.Instance;
+            if (state != null && state.currentEnterTransition != null)
+            {
+                var e = state.currentEnterTransition;
+                enterType = e.transitionType;
+                enterDuration = e.duration;
+                enterSlideDistance = e.slideDistance;
+#if DOTWEEN
+                enterEase = e.easeType;
+#else
+                enterEase = Ease.OutQuad;
+#endif
+            }
+            else
+            {
+                enterType = MapLegacyStyle(transitionStyle);
+                enterDuration = transitionDuration;
+                enterEase = Ease.OutQuad;
+                enterSlideDistance = 1000f;
+            }
+        }
+
+        /// <summary>
+        /// Resolves exit transition settings from the cached exit (set when question loaded), or QuizManager defaults.
+        /// </summary>
+        private void ResolveExitSettings(QuestionTransitionSettings cached,
+            out QuestionTransitionType exitType, out float exitDuration, out Ease exitEase, out float exitSlideDistance)
+        {
+            if (cached != null)
+            {
+                exitType = cached.transitionType;
+                exitDuration = cached.duration;
+                exitSlideDistance = cached.slideDistance;
+#if DOTWEEN
+                exitEase = cached.easeType;
+#else
+                exitEase = Ease.InQuad;
+#endif
+            }
+            else
+            {
+                exitType = MapLegacyStyle(transitionStyle);
+                exitDuration = transitionDuration;
+                exitEase = Ease.InQuad;
+                exitSlideDistance = 1000f;
+            }
+        }
+
+        private static QuestionTransitionType MapLegacyStyle(TransitionStyle style)
+        {
+            switch (style)
+            {
+                case TransitionStyle.Fade:  return QuestionTransitionType.Fade;
+                case TransitionStyle.Slide: return QuestionTransitionType.SlideFromRight;
+                case TransitionStyle.Scale: return QuestionTransitionType.Scale;
+                default:                    return QuestionTransitionType.Fade;
+            }
         }
 
         public void ResetQuiz()

@@ -307,13 +307,129 @@ namespace NodeSystem.Editor
                 {
                     CreateFloatField("Slide Distance", nodeToModify.slideDistance, v => {
                         if (graph != null) Undo.RecordObject(graph, "Change Slide Distance");
-                        
+
                         nodeToModify.slideDistance = Mathf.Clamp(v, 10f, 500f);
                         if (node != nodeToModify) node.slideDistance = nodeToModify.slideDistance;
-                        
+
                         if (graph != null) { graph.SaveToJson(); EditorUtility.SetDirty(graph); }
                         MarkDirty();
                     });
+                }
+            }
+
+            // === STEP 5: Question Transition Settings ===
+            AddSeparator("Question Transitions");
+            CreateLabel("Override enter/exit animations per question:", new Color(0.8f, 0.8f, 0.8f));
+
+            CreateToggle("Override Transitions", nodeToModify.overrideTransitions, v => {
+                if (graph != null) Undo.RecordObject(graph, "Change Override Transitions");
+                nodeToModify.overrideTransitions = v;
+                if (node != nodeToModify) node.overrideTransitions = v;
+                if (graph != null) { graph.SaveToJson(); EditorUtility.SetDirty(graph); }
+                MarkDirty();
+                RequestRefresh();
+            });
+
+            if (nodeToModify.overrideTransitions)
+            {
+                // --- Enter transition ---
+                CreateLabel("Enter (how question appears):", new Color(0.7f, 0.9f, 0.7f));
+
+                if (nodeToModify.enterTransition == null)
+                    nodeToModify.enterTransition = new QuestionTransitionSettings();
+
+                CreateEnumField("Type", nodeToModify.enterTransition.transitionType, (QuestionTransitionType v) => {
+                    if (graph != null) Undo.RecordObject(graph, "Change Enter Transition Type");
+                    nodeToModify.enterTransition.transitionType = v;
+                    if (node != nodeToModify && node.enterTransition != null) node.enterTransition.transitionType = v;
+                    if (graph != null) { graph.SaveToJson(); EditorUtility.SetDirty(graph); }
+                    MarkDirty();
+                    RequestRefresh();
+                });
+
+                if (nodeToModify.enterTransition.transitionType != QuestionTransitionType.None)
+                {
+                    CreateFloatField("Duration", nodeToModify.enterTransition.duration, v => {
+                        if (graph != null) Undo.RecordObject(graph, "Change Enter Duration");
+                        nodeToModify.enterTransition.duration = Mathf.Clamp(v, 0.05f, 2f);
+                        if (node != nodeToModify && node.enterTransition != null)
+                            node.enterTransition.duration = nodeToModify.enterTransition.duration;
+                        if (graph != null) { graph.SaveToJson(); EditorUtility.SetDirty(graph); }
+                        MarkDirty();
+                    });
+
+#if DOTWEEN
+                    CreateEnumField("Ease", nodeToModify.enterTransition.easeType, (DG.Tweening.Ease v) => {
+                        if (graph != null) Undo.RecordObject(graph, "Change Enter Ease");
+                        nodeToModify.enterTransition.easeType = v;
+                        if (node != nodeToModify && node.enterTransition != null)
+                            node.enterTransition.easeType = v;
+                        if (graph != null) { graph.SaveToJson(); EditorUtility.SetDirty(graph); }
+                        MarkDirty();
+                    });
+#endif
+
+                    if (nodeToModify.enterTransition.transitionType.ToString().StartsWith("Slide"))
+                    {
+                        CreateFloatField("Slide Distance", nodeToModify.enterTransition.slideDistance, v => {
+                            if (graph != null) Undo.RecordObject(graph, "Change Enter Slide Distance");
+                            nodeToModify.enterTransition.slideDistance = Mathf.Clamp(v, 100f, 2000f);
+                            if (node != nodeToModify && node.enterTransition != null)
+                                node.enterTransition.slideDistance = nodeToModify.enterTransition.slideDistance;
+                            if (graph != null) { graph.SaveToJson(); EditorUtility.SetDirty(graph); }
+                            MarkDirty();
+                        });
+                    }
+                }
+
+                // --- Exit transition ---
+                CreateLabel("Exit (how question leaves):", new Color(0.9f, 0.7f, 0.7f));
+
+                if (nodeToModify.exitTransition == null)
+                    nodeToModify.exitTransition = new QuestionTransitionSettings();
+
+                CreateEnumField("Type", nodeToModify.exitTransition.transitionType, (QuestionTransitionType v) => {
+                    if (graph != null) Undo.RecordObject(graph, "Change Exit Transition Type");
+                    nodeToModify.exitTransition.transitionType = v;
+                    if (node != nodeToModify && node.exitTransition != null) node.exitTransition.transitionType = v;
+                    if (graph != null) { graph.SaveToJson(); EditorUtility.SetDirty(graph); }
+                    MarkDirty();
+                    RequestRefresh();
+                });
+
+                if (nodeToModify.exitTransition.transitionType != QuestionTransitionType.None)
+                {
+                    CreateFloatField("Duration", nodeToModify.exitTransition.duration, v => {
+                        if (graph != null) Undo.RecordObject(graph, "Change Exit Duration");
+                        nodeToModify.exitTransition.duration = Mathf.Clamp(v, 0.05f, 2f);
+                        if (node != nodeToModify && node.exitTransition != null)
+                            node.exitTransition.duration = nodeToModify.exitTransition.duration;
+                        if (graph != null) { graph.SaveToJson(); EditorUtility.SetDirty(graph); }
+                        MarkDirty();
+                    });
+
+#if DOTWEEN
+                    CreateEnumField("Ease", nodeToModify.exitTransition.easeType, (DG.Tweening.Ease v) => {
+                        if (graph != null) Undo.RecordObject(graph, "Change Exit Ease");
+                        nodeToModify.exitTransition.easeType = v;
+                        if (node != nodeToModify && node.exitTransition != null)
+                            node.exitTransition.easeType = v;
+                        if (graph != null) { graph.SaveToJson(); EditorUtility.SetDirty(graph); }
+                        MarkDirty();
+                    });
+#endif
+
+                    if (nodeToModify.exitTransition.transitionType.ToString().StartsWith("Slide"))
+                    {
+                        CreateFloatField("Slide Distance", nodeToModify.exitTransition.slideDistance, v => {
+                            if (graph != null) Undo.RecordObject(graph, "Change Exit Slide Distance");
+                            nodeToModify.exitTransition.slideDistance = Mathf.Clamp(v, 100f, 2000f);
+                            if (node != nodeToModify && node.exitTransition != null)
+                                node.exitTransition.slideDistance = nodeToModify.exitTransition.slideDistance;
+                            if (graph != null) { graph.SaveToJson(); EditorUtility.SetDirty(graph); }
+                            MarkDirty();
+                        });
+                    }
                 }
             }
         }

@@ -20,7 +20,7 @@ MonoBehaviour:
   - 
   showHintAfterAttempt: 1
   maxAttempts: 2
-  points: 0
+  points: 10
   explanation: 
   customUIPrefab: {fileID: 8530522693806145453, guid: 538536c4c8a71d44a9a768f6f84872f9, type: 3}
   answers:

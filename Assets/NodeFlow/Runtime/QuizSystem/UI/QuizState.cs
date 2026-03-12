@@ -164,6 +164,12 @@ namespace QuizSystem
         [NonSerialized]
         public NodeSystem.Nodes.Quiz.AnswerAnimationSettings[] currentAnswerAnimations = null;
 
+        [Header("Question Transitions")]
+        [NonSerialized]
+        public NodeSystem.Nodes.Quiz.QuestionTransitionSettings currentEnterTransition = null;
+        [NonSerialized]
+        public NodeSystem.Nodes.Quiz.QuestionTransitionSettings currentExitTransition = null;
+
         // Centralized audio source for all quiz sounds
         private AudioSource _quizAudioSource;
 
@@ -476,6 +482,27 @@ namespace QuizSystem
         }
 
         /// <summary>
+        /// Set per-question transition overrides (called by LoadQuestionNode before showing question).
+        /// When set, QuizManager uses these instead of its inspector defaults.
+        /// </summary>
+        public void SetQuestionTransitions(
+            NodeSystem.Nodes.Quiz.QuestionTransitionSettings enter,
+            NodeSystem.Nodes.Quiz.QuestionTransitionSettings exit)
+        {
+            currentEnterTransition = enter;
+            currentExitTransition = exit;
+        }
+
+        /// <summary>
+        /// Clear per-question transition overrides (reverts to QuizManager defaults).
+        /// </summary>
+        public void ClearQuestionTransitions()
+        {
+            currentEnterTransition = null;
+            currentExitTransition = null;
+        }
+
+        /// <summary>
         /// Centralized audio source for all quiz sounds (hover, feedback, PlaySoundNode).
         /// All quiz audio routes through this so overlap/stop behavior is consistent.
         /// </summary>
@@ -542,6 +569,8 @@ namespace QuizSystem
             // Don't clear currentAnswerAnimations here - they're per-question settings
             // and should persist until the next question sets new ones
             // currentAnswerAnimations = null;
+            currentEnterTransition = null;
+            currentExitTransition = null;
             Debug.Log("[QuizState] State reset (animations preserved)");
         }
 

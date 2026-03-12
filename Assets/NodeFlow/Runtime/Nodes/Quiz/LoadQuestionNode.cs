@@ -86,6 +86,19 @@ namespace NodeSystem.Nodes.Quiz
         [Tooltip("Enable animations")]
         public bool enableAnimations = true;
 
+        [Header("Question Transitions")]
+        [SerializeField]
+        [Tooltip("Override the QuizManager's default transition settings for this question")]
+        public bool overrideTransitions = false;
+
+        [SerializeField]
+        [Tooltip("How this question appears (entrance animation)")]
+        public QuestionTransitionSettings enterTransition = new QuestionTransitionSettings();
+
+        [SerializeField]
+        [Tooltip("How this question leaves (exit animation)")]
+        public QuestionTransitionSettings exitTransition = new QuestionTransitionSettings();
+
         [Header("Hints")]
         [SerializeField]
         [Tooltip("Show hints on wrong attempts for this question")]
@@ -271,11 +284,16 @@ namespace NodeSystem.Nodes.Quiz
             if (layoutOverridePrefab != null)
                 _quizManager.SetUIPrefabOverrideForLoad(questionIndex, layoutOverridePrefab);
 
-            // Set animations and hints IMMEDIATELY before loading question (synchronously)
+            // Set animations, transitions, and hints IMMEDIATELY before loading question (synchronously)
             if (QuizState.Instance != null)
             {
                 QuizState.Instance.SetAnswerAnimations(_answerAnimations);
                 QuizState.Instance.showHints = showHints;
+
+                if (overrideTransitions)
+                    QuizState.Instance.SetQuestionTransitions(enterTransition, exitTransition);
+                else
+                    QuizState.Instance.ClearQuestionTransitions();
             }
 
             // Show THIS question immediately when this node runs (avoids wrong order when
