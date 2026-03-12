@@ -7,17 +7,31 @@ using UnityEditor;
 
 namespace NodeSystem.Nodes
 {
+    public enum SetActiveMode
+    {
+        Single,
+        List,
+        Random
+    }
+
     /// <summary>
-    /// Node to activate or deactivate a GameObject
+    /// Node to activate or deactivate GameObjects.
+    /// Supports single target, a list of targets, or a random pick from a list.
     /// </summary>
     [Serializable]
     public class SetActiveNode : NodeData
     {
         [SerializeField]
+        public SetActiveMode mode = SetActiveMode.Single;
+
+        [SerializeField]
         public string targetPath = "";
-        
+
         [SerializeField]
         public bool setActive = true;
+
+        [SerializeField]
+        public List<string> targetPaths = new List<string>();
 
         public override string Name => "Set Active";
         public override Color Color => new Color(0.4f, 0.8f, 0.4f); // Green
@@ -41,27 +55,90 @@ namespace NodeSystem.Nodes
 
         protected override void OnExecute()
         {
-            if (string.IsNullOrEmpty(targetPath))
+            switch (mode)
             {
-                Debug.LogWarning("[SetActiveNode] No target specified");
-                Complete();
+                case SetActiveMode.Single:
+                    ExecuteSingle();
+                    break;
+                case SetActiveMode.List:
+                    ExecuteList();
+                    break;
+                case SetActiveMode.Random:
+                    ExecuteRandom();
+                    break;
+            }
+
+            Complete();
+        }
+
+        private void ExecuteSingle()
+        {
+            SetActiveByPath(targetPath);
+        }
+
+        private void ExecuteList()
+        {
+            if (targetPaths == null || targetPaths.Count == 0)
+            {
+                Debug.LogWarning("[SetActiveNode] No targets in list");
                 return;
             }
 
-            // Find the target GameObject (including disabled objects)
-            GameObject target = FindGameObject(targetPath);
+            foreach (var path in targetPaths)
+            {
+                SetActiveByPath(path);
+            }
+        }
+
+        private void ExecuteRandom()
+        {
+            if (targetPaths == null || targetPaths.Count == 0)
+            {
+                Debug.LogWarning("[SetActiveNode] No targets in list for random selection");
+                return;
+            }
+
+            int randomIndex = UnityEngine.Random.Range(0, targetPaths.Count);
+            string chosenPath = targetPaths[randomIndex];
+
+            // Deactivate all others, activate the chosen one
+            for (int i = 0; i < targetPaths.Count; i++)
+            {
+                if (string.IsNullOrEmpty(targetPaths[i])) continue;
+
+                GameObject go = FindGameObject(targetPaths[i]);
+                if (go == null) continue;
+
+                bool shouldBeActive = (i == randomIndex) ? setActive : !setActive;
+                ClearEditorSelectionIfNeeded(go, shouldBeActive);
+                go.SetActive(shouldBeActive);
+            }
+        }
+
+        private void SetActiveByPath(string path)
+        {
+            if (string.IsNullOrEmpty(path))
+            {
+                Debug.LogWarning("[SetActiveNode] No target specified");
+                return;
+            }
+
+            GameObject target = FindGameObject(path);
 
             if (target == null)
             {
-                Debug.LogError($"[SetActiveNode] Target not found: {targetPath}");
-                Complete();
+                Debug.LogError($"[SetActiveNode] Target not found: {path}");
                 return;
             }
 
-            // When deactivating, clear the Editor selection if it points to a child
-            // of the target to prevent Inspector serialization errors.
+            ClearEditorSelectionIfNeeded(target, setActive);
+            target.SetActive(setActive);
+        }
+
+        private void ClearEditorSelectionIfNeeded(GameObject target, bool willBeActive)
+        {
 #if UNITY_EDITOR
-            if (!setActive)
+            if (!willBeActive)
             {
                 var sel = Selection.activeGameObject;
                 if (sel != null && (sel == target || sel.transform.IsChildOf(target.transform)))
@@ -70,10 +147,6 @@ namespace NodeSystem.Nodes
                 }
             }
 #endif
-            // Set active state
-            target.SetActive(setActive);
-
-            Complete();
         }
 
         /// <summary>
