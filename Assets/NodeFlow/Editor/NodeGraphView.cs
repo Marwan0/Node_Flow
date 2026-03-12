@@ -407,9 +407,7 @@ namespace NodeSystem.Editor
         private void CreateStickyNoteAtPosition(ContextualMenuPopulateEvent evt)
         {
             if (Graph == null) return;
-            Vector2 localPos = evt.target is VisualElement ve
-                ? contentViewContainer.WorldToLocal(ve.LocalToWorld(evt.localMousePosition))
-                : contentViewContainer.WorldToLocal(evt.originalMousePosition);
+            Vector2 localPos = contentViewContainer.WorldToLocal(_lastMousePosition);
 
             var commentNode = new Nodes.CommentNode();
             commentNode.Position = localPos;
@@ -1224,21 +1222,46 @@ namespace NodeSystem.Editor
         {
             var listener = new EdgeDropListener(this);
 
-            foreach (var port in nodeElement.inputContainer.Query<Port>().ToList())
+            var inputs = nodeElement.inputContainer.Query<Port>().ToList();
+            var outputs = nodeElement.outputContainer.Query<Port>().ToList();
+
+            foreach (var port in inputs)
                 ReplaceEdgeConnector(port, listener);
 
-            foreach (var port in nodeElement.outputContainer.Query<Port>().ToList())
+            foreach (var port in outputs)
                 ReplaceEdgeConnector(port, listener);
+
+            if (inputs.Count == 0 && outputs.Count == 0)
+                Debug.LogWarning($"[EdgeDrop] InstallEdgeDropHandler: no ports found on node '{nodeElement.title}'");
         }
 
         private static void ReplaceEdgeConnector(Port port, IEdgeConnectorListener listener)
         {
-            // Remove the default connector that Port.Create added
-            if (port.edgeConnector != null)
-                port.RemoveManipulator(port.edgeConnector);
+            // Remove the default connector that Port.Create added.
+            // Also try the internal field via reflection as a fallback,
+            // because in some Unity versions port.edgeConnector may return null
+            // even though a default EdgeConnector manipulator exists.
+            var existing = port.edgeConnector;
+            if (existing != null)
+            {
+                port.RemoveManipulator(existing);
+            }
+            else
+            {
+                // Fallback: access the private m_EdgeConnector field
+                var field = typeof(Port).GetField("m_EdgeConnector",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                if (field != null)
+                {
+                    var connector = field.GetValue(port) as IManipulator;
+                    if (connector != null)
+                        port.RemoveManipulator(connector);
+                }
+            }
 
             // Add our custom connector (still creates FlowStyleEdge instances)
-            port.AddManipulator(new EdgeConnector<FlowStyleEdge>(listener));
+            var newConnector = new EdgeConnector<FlowStyleEdge>(listener);
+            port.AddManipulator(newConnector);
         }
 
         /// <summary>
@@ -1248,7 +1271,7 @@ namespace NodeSystem.Editor
         private class EdgeDropListener : IEdgeConnectorListener
         {
             private readonly NodeGraphView _graphView;
-            private readonly GraphViewChange _graphViewChange;
+            private GraphViewChange _graphViewChange;      // NOT readonly — GraphViewChange is a struct
             private readonly List<Edge> _edgesToCreate;
             private readonly List<GraphElement> _edgesToDelete;
 
@@ -1282,7 +1305,11 @@ namespace NodeSystem.Editor
 
                 var edgesToCreate = _edgesToCreate;
                 if (graphView.graphViewChanged != null)
-                    edgesToCreate = graphView.graphViewChanged(_graphViewChange).edgesToCreate;
+                {
+                    var result = graphView.graphViewChanged(_graphViewChange);
+                    if (result.edgesToCreate != null)
+                        edgesToCreate = result.edgesToCreate;
+                }
 
                 foreach (var e in edgesToCreate)
                 {
@@ -1301,14 +1328,25 @@ namespace NodeSystem.Editor
                 if (edge.output?.node != null) sourcePort = edge.output;
                 else if (edge.input?.node != null) sourcePort = edge.input;
 
-                if (sourcePort == null) return;
-                if (_graphView._searchWindow == null) return;
+                if (sourcePort == null)
+                {
+                    Debug.LogWarning("[EdgeDrop] OnDropOutsidePort: sourcePort is null, aborting.");
+                    return;
+                }
+                if (_graphView._searchWindow == null)
+                {
+                    Debug.LogWarning("[EdgeDrop] OnDropOutsidePort: _searchWindow is null, aborting.");
+                    return;
+                }
+
+                Debug.Log($"[EdgeDrop] OnDropOutsidePort from port '{sourcePort.portName}' on node '{sourcePort.node?.title}'");
 
                 // Store the port for auto-connect after node creation
                 _graphView.PendingConnectPort = sourcePort;
 
                 // position is in panel (window-local) coordinates;
                 // SearchWindow.Open expects screen coordinates.
+                // Use GUIUtility when available, otherwise offset from window position.
                 Vector2 screenPos;
                 if (Event.current != null)
                 {
@@ -1316,7 +1354,6 @@ namespace NodeSystem.Editor
                 }
                 else
                 {
-                    // Fallback: offset from window's screen position
                     screenPos = _graphView._editorWindow.position.position + position;
                 }
 
@@ -1768,6 +1805,8 @@ namespace NodeSystem.Editor
                     Graph.SaveToJson();
                     EditorUtility.SetDirty(Graph);
                 }
+                // Ports were rebuilt — reinstall our custom edge connectors
+                InstallEdgeDropHandler(view);
             };
 
             // Apply current zoom level to new node
@@ -2244,7 +2283,9 @@ namespace NodeSystem.Editor
                     }
                     else if (elem is CommentNodeView commentView)
                     {
-                        commentView.Data.Position = commentView.GetPosition().position;
+                        var rect = commentView.GetPosition();
+                        commentView.Data.Position = rect.position;
+                        commentView.Data.commentSize = rect.size;
                     }
                     else if (elem is Group)
                     {

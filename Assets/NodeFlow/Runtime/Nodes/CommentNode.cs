@@ -12,9 +12,21 @@ namespace NodeSystem.Nodes
     {
         [SerializeField]
         public string comment = "Add your comment here...";
-        
+
         [SerializeField]
-        public Color commentColor = new Color(1f, 1f, 0.4f, 0.9f); // Yellow
+        public string commentTitle = "Note";
+
+        [SerializeField]
+        public Vector2 commentSize = new Vector2(200, 160);
+
+        [SerializeField]
+        public int theme = 0; // Maps to StickyNoteTheme enum (0 = Classic)
+
+        [SerializeField]
+        public int fontSize = 0; // Maps to StickyNoteFontSize enum (0 = Small)
+
+        [SerializeField]
+        public Color commentColor = new Color(1f, 1f, 0.4f, 0.9f); // Legacy, kept for compat
 
         public override string Name => "Comment";
         public override Color Color => commentColor;
