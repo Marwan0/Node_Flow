@@ -59,7 +59,12 @@ namespace QuizSystem
             return _whiteSprite;
         }
         private Dictionary<int, int> currentConnections = new Dictionary<int, int>(); // left index -> right index
-        private ConnectItemUI selectedLeftItem = null;
+        private ConnectItemUI selectedItem = null; // can be from either column
+
+        // Track which items are already connected (used in free-order mode)
+        private HashSet<int> connectedLeftIndices = new HashSet<int>();
+        private HashSet<int> connectedRightIndices = new HashSet<int>();
+        private bool IsFreeOrder => connectData != null && connectData.freeOrderMode;
 
         private ConnectItemUI _dragStartItem;
         private GameObject _previewLine;
@@ -80,6 +85,8 @@ namespace QuizSystem
             CreateLeftColumnItems();
             CreateRightColumnItems();
             currentConnections.Clear();
+            connectedLeftIndices.Clear();
+            connectedRightIndices.Clear();
 
             // Register hover effects
             ClearRegisteredHoverEffects();
@@ -211,14 +218,46 @@ namespace QuizSystem
 
         private void RefreshItemInteractability()
         {
-            for (int i = 0; i < leftItemUIs.Count; i++)
+            if (IsFreeOrder)
             {
-                var item = leftItemUIs[i];
-                bool isCurrent = (i == currentConnectionIndex);
-                SetItemInteractable(item, isCurrent);
-                UpdateItemVisual(item, false);
-                if (!isCurrent)
-                    SetItemLockedAppearance(item, i < currentConnectionIndex);
+                // Free-order: all unconnected items are interactable
+                for (int i = 0; i < leftItemUIs.Count; i++)
+                {
+                    var item = leftItemUIs[i];
+                    bool connected = connectedLeftIndices.Contains(i);
+                    SetItemInteractable(item, !connected);
+                    UpdateItemVisual(item, false);
+                    if (connected) SetItemLockedAppearance(item, true);
+                }
+                for (int i = 0; i < rightItemUIs.Count; i++)
+                {
+                    var item = rightItemUIs[i];
+                    bool connected = connectedRightIndices.Contains(i);
+                    SetItemInteractable(item, !connected);
+                    UpdateItemVisual(item, false);
+                    if (connected) SetItemLockedAppearance(item, true);
+                }
+            }
+            else
+            {
+                // Sequential: only current left item + all unconnected right items
+                for (int i = 0; i < leftItemUIs.Count; i++)
+                {
+                    var item = leftItemUIs[i];
+                    bool isCurrent = (i == currentConnectionIndex);
+                    SetItemInteractable(item, isCurrent);
+                    UpdateItemVisual(item, false);
+                    if (!isCurrent)
+                        SetItemLockedAppearance(item, i < currentConnectionIndex);
+                }
+                for (int i = 0; i < rightItemUIs.Count; i++)
+                {
+                    var item = rightItemUIs[i];
+                    bool connected = connectedRightIndices.Contains(i);
+                    SetItemInteractable(item, !connected);
+                    UpdateItemVisual(item, false);
+                    if (connected) SetItemLockedAppearance(item, true);
+                }
             }
         }
 
@@ -242,8 +281,9 @@ namespace QuizSystem
         private void UpdateProgressText()
         {
             int maxAttempts = GetMaxAttemptsPerConnection();
+            int completedCount = IsFreeOrder ? connectedLeftIndices.Count : currentConnectionIndex;
             if (connectionProgressText != null)
-                connectionProgressText.text = $"Connection {currentConnectionIndex + 1} / {totalConnections}";
+                connectionProgressText.text = $"Connection {completedCount + 1} / {totalConnections}";
             if (attemptProgressText != null)
                 attemptProgressText.text = $"Try {attemptsForCurrentConnection + 1} / {maxAttempts}";
             if (attemptCounterText != null)
@@ -330,23 +370,70 @@ namespace QuizSystem
             dragHandler.Setup(this, itemUI);
         }
 
-        private void OnLeftItemClicked(ConnectItemUI itemUI)
+        private void OnItemClicked(ConnectItemUI itemUI)
         {
-            if (itemUI.itemIndex != currentConnectionIndex) return;
-            if (selectedLeftItem != null)
-                UpdateItemVisual(selectedLeftItem, false);
-            selectedLeftItem = itemUI;
-            UpdateItemVisual(selectedLeftItem, true);
+            // First click: select the item
+            if (selectedItem == null)
+            {
+                if (!IsItemAvailableForSelection(itemUI)) return;
+                selectedItem = itemUI;
+                UpdateItemVisual(selectedItem, true);
+                return;
+            }
+
+            // Second click on same item: deselect
+            if (selectedItem == itemUI)
+            {
+                UpdateItemVisual(selectedItem, false);
+                selectedItem = null;
+                return;
+            }
+
+            // Second click: must be from opposite column
+            if (selectedItem.isLeftColumn == itemUI.isLeftColumn)
+            {
+                // Same column — switch selection
+                UpdateItemVisual(selectedItem, false);
+                if (!IsItemAvailableForSelection(itemUI)) return;
+                selectedItem = itemUI;
+                UpdateItemVisual(selectedItem, true);
+                return;
+            }
+
+            // Opposite columns — normalize to (leftIdx, rightIdx) and validate
+            int leftIdx, rightIdx;
+            if (selectedItem.isLeftColumn)
+            {
+                leftIdx = selectedItem.itemIndex;
+                rightIdx = itemUI.itemIndex;
+            }
+            else
+            {
+                leftIdx = itemUI.itemIndex;
+                rightIdx = selectedItem.itemIndex;
+            }
+
+            ValidateAndApplyConnection(leftIdx, rightIdx);
+            UpdateItemVisual(selectedItem, false);
+            selectedItem = null;
         }
 
-        private void OnRightItemClicked(ConnectItemUI rightItemUI)
+        /// <summary>
+        /// Checks whether an item can be selected right now (not already connected,
+        /// and in sequential mode the left item must be the current one).
+        /// </summary>
+        private bool IsItemAvailableForSelection(ConnectItemUI itemUI)
         {
-            if (selectedLeftItem == null || selectedLeftItem.itemIndex != currentConnectionIndex) return;
-            int leftIdx = selectedLeftItem.itemIndex;
-            int rightIdx = rightItemUI.itemIndex;
-            ValidateAndApplyConnection(leftIdx, rightIdx);
-            UpdateItemVisual(selectedLeftItem, false);
-            selectedLeftItem = null;
+            if (itemUI.isLeftColumn)
+            {
+                if (connectedLeftIndices.Contains(itemUI.itemIndex)) return false;
+                if (!IsFreeOrder && itemUI.itemIndex != currentConnectionIndex) return false;
+            }
+            else
+            {
+                if (connectedRightIndices.Contains(itemUI.itemIndex)) return false;
+            }
+            return true;
         }
 
         private void ValidateAndApplyConnection(int leftIdx, int rightIdx)
@@ -354,9 +441,15 @@ namespace QuizSystem
             var connectValidator = validator as ConnectValidator;
             if (connectValidator == null) return;
 
+            // In sequential mode, only allow connections for the current left item
+            if (!IsFreeOrder && leftIdx != currentConnectionIndex) return;
+
             if (connectValidator.IsConnectionCorrect(leftIdx, rightIdx))
             {
                 currentConnections[leftIdx] = rightIdx;
+                connectedLeftIndices.Add(leftIdx);
+                connectedRightIndices.Add(rightIdx);
+
                 ConnectItemUI leftItem = leftItemUIs.Find(x => x.itemIndex == leftIdx);
                 ConnectItemUI rightItem = rightItemUIs.Find(x => x.itemIndex == rightIdx);
                 if (leftItem != null && rightItem != null)
@@ -375,11 +468,13 @@ namespace QuizSystem
                 HideHint();
                 if (hintButton != null) hintButton.gameObject.SetActive(false);
 
-                currentConnectionIndex++;
+                if (!IsFreeOrder) currentConnectionIndex++;
                 attemptsForCurrentConnection = 0;
                 RefreshItemInteractability();
                 UpdateProgressText();
-                if (currentConnectionIndex >= totalConnections)
+
+                int completedCount = connectedLeftIndices.Count;
+                if (completedCount >= totalConnections)
                     CompleteQuestion(true, GetEarnedRawQuestionPoints());
             }
             else
@@ -400,36 +495,7 @@ namespace QuizSystem
                 if (attemptsForCurrentConnection >= GetMaxAttemptsPerConnection())
                 {
                     // Auto-correct: show the correct answer and move on
-                    if (connectData.correctConnections.TryGetValue(leftIdx, out int correctRight))
-                    {
-                        currentConnections[leftIdx] = correctRight;
-                        ConnectItemUI leftItem = leftItemUIs.Find(x => x.itemIndex == leftIdx);
-                        ConnectItemUI rightItem = rightItemUIs.Find(x => x.itemIndex == correctRight);
-                        if (leftItem != null && rightItem != null)
-                        {
-                            CreateConnectionLine(leftItem, rightItem);
-                            SetLineColor(connectionLineObjects[connectionLineObjects.Count - 1], Color.green);
-                        }
-
-                        // Show the correct answer as hint (if hints enabled)
-                        if (HintsEnabled)
-                        {
-                            string correctLabel = correctRight < connectData.rightColumnItems.Count
-                                ? connectData.rightColumnItems[correctRight].label : "?";
-                            string leftLabel = leftIdx < connectData.leftColumnItems.Count
-                                ? connectData.leftColumnItems[leftIdx].label : "?";
-                            ShowHint($"{leftLabel} → {correctLabel}");
-                        }
-                    }
-
-                    QuizState.Instance?.NotifyStepResult(false);
-                    if (hintButton != null) hintButton.gameObject.SetActive(false);
-                    currentConnectionIndex++;
-                    attemptsForCurrentConnection = 0;
-                    RefreshItemInteractability();
-                    UpdateProgressText();
-                    if (currentConnectionIndex >= totalConnections)
-                        CompleteQuestion(false, GetEarnedRawQuestionPoints());
+                    AutoCorrectConnection(leftIdx);
                 }
                 else
                 {
@@ -443,6 +509,49 @@ namespace QuizSystem
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Auto-corrects a connection when the user has exhausted their attempts.
+        /// Works for both sequential and free-order modes.
+        /// </summary>
+        private void AutoCorrectConnection(int leftIdx)
+        {
+            if (connectData.correctConnections.TryGetValue(leftIdx, out int correctRight))
+            {
+                currentConnections[leftIdx] = correctRight;
+                connectedLeftIndices.Add(leftIdx);
+                connectedRightIndices.Add(correctRight);
+
+                ConnectItemUI leftItem = leftItemUIs.Find(x => x.itemIndex == leftIdx);
+                ConnectItemUI rightItem = rightItemUIs.Find(x => x.itemIndex == correctRight);
+                if (leftItem != null && rightItem != null)
+                {
+                    CreateConnectionLine(leftItem, rightItem);
+                    SetLineColor(connectionLineObjects[connectionLineObjects.Count - 1], Color.green);
+                }
+
+                // Show the correct answer as hint (if hints enabled)
+                if (HintsEnabled)
+                {
+                    string correctLabel = correctRight < connectData.rightColumnItems.Count
+                        ? connectData.rightColumnItems[correctRight].label : "?";
+                    string leftLabel = leftIdx < connectData.leftColumnItems.Count
+                        ? connectData.leftColumnItems[leftIdx].label : "?";
+                    ShowHint($"{leftLabel} → {correctLabel}");
+                }
+            }
+
+            QuizState.Instance?.NotifyStepResult(false);
+            if (hintButton != null) hintButton.gameObject.SetActive(false);
+            if (!IsFreeOrder) currentConnectionIndex++;
+            attemptsForCurrentConnection = 0;
+            RefreshItemInteractability();
+            UpdateProgressText();
+
+            int completedCount = connectedLeftIndices.Count;
+            if (completedCount >= totalConnections)
+                CompleteQuestion(false, GetEarnedRawQuestionPoints());
         }
 
         private int GetMaxAttemptsPerConnection()
@@ -467,7 +576,7 @@ namespace QuizSystem
 
         public void StartDrag(ConnectItemUI item, Vector2 screenPos)
         {
-            if (item.isLeftColumn && item.itemIndex != currentConnectionIndex)
+            if (!IsItemAvailableForSelection(item))
                 return;
             _dragStartItem = item;
             _pointerDownPos = screenPos;
@@ -498,11 +607,20 @@ namespace QuizSystem
             {
                 ConnectItemUI target = GetItemAt(screenPos);
                 if (target != null && target != _dragStartItem &&
-                    _dragStartItem.isLeftColumn && !target.isLeftColumn &&
-                    _dragStartItem.itemIndex == currentConnectionIndex)
+                    _dragStartItem.isLeftColumn != target.isLeftColumn) // opposite columns
                 {
-                    int leftIdx = _dragStartItem.itemIndex;
-                    int rightIdx = target.itemIndex;
+                    // Normalize to (leftIdx, rightIdx)
+                    int leftIdx, rightIdx;
+                    if (_dragStartItem.isLeftColumn)
+                    {
+                        leftIdx = _dragStartItem.itemIndex;
+                        rightIdx = target.itemIndex;
+                    }
+                    else
+                    {
+                        leftIdx = target.itemIndex;
+                        rightIdx = _dragStartItem.itemIndex;
+                    }
                     ValidateAndApplyConnection(leftIdx, rightIdx);
                 }
                 Destroy(_previewLine);
@@ -510,13 +628,11 @@ namespace QuizSystem
             }
             else if (!_isDragging)
             {
+                // Tap / click — use the unified click handler
                 ConnectItemUI target = GetItemAt(screenPos);
                 if (target != null)
                 {
-                    if (target.isLeftColumn)
-                        OnLeftItemClicked(target);
-                    else if (selectedLeftItem != null)
-                        OnRightItemClicked(target);
+                    OnItemClicked(target);
                 }
             }
 

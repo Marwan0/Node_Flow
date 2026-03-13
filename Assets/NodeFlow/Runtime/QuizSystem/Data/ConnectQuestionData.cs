@@ -38,6 +38,9 @@ namespace QuizSystem
         [Range(2, 10)]
         public int maxAttemptsPerConnection = 3;
 
+        [Tooltip("When true, the user can connect any pair in any order and from either side. When false, connections must follow the left-column order sequentially.")]
+        public bool freeOrderMode = false;
+
         private void OnEnable()
         {
             questionType = QuestionType.Connect;
