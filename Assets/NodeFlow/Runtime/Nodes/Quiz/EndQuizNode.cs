@@ -31,6 +31,7 @@ namespace NodeSystem.Nodes.Quiz
         public override string Name => "End Quiz";
         public override Color Color => new Color(0.8f, 0.2f, 0.2f); // Red
         public override string Category => "Quiz";
+        public override string Description => "Completes the quiz and optionally branches based on a passing percentage.";
 
         public override List<PortData> GetInputPorts()
         {

@@ -18,6 +18,7 @@ namespace NodeSystem.Nodes.Quiz
         public override string Name => "Shuffle Questions";
         public override Color Color => new Color(0.25f, 0.75f, 0.5f);
         public override string Category => "Quiz";
+        public override string Description => "Randomizes the order of the questions configured in the QuizManager.";
 
         public override List<PortData> GetInputPorts()
         {

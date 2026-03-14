@@ -23,6 +23,7 @@ namespace NodeSystem.Nodes
         public override string Name => "Random Int";
         public override Color Color => new Color(0.35f, 0.65f, 0.45f); // Darker Greenish
         public override string Category => "Math";
+        public override string Description => "Generates a random integer value between min and max (inclusive), storing it in a variable.";
 
         public override List<PortData> GetInputPorts()
         {

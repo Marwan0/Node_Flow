@@ -21,6 +21,7 @@ namespace NodeSystem.Nodes
         public override string Name => "Animation Sequencer";
         public override Color Color => new Color(0.7f, 0.5f, 0.9f); // Purple
         public override string Category => "Animation";
+        public override string Description => "Triggers a pre-configured Animation Sequencer component on a target GameObject.";
 
         public override List<PortData> GetInputPorts()
         {

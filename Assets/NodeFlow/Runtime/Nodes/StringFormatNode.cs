@@ -25,6 +25,7 @@ namespace NodeSystem.Nodes
         public override string Name => "String Format";
         public override Color Color => new Color(0.55f, 0.5f, 0.7f);
         public override string Category => "Variables";
+        public override string Description => "Concatenates or formats strings and variables together.";
 
         public override List<PortData> GetInputPorts()
         {

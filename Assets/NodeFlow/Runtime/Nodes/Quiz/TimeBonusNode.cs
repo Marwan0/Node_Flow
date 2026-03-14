@@ -22,6 +22,7 @@ namespace NodeSystem.Nodes.Quiz
         public override string Name => "Time Bonus";
         public override Color Color => new Color(0.3f, 0.8f, 0.6f);
         public override string Category => "Quiz";
+        public override string Description => "Adds bonus score based on the remaining quiz time (points per second).";
 
         public override List<PortData> GetInputPorts()
         {

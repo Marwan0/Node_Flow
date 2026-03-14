@@ -25,6 +25,7 @@ namespace NodeSystem.Nodes
         public override string Name => "Gate";
         public override Color Color => new Color(0.5f, 0.55f, 0.6f);
         public override string Category => "Flow";
+        public override string Description => "Acts as a tollbooth. If the specified boolean graph variable is true, execution passes quickly through the through port. If false, it exits via blocked.";
 
         public override List<PortData> GetInputPorts()
         {

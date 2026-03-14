@@ -41,7 +41,7 @@ namespace NodeSystem.Nodes
         public override string Name => "Step Sequence";
         public override Color Color => new Color(0.2f, 0.7f, 0.7f); // Teal
         public override string Category => "Flow";
-        public override string Description => "Fires one output port per execution, advancing through steps in order.";
+        public override string Description => "A round-robin router. The first time it is triggered, it fires output step_1. The second time, step_2, and so on.";
 
         public override List<PortData> GetInputPorts()
         {

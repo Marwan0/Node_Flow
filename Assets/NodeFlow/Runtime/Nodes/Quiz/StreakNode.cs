@@ -18,6 +18,7 @@ namespace NodeSystem.Nodes.Quiz
         public override string Name => "Streak";
         public override Color Color => new Color(0.9f, 0.6f, 0.2f);
         public override string Category => "Quiz";
+        public override string Description => "Branches based on the current streak of consecutive correct answers.";
 
         public override List<PortData> GetInputPorts()
         {

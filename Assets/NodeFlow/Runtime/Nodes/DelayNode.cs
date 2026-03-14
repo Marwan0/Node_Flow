@@ -17,6 +17,7 @@ namespace NodeSystem.Nodes
         public override string Name => "Delay";
         public override Color Color => new Color(0.5f, 0.5f, 0.5f); // Gray
         public override string Category => "Flow";
+        public override string Description => "Pauses the execution flow for a specific duration in seconds. Uses Unity's coroutine system.";
 
         public override List<PortData> GetInputPorts()
         {

@@ -15,6 +15,7 @@ namespace NodeSystem.Nodes
         public override string Name => "Portal";
         public override Color Color => new Color(0.2f, 0.7f, 0.7f); // Teal
         public override string Category => "Flow";
+        public override string Description => "Instantly teleports execution to another named PortalNode in the graph acting as an entry point. Keeps visually complex graphs clean.";
 
         public override List<PortData> GetInputPorts()
         {

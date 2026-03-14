@@ -18,7 +18,8 @@ MonoBehaviour:
   - Polar bears live in cold, icy regions
   - Camels are adapted to dry, hot environments
   - Penguins live in the southernmost continent
-  maxAttempts: 3
+  showHintAfterAttempt: 1
+  maxAttempts: 2
   points: 50
   explanation: Polar Bear->Arctic, Camel->Desert, Penguin->Antarctica
   customUIPrefab: {fileID: 0}
@@ -39,3 +40,4 @@ MonoBehaviour:
   _connectionKeys: 000000000100000002000000
   _connectionValues: 000000000100000002000000
   maxAttemptsPerConnection: 2
+  freeOrderMode: 0

@@ -28,6 +28,7 @@ namespace NodeSystem.Nodes
         public override string Name => "Set Text";
         public override Color Color => new Color(0.4f, 0.7f, 0.4f); // Green
         public override string Category => "UI";
+        public override string Description => "Similar to ShowMessageNode, directly sets a TMP component's text.";
 
         public override List<PortData> GetInputPorts()
         {

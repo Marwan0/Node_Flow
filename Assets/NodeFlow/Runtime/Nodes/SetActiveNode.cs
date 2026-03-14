@@ -36,6 +36,7 @@ namespace NodeSystem.Nodes
         public override string Name => "Set Active";
         public override Color Color => new Color(0.4f, 0.8f, 0.4f); // Green
         public override string Category => "UI";
+        public override string Description => "Enables or disables a specific GameObject in the scene.";
 
         public override List<PortData> GetInputPorts()
         {

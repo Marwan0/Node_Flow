@@ -37,6 +37,7 @@ namespace NodeSystem.Nodes.Quiz
         public override string Name => "Quiz Branch";
         public override Color Color => new Color(0.7f, 0.5f, 0.8f); // Purple
         public override string Category => "Quiz";
+        public override string Description => "Routes execution based on specialized quiz logic like 'Last Answer Correct' or 'Score Above'.";
 
         public override List<PortData> GetInputPorts()
         {

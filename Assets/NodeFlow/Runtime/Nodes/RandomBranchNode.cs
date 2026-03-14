@@ -36,6 +36,7 @@ namespace NodeSystem.Nodes
         public override string Name => "Random Branch";
         public override Color Color => new Color(0.8f, 0.5f, 0.2f); // Orange
         public override string Category => "Flow";
+        public override string Description => "Randomly selects one of its active output ports based on configured probability weights.";
 
         // --- Ports ---
 

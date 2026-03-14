@@ -20,6 +20,7 @@ namespace NodeSystem.Nodes
         public override string Name => "Button Activation";
         public override Color Color => new Color(0.3f, 0.6f, 0.9f); // Blue
         public override string Category => "UI";
+        public override string Description => "Toggles the interactable property of a UI Button.";
 
         public override List<PortData> GetInputPorts()
         {

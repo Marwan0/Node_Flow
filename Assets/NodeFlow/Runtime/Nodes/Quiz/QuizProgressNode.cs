@@ -35,6 +35,7 @@ namespace NodeSystem.Nodes.Quiz
         public override string Name => "Quiz Progress";
         public override Color Color => new Color(0.4f, 0.6f, 0.8f); // Blue
         public override string Category => "Quiz";
+        public override string Description => "Checks quiz progress (questions answered, correct answers, etc.) and branches based on thresholds.";
 
         public override List<PortData> GetInputPorts()
         {

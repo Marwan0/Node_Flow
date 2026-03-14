@@ -18,6 +18,7 @@ namespace NodeSystem.Nodes
         public override string Name => "Load Progress";
         public override Color Color => new Color(0.4f, 0.5f, 0.65f);
         public override string Category => "Flow";
+        public override string Description => "Loads saved graph variables from PlayerPrefs. Creates variables if missing.";
 
         public override List<PortData> GetInputPorts()
         {

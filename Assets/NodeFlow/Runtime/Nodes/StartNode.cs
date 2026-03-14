@@ -13,6 +13,7 @@ namespace NodeSystem.Nodes
         public override string Name => "Start";
         public override Color Color => new Color(0.2f, 0.8f, 0.3f); // Green
         public override string Category => "Flow";
+        public override string Description => "The entry point of the graph. When the NodeGraphRunner starts a graph, it begins execution from the StartNode. Every graph must have exactly one StartNode.";
 
         public override List<PortData> GetInputPorts()
         {

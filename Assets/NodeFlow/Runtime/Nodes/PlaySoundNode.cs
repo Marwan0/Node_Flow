@@ -62,6 +62,7 @@ namespace NodeSystem.Nodes
         public override string Name => "Play Sound";
         public override Color Color => new Color(0.8f, 0.5f, 0.2f); // Orange
         public override string Category => "Audio";
+        public override string Description => "Plays a sound clip via an AudioSource. Optionally blocks execution until the clip finishes playing.";
 
         public override List<PortData> GetInputPorts()
         {

@@ -18,6 +18,7 @@ namespace NodeSystem.Nodes
         public override string Name => "Save Progress";
         public override Color Color => new Color(0.35f, 0.6f, 0.4f);
         public override string Category => "Flow";
+        public override string Description => "Saves listed graph variables to PlayerPrefs to persist across sessions.";
 
         public override List<PortData> GetInputPorts()
         {

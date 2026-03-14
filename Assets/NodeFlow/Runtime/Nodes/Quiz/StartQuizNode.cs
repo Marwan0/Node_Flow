@@ -35,6 +35,7 @@ namespace NodeSystem.Nodes.Quiz
         public override string Name => "Start Quiz";
         public override Color Color => new Color(0.2f, 0.8f, 0.3f); // Bright Green
         public override string Category => "Quiz";
+        public override string Description => "Initializes the quiz state and resets tracking metrics (questions answered, score, streak). Must be called before loading questions.";
 
         public override List<PortData> GetInputPorts()
         {

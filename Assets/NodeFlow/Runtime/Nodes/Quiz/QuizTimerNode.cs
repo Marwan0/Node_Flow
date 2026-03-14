@@ -34,6 +34,7 @@ namespace NodeSystem.Nodes.Quiz
         public override string Name => "Quiz Timer";
         public override Color Color => new Color(0.8f, 0.4f, 0.4f); // Red
         public override string Category => "Quiz";
+        public override string Description => "Controls quiz timer functionality (Start, Stop, Pause, Resume, Wait For Expiry).";
 
         public override List<PortData> GetInputPorts()
         {

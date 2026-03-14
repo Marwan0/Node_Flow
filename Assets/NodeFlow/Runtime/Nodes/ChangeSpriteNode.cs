@@ -26,6 +26,7 @@ namespace NodeSystem.Nodes
         public override string Name => "Change Sprite";
         public override Color Color => new Color(0.7f, 0.4f, 0.8f); // Purple
         public override string Category => "UI";
+        public override string Description => "Swaps the source image of a Unity UI Image component.";
 
         public override List<PortData> GetInputPorts()
         {

@@ -29,6 +29,7 @@ namespace NodeSystem.Nodes
         public override string Name => subGraph != null ? $"Sub: {subGraph.name}" : "Sub Graph";
         public override Color Color => new Color(0.8f, 0.6f, 0.4f); // Brown/Orange
         public override string Category => "Flow";
+        public override string Description => "Executes another completely separate NodeGraph asset as a nested sub-routine. When the sub-graph reaches its EndNode, execution returns to the parent graph.";
 
         public override List<PortData> GetInputPorts()
         {

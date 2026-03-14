@@ -93,6 +93,7 @@ namespace NodeSystem.Nodes
         public override string Name => "Tween Property";
         public override Color Color => new Color(0.7f, 0.4f, 0.9f); // Purple
         public override string Category => "Animation";
+        public override string Description => "Animates a specific property (Position, Scale, Rotation, Alpha, Color, etc.) of a GameObject from one value to another over time.";
 
         public override List<PortData> GetInputPorts()
         {

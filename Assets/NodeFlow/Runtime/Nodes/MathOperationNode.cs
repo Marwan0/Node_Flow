@@ -49,6 +49,7 @@ namespace NodeSystem.Nodes
         public override string Name => "Math Operation";
         public override Color Color => new Color(0.3f, 0.5f, 0.7f); // Blueish
         public override string Category => "Math";
+        public override string Description => "Performs Add, Subtract, Multiply, Divide, or Modulo on two values (variables or literals) and stores the result in a new/existing variable.";
 
         public override List<PortData> GetInputPorts()
         {

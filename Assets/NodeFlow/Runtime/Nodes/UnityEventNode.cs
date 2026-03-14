@@ -17,6 +17,7 @@ namespace NodeSystem.Nodes
         public override string Name => "Unity Event";
         public override Color Color => new Color(0.6f, 0.3f, 0.7f); // Purple
         public override string Category => "Events";
+        public override string Description => "Fires a standard inspector-configured UnityEvent, allowing you to trigger any method on any MonoBehaviour.";
 
         public override List<PortData> GetInputPorts()
         {

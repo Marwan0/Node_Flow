@@ -18,6 +18,7 @@ namespace NodeSystem.Nodes
         public override string Name => "Send Signal";
         public override Color Color => new Color(0.6f, 0.4f, 0.9f); // Purple
         public override string Category => "Flow";
+        public override string Description => "Fires a global signal string. All Receive Signal nodes with the same ID will run.";
 
         public override List<PortData> GetInputPorts()
         {

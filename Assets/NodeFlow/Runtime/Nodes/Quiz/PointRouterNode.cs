@@ -27,6 +27,7 @@ namespace NodeSystem.Nodes.Quiz
         public override string Name => "Point Router";
         public override Color Color => new Color(0.9f, 0.6f, 0.2f); // Orange
         public override string Category => "Quiz";
+        public override string Description => "Routes execution to a specific output port based on the last answered point index in multi-step questions.";
 
         public override List<PortData> GetInputPorts()
         {

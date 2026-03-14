@@ -22,6 +22,7 @@ namespace NodeSystem.Nodes
         public override string Name => "Cooldown";
         public override Color Color => new Color(0.45f, 0.5f, 0.55f);
         public override string Category => "Flow";
+        public override string Description => "Limits how often a path can be executed. If triggered while on cooldown, execution diverts to the throttled port. Otherwise, it resets the timer and proceeds out output.";
 
         public override List<PortData> GetInputPorts()
         {

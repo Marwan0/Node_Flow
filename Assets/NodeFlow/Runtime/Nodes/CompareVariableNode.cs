@@ -28,6 +28,7 @@ namespace NodeSystem.Nodes
         public override string Name => "Compare Variable";
         public override Color Color => new Color(0.5f, 0.45f, 0.75f);
         public override string Category => "Variables";
+        public override string Description => "Compares one graph variable to a literal (or second variable) and outputs true/false.";
 
         public override List<PortData> GetInputPorts()
         {

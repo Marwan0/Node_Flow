@@ -19,6 +19,7 @@ namespace NodeSystem.Nodes
         public override string Name => "Receive Signal";
         public override Color Color => new Color(0.4f, 0.6f, 0.9f); // Blue
         public override string Category => "Flow";
+        public override string Description => "Waits indefinitely until a specific signal string is fired anywhere in the project.";
 
         public override List<PortData> GetInputPorts()
         {

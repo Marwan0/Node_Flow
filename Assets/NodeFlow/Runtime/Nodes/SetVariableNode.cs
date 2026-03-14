@@ -23,6 +23,7 @@ namespace NodeSystem.Nodes
         public override string Name => "Set Variable";
         public override Color Color => new Color(0.5f, 0.4f, 0.7f); // Purple
         public override string Category => "Variables";
+        public override string Description => "Creates or updates a Global Graph Variable. Can store Bool, Int, Float, or String.";
 
         public override List<PortData> GetInputPorts()
         {

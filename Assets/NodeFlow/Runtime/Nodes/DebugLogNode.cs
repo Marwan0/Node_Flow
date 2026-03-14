@@ -21,6 +21,7 @@ namespace NodeSystem.Nodes
         public override string Name => "Log Message";
         public override Color Color => new Color(0.3f, 0.6f, 0.9f); // Blue
         public override string Category => "Utility";
+        public override string Description => "Prints a message to the Unity Console. Helpful for tracing graph execution.";
 
         public override List<PortData> GetInputPorts()
         {

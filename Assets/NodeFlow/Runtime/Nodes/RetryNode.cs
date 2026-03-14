@@ -24,6 +24,7 @@ namespace NodeSystem.Nodes
         public override string Name => "Retry";
         public override Color Color => new Color(0.75f, 0.5f, 0.25f);
         public override string Category => "Flow";
+        public override string Description => "Automatically retries executing its connected upstream node if that node fails. If the maximum retries are reached, execution diverts to exhausted.";
 
         public override List<PortData> GetInputPorts()
         {

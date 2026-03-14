@@ -127,6 +127,7 @@ namespace NodeSystem.Nodes.Quiz
         public override string Name => "Load Question";
         public override Color Color => new Color(0.2f, 0.7f, 0.4f); // Green
         public override string Category => "Quiz";
+        public override string Description => "Main engine for displaying questions. Halts execution until the user answers, then routes flow based on Correct, Incorrect, or completion.";
 
         public override List<PortData> GetInputPorts()
         {

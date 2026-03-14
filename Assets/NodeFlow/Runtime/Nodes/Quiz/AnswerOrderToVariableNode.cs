@@ -31,6 +31,7 @@ namespace NodeSystem.Nodes.Quiz
         public override string Name => "Answer Order To Variable";
         public override Color Color => new Color(0.85f, 0.55f, 0.25f);
         public override string Category => "Quiz";
+        public override string Description => "Writes the finalized quiz answer order into a graph string variable. Example output: 'RRRWWRRRRR'.";
 
         public override List<PortData> GetInputPorts()
         {

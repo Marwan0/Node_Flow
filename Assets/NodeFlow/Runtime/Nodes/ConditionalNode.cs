@@ -55,6 +55,7 @@ namespace NodeSystem.Nodes
         public override string Name => "Conditional";
         public override Color Color => new Color(0.9f, 0.7f, 0.2f); // Yellow/Orange
         public override string Category => "Flow";
+        public override string Description => "Compares two graph variables or specific values and branches execution based on the result. Supports Bool, Int, Float, String, and GameObject comparisons.";
 
         public override List<PortData> GetInputPorts()
         {

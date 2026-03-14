@@ -27,6 +27,7 @@ namespace NodeSystem.Nodes
         public override string Name => "Wait For All";
         public override Color Color => new Color(0.3f, 0.7f, 0.5f);
         public override string Category => "Flow";
+        public override string Description => "A synchronization node. It waits until *all* upstream nodes connected directly to its input have fired before it proceeds. Essential for rejoining parallel execution paths.";
 
         // --- Ports ---
 

@@ -29,6 +29,7 @@ namespace NodeSystem.Nodes
         public override string Name => "Show Message";
         public override Color Color => new Color(0.4f, 0.65f, 0.85f);
         public override string Category => "UI";
+        public override string Description => "Overwrites the text of a specific UI component.";
 
         public override List<PortData> GetInputPorts()
         {

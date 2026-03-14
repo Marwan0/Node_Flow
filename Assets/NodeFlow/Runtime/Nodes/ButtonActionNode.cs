@@ -26,6 +26,7 @@ namespace NodeSystem.Nodes
         public override string Name => "Button Action";
         public override Color Color => new Color(0.3f, 0.5f, 0.8f); // Dark Blue
         public override string Category => "UI";
+        public override string Description => "Halts execution until the specified UI Button is clicked.";
 
         public override List<PortData> GetInputPorts()
         {

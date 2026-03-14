@@ -16,6 +16,7 @@ namespace NodeSystem.Nodes
         public override string Name => "End";
         public override Color Color => new Color(0.8f, 0.2f, 0.2f); // Red
         public override string Category => "Flow";
+        public override string Description => "Terminates the current execution path. If the Message setting is filled, it logs the message to the console upon completion.";
 
         public override List<PortData> GetInputPorts()
         {

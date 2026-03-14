@@ -59,6 +59,7 @@ namespace NodeSystem.Nodes
         public override string Name => "Animation";
         public override Color Color => new Color(0.9f, 0.4f, 0.7f); // Pink
         public override string Category => "UI";
+        public override string Description => "Passes parameters into a Unity Animator component to trigger transitions.";
 
         public override List<PortData> GetInputPorts()
         {

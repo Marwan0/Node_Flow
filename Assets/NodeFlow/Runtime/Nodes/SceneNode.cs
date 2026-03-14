@@ -35,6 +35,7 @@ namespace NodeSystem.Nodes
         public override string Name => "Scene";
         public override Color Color => new Color(0.5f, 0.7f, 0.9f); // Light Blue
         public override string Category => "Scene";
+        public override string Description => "Loads, unloads, or sets active a Unity Scene.";
 
         public override List<PortData> GetInputPorts()
         {

@@ -39,6 +39,7 @@ namespace NodeSystem.Nodes
         public override string Name => "Loop";
         public override Color Color => new Color(0.6f, 0.3f, 0.8f); // Purple
         public override string Category => "Flow";
+        public override string Description => "Repeats execution of the nodes connected to the loop port. When the loop finishes (either by reaching Max Iterations or failing the Condition Variable), execution proceeds through the done port.";
 
         public override List<PortData> GetInputPorts()
         {

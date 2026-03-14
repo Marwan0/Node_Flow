@@ -39,6 +39,7 @@ namespace NodeSystem.Nodes.Quiz
         public override string Name => "Score";
         public override Color Color => new Color(0.9f, 0.7f, 0.2f); // Gold
         public override string Category => "Quiz";
+        public override string Description => "Adds, subtracts, or sets the user's score.";
 
         public override List<PortData> GetInputPorts()
         {

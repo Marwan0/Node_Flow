@@ -224,6 +224,7 @@ namespace NodeSystem.Nodes.Quiz
         public override string Name => "Score Progress Bar";
         public override Color Color => new Color(0.85f, 0.65f, 0.25f); // Amber/Gold
         public override string Category => "Quiz";
+        public override string Description => "Drives a UI Slider, Filled Image, or Slots (LED indicators) from the quiz score or a variable.";
 
         public override List<PortData> GetInputPorts()
         {

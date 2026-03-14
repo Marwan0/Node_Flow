@@ -31,6 +31,7 @@ namespace NodeSystem.Nodes
         public override string Name => "Comment";
         public override Color Color => commentColor;
         public override string Category => "Documentation";
+        public override string Description => "Comment/sticky note node for documentation.";
 
         public override List<PortData> GetInputPorts()
         {

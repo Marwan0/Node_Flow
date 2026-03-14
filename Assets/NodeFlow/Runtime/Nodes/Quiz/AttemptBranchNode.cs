@@ -27,6 +27,7 @@ namespace NodeSystem.Nodes.Quiz
         public override string Name => "Attempt Branch";
         public override Color Color => new Color(0.7f, 0.5f, 0.8f); // Purple
         public override string Category => "Quiz";
+        public override string Description => "Routes execution to a specific output port based on the current question's attempt number.";
 
         public override List<PortData> GetInputPorts()
         {
