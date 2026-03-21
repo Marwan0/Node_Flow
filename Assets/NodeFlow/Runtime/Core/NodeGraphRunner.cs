@@ -136,6 +136,10 @@ namespace NodeSystem
             _executionPath.Clear();
             _activeNodeGuids.Clear();
 
+            // Re-resolve scene references (they become null after scene reload
+            // because the old GameObjects were destroyed)
+            _graph.ResolveSceneReferencesAtRuntime();
+
             // Initialize all nodes with runner reference
             foreach (var node in _graph.Nodes)
             {

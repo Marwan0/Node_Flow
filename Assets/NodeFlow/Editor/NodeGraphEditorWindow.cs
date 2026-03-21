@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine.UIElements;
@@ -92,6 +93,10 @@ namespace NodeSystem.Editor
             // Refresh inline content when play mode changes
             EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
             
+            // Refresh inline content when a scene loads (fixes ObjectFields showing
+            // "None" after scene reload because the old scene objects were destroyed)
+            SceneManager.sceneLoaded += OnSceneLoaded;
+            
             // Restore state after UI is created (so _graphField exists)
             RestoreState();
         }
@@ -110,12 +115,21 @@ namespace NodeSystem.Editor
             
             // Unsubscribe from play mode changes
             EditorApplication.playModeStateChanged -= OnPlayModeStateChanged;
+            SceneManager.sceneLoaded -= OnSceneLoaded;
         }
         
         private void OnPlayModeStateChanged(PlayModeStateChange state)
         {
-            // Refresh all node inline content when play mode changes
-            // Use delayCall to ensure it happens after play mode transition completes
+            RefreshAllNodeViews();
+        }
+
+        private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+        {
+            RefreshAllNodeViews();
+        }
+
+        private void RefreshAllNodeViews()
+        {
             EditorApplication.delayCall += () =>
             {
                 if (_graphView != null)
@@ -129,7 +143,6 @@ namespace NodeSystem.Editor
                     }
                 }
             };
-
         }
 
         private void OnSelectionChanged()

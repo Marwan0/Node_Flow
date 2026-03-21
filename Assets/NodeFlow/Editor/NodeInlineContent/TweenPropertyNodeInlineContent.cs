@@ -178,6 +178,8 @@ namespace NodeSystem.Editor
             objectField.style.flexGrow = 1;
             objectField.RegisterValueChangedCallback(evt =>
             {
+                if (evt.newValue == null && evt.previousValue == null)
+                    return;
                 var go = evt.newValue as GameObject;
                 string path = go != null ? GetGameObjectPath(go) : "";
                 onChanged(path);

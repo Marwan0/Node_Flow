@@ -418,6 +418,12 @@ namespace NodeSystem.Editor
             field.style.flexGrow = 1;
             field.RegisterValueChangedCallback(evt =>
             {
+                // When a scene reloads, the backing object is destroyed and Unity
+                // may fire a change from destroyed-object (== null) to null.
+                // Skip this to prevent accidental clearing of path/reference data.
+                if (evt.newValue == null && evt.previousValue == null)
+                    return;
+
                 onChanged((T)evt.newValue);
                 MarkDirty();
             });

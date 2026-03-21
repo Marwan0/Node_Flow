@@ -520,6 +520,19 @@ namespace NodeSystem
                         }
                     }
                 }
+
+                if (node is Nodes.ShowMessageNode showNode)
+                {
+                    if (showNode.targetRef == null && !string.IsNullOrEmpty(showNode.targetPath))
+                    {
+                        var restored = RestoreGameObjectFromPath(showNode.targetPath);
+                        if (restored != null)
+                        {
+                            showNode.targetRef = restored;
+                            anyRestored = true;
+                        }
+                    }
+                }
             }
 
             if (anyRestored && saveIfChanged)
@@ -592,6 +605,80 @@ namespace NodeSystem
             return null;
         }
 #endif
+
+        /// <summary>
+        /// Runtime: re-resolve any direct UnityEngine.Object scene references from their
+        /// path-string fallbacks. Call this after a scene reload so that nodes like
+        /// LoadQuestionNode, ScoreProgressBarNode, and ShowMessageNode can find their
+        /// targets in the freshly loaded scene.
+        /// </summary>
+        public void ResolveSceneReferencesAtRuntime()
+        {
+            if (_runtimeNodes == null) return;
+
+            foreach (var node in _runtimeNodes)
+            {
+                if (node == null) continue;
+
+                if (node is Nodes.Quiz.LoadQuestionNode loadNode)
+                {
+                    if (loadNode.questionContainerRef == null && !string.IsNullOrEmpty(loadNode.questionContainerPath))
+                    {
+                        var go = FindGameObjectByPath(loadNode.questionContainerPath);
+                        if (go != null) loadNode.questionContainerRef = go;
+                    }
+                }
+
+                if (node is Nodes.Quiz.ScoreProgressBarNode progressNode)
+                {
+                    if (progressNode.targetRef == null && !string.IsNullOrEmpty(progressNode.targetPath))
+                    {
+                        var go = FindGameObjectByPath(progressNode.targetPath);
+                        if (go != null) progressNode.targetRef = go;
+                    }
+                }
+
+                if (node is Nodes.ShowMessageNode showNode)
+                {
+                    if (showNode.targetRef == null && !string.IsNullOrEmpty(showNode.targetPath))
+                    {
+                        var go = FindGameObjectByPath(showNode.targetPath);
+                        if (go != null) showNode.targetRef = go;
+                    }
+                }
+            }
+        }
+
+        private static GameObject FindGameObjectByPath(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return null;
+
+            var found = GameObject.Find(path);
+            if (found != null) return found;
+
+            var parts = path.Split('/');
+            if (parts.Length > 0)
+            {
+                string rootName = parts[0];
+                for (int i = 0; i < UnityEngine.SceneManagement.SceneManager.sceneCount; i++)
+                {
+                    var scene = UnityEngine.SceneManagement.SceneManager.GetSceneAt(i);
+                    if (!scene.isLoaded) continue;
+
+                    foreach (var rootGo in scene.GetRootGameObjects())
+                    {
+                        if (rootGo.name != rootName) continue;
+                        if (parts.Length == 1) return rootGo;
+
+                        var relativePath = string.Join("/", parts, 1, parts.Length - 1);
+                        var t = rootGo.transform.Find(relativePath);
+                        if (t != null) return t.gameObject;
+                    }
+                }
+            }
+
+            return null;
+        }
 
         /// <summary>
         /// Restore asset references from separate storage (called after loading nodes)

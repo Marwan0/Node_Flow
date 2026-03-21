@@ -184,6 +184,8 @@ namespace NodeSystem.Editor
                 field.style.flexGrow = 1;
                 field.RegisterValueChangedCallback(evt =>
                 {
+                    if (evt.newValue == null && evt.previousValue == null)
+                        return;
                     var go = evt.newValue as GameObject;
                     node.targetPaths[index] = go != null ? GetGameObjectPath(go) : "";
                     MarkDirty();
