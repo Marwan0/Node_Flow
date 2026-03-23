@@ -163,7 +163,7 @@ namespace NodeSystem.Nodes
 
         private void OnSubGraphEnded(NodeGraphRunner runner)
         {
-            if (runner == Runner && runner.Graph == subGraph)
+            if (runner == Runner && (runner.Graph == subGraph || runner.SourceGraph == subGraph))
             {
                 _subGraphCompleted = true;
             }

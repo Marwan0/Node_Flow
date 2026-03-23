@@ -34,6 +34,9 @@ namespace NodeSystem
         [SerializeField]
         private List<NodeUnityEvent> _sceneEvents = new List<NodeUnityEvent>();
 
+        // Runtime clone of the graph asset — protects the original from mutation
+        private NodeGraph _runtimeGraph;
+
         private NodeData _currentNode;
         private bool _isRunning;
         private List<string> _executionPath = new List<string>();
@@ -47,7 +50,10 @@ namespace NodeSystem
 
         public bool IsRunning => _isRunning;
         public NodeData CurrentNode => _currentNode;
-        public NodeGraph Graph => _graph;
+        /// <summary>Returns the runtime clone (during play) or the source asset</summary>
+        public NodeGraph Graph => _runtimeGraph != null ? _runtimeGraph : _graph;
+        /// <summary>Returns the original graph asset (for editor comparisons)</summary>
+        public NodeGraph SourceGraph => _graph;
         public IReadOnlyList<string> ExecutionPath => _executionPath;
 
         // === Static Events for Editor Visualization ===
@@ -120,7 +126,7 @@ namespace NodeSystem
                 return;
             }
 
-            // Validate
+            // Validate on the original asset
             var errors = _graph.Validate();
             if (errors.Count > 0)
             {
@@ -131,17 +137,30 @@ namespace NodeSystem
                 return;
             }
 
-            // Reset all nodes
-            _graph.ResetAllNodes();
+            // Create a runtime clone so the original asset is never modified.
+            // This is critical for scene reloads: the clone starts fresh from
+            // the serialized asset data, so path-based resolution works correctly
+            // instead of holding stale references to destroyed GameObjects.
+            if (_runtimeGraph != null)
+            {
+                // Reset old clone's nodes to unsubscribe stale static event handlers
+                _runtimeGraph.ResetAllNodes();
+                Destroy(_runtimeGraph);
+            }
+            _runtimeGraph = Instantiate(_graph);
+            _runtimeGraph.name = _graph.name + " (Runtime)";
+
+            // Reset all nodes on the clone
+            _runtimeGraph.ResetAllNodes();
             _executionPath.Clear();
             _activeNodeGuids.Clear();
 
             // Re-resolve scene references (they become null after scene reload
             // because the old GameObjects were destroyed)
-            _graph.ResolveSceneReferencesAtRuntime();
+            _runtimeGraph.ResolveSceneReferencesAtRuntime();
 
             // Initialize all nodes with runner reference
-            foreach (var node in _graph.Nodes)
+            foreach (var node in _runtimeGraph.Nodes)
             {
                 node.Runner = this;
 
@@ -151,7 +170,7 @@ namespace NodeSystem
             }
 
             // Start from entry node
-            var entry = _graph.GetEntryNode();
+            var entry = _runtimeGraph.GetEntryNode();
             if (entry == null)
             {
                 Debug.LogError("[NodeGraphRunner] No entry node found!");
@@ -160,7 +179,7 @@ namespace NodeSystem
 
             _isRunning = true;
             ActiveRunner = this;
-            
+
             if (_debugMode)
                 Debug.Log("[NodeGraphRunner] Starting graph execution");
 
@@ -182,15 +201,63 @@ namespace NodeSystem
             _stepMode = false;
             _activeNodeGuids.Clear();
             StopAllCoroutines();
-            
+
+            // Stop any audio still playing
+            StopAllAudio();
+
             if (ActiveRunner == this)
                 ActiveRunner = null;
 
             // Fire event
             OnGraphEnded?.Invoke(this);
-            
+
+            // Reset and destroy the runtime clone
+            if (_runtimeGraph != null)
+            {
+                _runtimeGraph.ResetAllNodes();
+                Destroy(_runtimeGraph);
+                _runtimeGraph = null;
+            }
+
             if (_debugMode)
                 Debug.Log("[NodeGraphRunner] Stopped");
+        }
+
+        /// <summary>
+        /// Stops all audio sources used by the node graph (shared source + QuizState).
+        /// </summary>
+        private void StopAllAudio()
+        {
+            // Stop QuizState audio
+            var quizState = QuizSystem.QuizState.Instance;
+            if (quizState != null)
+                quizState.StopAudio();
+
+            // Stop the shared PlaySoundNode source
+            var sharedSource = GameObject.Find("NodeGraph_AudioSource");
+            if (sharedSource != null)
+            {
+                var audioSource = sharedSource.GetComponent<AudioSource>();
+                if (audioSource != null)
+                    audioSource.Stop();
+            }
+        }
+
+        private void OnDestroy()
+        {
+            // Stop audio before cleanup — QuizState survives scene loads (DontDestroyOnLoad)
+            if (_isRunning)
+                StopAllAudio();
+
+            // Reset all nodes on the old clone BEFORE destroying it.
+            // This unsubscribes stale handlers from static events (e.g. OnNodeCompleted)
+            // that would otherwise leak and interfere with the next run.
+            if (_runtimeGraph != null)
+            {
+                _runtimeGraph.ResetAllNodes();
+                Destroy(_runtimeGraph);
+                _runtimeGraph = null;
+            }
         }
 
         /// <summary>
@@ -281,8 +348,8 @@ namespace NodeSystem
         /// </summary>
         public void BroadcastSignal(string signalId)
         {
-            if (!_isRunning || _graph == null || string.IsNullOrEmpty(signalId)) return;
-            foreach (var node in _graph.Nodes)
+            if (!_isRunning || Graph == null || string.IsNullOrEmpty(signalId)) return;
+            foreach (var node in Graph.Nodes)
             {
                 if (node is Nodes.ReceiveSignalNode recv && recv.signalId == signalId)
                     ExecuteNode(node);
@@ -328,9 +395,9 @@ namespace NodeSystem
             }
 
             // 2. Fallback to Graph Asset Event
-            if (_graph != null)
+            if (Graph != null)
             {
-                _graph.InvokeUnityEvent(nodeGuid);
+                Graph.InvokeUnityEvent(nodeGuid);
             }
         }
 
@@ -501,11 +568,11 @@ namespace NodeSystem
                 completedNode.State = NodeState.Completed;
                 
                 // First, execute nodes connected to the result port (correct/incorrect)
-                var resultNodes = _graph.GetConnectedNodes(completedNode.Guid, resultPort);
+                var resultNodes = Graph.GetConnectedNodes(completedNode.Guid, resultPort);
                 
                 // Also get the "complete" port nodes so we can pre-register all of them
                 outputPort = "complete";
-                var completeNodes = _graph.GetConnectedNodes(completedNode.Guid, outputPort);
+                var completeNodes = Graph.GetConnectedNodes(completedNode.Guid, outputPort);
                 
                 // Pre-register ALL nodes (result + complete) before executing any,
                 // to prevent synchronous nodes from prematurely stopping the graph.
@@ -530,7 +597,7 @@ namespace NodeSystem
             // RandomBranchNode: execute only the randomly selected node, not all connected nodes
             if (completedNode is Nodes.RandomBranchNode randomBranch && !string.IsNullOrEmpty(randomBranch.SelectedNodeGuid))
             {
-                var selectedNode = _graph.GetNode(randomBranch.SelectedNodeGuid);
+                var selectedNode = Graph.GetNode(randomBranch.SelectedNodeGuid);
                 if (selectedNode != null)
                 {
                     ExecuteNode(selectedNode);
@@ -561,7 +628,7 @@ namespace NodeSystem
             }
 
             // Get connected nodes from the appropriate output port
-            var nextNodes = _graph.GetConnectedNodes(completedNode.Guid, outputPort);
+            var nextNodes = Graph.GetConnectedNodes(completedNode.Guid, outputPort);
 
             if (nextNodes.Count == 0)
             {

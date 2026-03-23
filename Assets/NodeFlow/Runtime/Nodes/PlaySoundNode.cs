@@ -268,14 +268,11 @@ namespace NodeSystem.Nodes
                 if (_sharedAudioSource != null) return _sharedAudioSource;
             }
 
-            // Create new
+            // Create new — lives in the scene so it's destroyed on scene reload
             var audioObject = new GameObject("NodeGraph_AudioSource");
-            audioObject.hideFlags = HideFlags.DontSave; // Don't save in scene
+            audioObject.hideFlags = HideFlags.DontSave;
             _sharedAudioSource = audioObject.AddComponent<AudioSource>();
             _sharedAudioSource.playOnAwake = false;
-
-            // Keep alive across scenes (optional - remove if you want scene-specific audio)
-            UnityEngine.Object.DontDestroyOnLoad(audioObject);
 
             Debug.Log("[PlaySoundNode] Created shared AudioSource");
             return _sharedAudioSource;

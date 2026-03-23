@@ -41,6 +41,8 @@ namespace QuizSystem
         // Fill in the Blank specific
         public string correctText;
         public string[] alternativeAnswers;
+        /// <summary>Multiple blanks (ordered). When null or empty, correctText / alternativeAnswers describe a single blank.</summary>
+        public ExportedFillBlankSlot[] fillBlankSlots;
         public bool caseSensitive;
         public bool allowPartialMatch;
         public float partialMatchThreshold;
@@ -93,6 +95,13 @@ namespace QuizSystem
         public ExportConnectItem[] rightColumnItems;
         public ExportPairing[] correctConnections;
         public int maxAttemptsPerConnection;
+    }
+
+    [Serializable]
+    public class ExportedFillBlankSlot
+    {
+        public string correct;
+        public string[] alternatives;
     }
 
     [Serializable]

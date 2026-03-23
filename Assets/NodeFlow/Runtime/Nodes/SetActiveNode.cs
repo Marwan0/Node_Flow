@@ -100,9 +100,8 @@ namespace NodeSystem.Nodes
             }
 
             int randomIndex = UnityEngine.Random.Range(0, targetPaths.Count);
-            string chosenPath = targetPaths[randomIndex];
 
-            // Deactivate all others, activate the chosen one
+            // Activate only the chosen one, deactivate all others
             for (int i = 0; i < targetPaths.Count; i++)
             {
                 if (string.IsNullOrEmpty(targetPaths[i])) continue;
@@ -110,7 +109,7 @@ namespace NodeSystem.Nodes
                 GameObject go = FindGameObject(targetPaths[i]);
                 if (go == null) continue;
 
-                bool shouldBeActive = (i == randomIndex) ? setActive : !setActive;
+                bool shouldBeActive = (i == randomIndex);
                 ClearEditorSelectionIfNeeded(go, shouldBeActive);
                 go.SetActive(shouldBeActive);
             }

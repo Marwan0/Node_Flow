@@ -1,0 +1,22 @@
+{
+    "name": "NodeFlow.Editor",
+    "rootNamespace": "NodeSystem.Editor",
+    "references": [
+        "NodeFlow.Runtime",
+        "DOTween.Modules",
+        "BrunoMikoski.AnimationSequencer",
+        "BrunoMikoski.AnimationSequencer.Editor",
+        "Unity.TextMeshPro"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -215,8 +215,18 @@ namespace NodeSystem.Editor
             intField.style.flexGrow = 1;
             intField.RegisterValueChangedCallback(evt =>
             {
-                field.SetValue(Node, evt.newValue);
+                // Clamp if field has a Range attribute
+                int newValue = evt.newValue;
+                var rangeAttr = field.GetCustomAttribute<RangeAttribute>();
+                if (rangeAttr != null)
+                    newValue = Mathf.Clamp(newValue, (int)rangeAttr.min, (int)rangeAttr.max);
+
+                field.SetValue(Node, newValue);
+                if (newValue != evt.newValue)
+                    intField.SetValueWithoutNotify(newValue);
                 MarkDirty();
+                // Refresh ports + content in case this field drives dynamic ports
+                RequestRefresh();
             });
             row.Add(intField);
 

@@ -134,6 +134,41 @@ namespace NodeSystem.Editor
             CreateLabel("Question Parent (optional, drag from Hierarchy)");
             CreateObjectField<UnityEngine.Object>("", currentContainer, v =>
             {
+                if (v != null)
+                {
+                    // Block prefab assets — Question Parent must be a scene object
+                    bool isAsset = false;
+                    if (v is GameObject goCheck) isAsset = AssetDatabase.Contains(goCheck);
+                    else if (v is Component comp && comp.gameObject != null) isAsset = AssetDatabase.Contains(comp.gameObject);
+
+                    if (isAsset)
+                    {
+                        EditorUtility.DisplayDialog(
+                            "Question Parent — wrong place (you used the Project window)",
+                            "What went wrong:\n" +
+                            "You dragged something from the Project window (assets at the bottom of the editor). " +
+                            "The field \"Question Parent\" does NOT accept Project files.\n\n" +
+                            "What \"Question Parent\" is for:\n" +
+                            "It is the empty object IN YOUR SCENE where the quiz will put the question UI — for example a panel named Quiz_Container under your Canvas. " +
+                            "Think: \"where in the scene should the question appear?\"\n\n" +
+                            "How to fix it (step by step):\n" +
+                            "1) Open the scene that has your quiz UI.\n" +
+                            "2) In the Hierarchy (left), find the GameObject that should be the parent (e.g. Quiz_Container).\n" +
+                            "3) Drag THAT object from the Hierarchy into \"Question Parent\" — not from the Project.\n\n" +
+                            "If you actually wanted to choose the LOOK of the question (a reusable UI prefab):\n" +
+                            "Use \"Layout Override\" below instead. That field is the one that takes a prefab from the Project.\n\n" +
+                            "Quick rule:\n" +
+                            "• Hierarchy object → Question Parent\n" +
+                            "• Project prefab → Layout Override",
+                            "OK");
+                        node.questionContainerRef = null;
+                        node.questionContainerPath = "";
+                        MarkDirty();
+                        RequestRefresh();
+                        return;
+                    }
+                }
+
                 node.questionContainerRef = v;
                 if (v != null)
                 {
@@ -171,31 +206,42 @@ namespace NodeSystem.Editor
 
             CreateObjectField<GameObject>("", currentLayoutPrefab, v =>
             {
-                GameObject prefabAsset = v;
-                if (prefabAsset != null)
+                if (v == null)
                 {
-                    // If a scene instance is dragged, resolve it to its source prefab asset.
-                    if (!AssetDatabase.Contains(prefabAsset))
+                    node.layoutOverridePrefab = null;
+                    node.layoutOverridePrefabPath = "";
+                    var graphClear = GetNodeGraph();
+                    if (graphClear != null)
                     {
-                        var source = PrefabUtility.GetCorrespondingObjectFromSource(prefabAsset);
-                        if (source is GameObject sourceGo)
-                        {
-                            prefabAsset = sourceGo;
-                        }
-                        else
-                        {
-                            // Warning: Layout Override must be a prefab asset from Project, not a scene object.
-                            prefabAsset = null;
-                        }
+                        graphClear.SetNodeAssetReference(node.Guid, "layoutOverride", null);
+                        graphClear.SaveToJson();
+                        EditorUtility.SetDirty(graphClear);
                     }
+                    MarkDirty();
+                    RequestRefresh();
+                    return;
+                }
+
+                if (!TryResolveLayoutOverridePrefab(v, out GameObject prefabAsset, out string errTitle, out string errMessage))
+                {
+                    EditorUtility.DisplayDialog(errTitle, errMessage, "OK");
+                    RequestRefresh();
+                    return;
                 }
 
                 node.layoutOverridePrefab = prefabAsset;
                 node.layoutOverridePrefabPath = prefabAsset != null ? AssetDatabase.GetAssetPath(prefabAsset) : "";
                 var graph = GetNodeGraph();
-                if (graph != null) { graph.SaveToJson(); EditorUtility.SetDirty(graph); }
+                if (graph != null)
+                {
+                    graph.SetNodeAssetReference(node.Guid, "layoutOverride", prefabAsset);
+                    graph.SaveToJson();
+                    EditorUtility.SetDirty(graph);
+                }
                 MarkDirty();
             });
+
+            AddValidateReferencesButton(node);
 
             // Get the node from graph to ensure we're modifying the correct instance
             var graph = GetNodeGraph();
@@ -651,11 +697,19 @@ namespace NodeSystem.Editor
                     EditorGUILayout.PropertyField(correctAnswerBoolProp, new GUIContent("Correct Answer"));
                 }
 
-                // Fill in the Blank (string correctAnswer)
-                if (correctAnswerBoolProp != null && correctAnswerBoolProp.propertyType == SerializedPropertyType.String)
+                // Fill in the Blank
+                var blanksProp = _serializedQuestion.FindProperty("blanks");
+                if (blanksProp != null && blanksProp.isArray)
                 {
                     EditorGUILayout.LabelField("Answer", EditorStyles.boldLabel);
-                    EditorGUILayout.PropertyField(correctAnswerBoolProp, new GUIContent("Correct Answer"));
+                    EditorGUILayout.PropertyField(blanksProp, new GUIContent("Blanks (ordered)", "One entry per blank, top to bottom in the UI. Leave empty to use Correct Answer below for a single blank."), true);
+                }
+
+                if (correctAnswerBoolProp != null && correctAnswerBoolProp.propertyType == SerializedPropertyType.String)
+                {
+                    if (blanksProp == null || !blanksProp.isArray)
+                        EditorGUILayout.LabelField("Answer", EditorStyles.boldLabel);
+                    EditorGUILayout.PropertyField(correctAnswerBoolProp, new GUIContent("Correct Answer", "Used only when Blanks is empty."));
                     
                     var altAnswersProp = _serializedQuestion.FindProperty("alternativeAnswers");
                     if (altAnswersProp != null)
@@ -1077,6 +1131,173 @@ namespace NodeSystem.Editor
             }
 
             return null;
+        }
+
+        private void AddValidateReferencesButton(LoadQuestionNode node)
+        {
+            var row = new VisualElement();
+            row.style.flexDirection = FlexDirection.Row;
+            row.style.marginTop = 4;
+            row.style.marginBottom = 4;
+
+            var btn = new Button(() => ShowValidateReferencesDialog(node))
+            {
+                text = "Validate references"
+            };
+            btn.style.flexGrow = 1;
+            row.Add(btn);
+            Container.Add(row);
+        }
+
+        private void ShowValidateReferencesDialog(LoadQuestionNode node)
+        {
+            var lines = new List<string>();
+            bool hasIssues = false;
+
+            lines.Add("This check explains the two optional boxes: \"Question Parent\" (scene) vs \"Layout Override\" (prefab).");
+            lines.Add("");
+
+            if (node.questionContainerRef != null)
+            {
+                if (IsQuestionParentProjectAsset(node.questionContainerRef))
+                {
+                    lines.Add("QUESTION PARENT — problem");
+                    lines.Add("You have a Project asset here. This slot must be a GameObject from the Hierarchy (the live scene), e.g. the panel where questions should appear.");
+                    lines.Add("Fix: clear this field, then drag the correct object from the Hierarchy. If you meant a UI prefab file, use Layout Override instead.");
+                    hasIssues = true;
+                }
+                else
+                {
+                    lines.Add("QUESTION PARENT — OK");
+                    lines.Add("You assigned a scene object. That is correct: this tells the game which parent Transform to use when instantiating the question under your Canvas.");
+                }
+            }
+            else if (!string.IsNullOrEmpty(node.questionContainerPath))
+            {
+                lines.Add("QUESTION PARENT — warning");
+                lines.Add("A path was saved from an earlier assignment, but the object reference is empty (Unity lost the link — e.g. scene changed or object renamed).");
+                lines.Add("Fix: open the scene, find the container again, and drag it from the Hierarchy into Question Parent. Or clear the path if you do not need a parent.");
+                hasIssues = true;
+            }
+            else
+            {
+                lines.Add("QUESTION PARENT — not set");
+                lines.Add("Optional. If empty, the quiz will use whatever default parent your QuizManager / setup uses. Fill this when you need a specific container in the scene.");
+            }
+
+            lines.Add("");
+
+            if (node.layoutOverridePrefab != null)
+            {
+                if (!AssetDatabase.Contains(node.layoutOverridePrefab))
+                {
+                    lines.Add("LAYOUT OVERRIDE — problem");
+                    lines.Add("This should be a prefab asset stored in the Project folder, not a scene-only object.");
+                    lines.Add("Fix: drag the prefab from the Project window, or a prefab instance from the Hierarchy.");
+                    hasIssues = true;
+                }
+                else if (node.layoutOverridePrefab.GetComponentInChildren<QuestionUI>(true) == null)
+                {
+                    lines.Add("LAYOUT OVERRIDE — problem");
+                    lines.Add("The prefab file is valid, but it has no QuestionUI script on the root or children. The quiz cannot run without that.");
+                    lines.Add("Fix: open the prefab, add the right Question UI component (e.g. FillInTheBlankUI), save, and assign again.");
+                    hasIssues = true;
+                }
+                else
+                {
+                    lines.Add("LAYOUT OVERRIDE — OK");
+                    lines.Add("The prefab lives in the Project and includes a QuestionUI. That is what we need for this question’s layout.");
+                }
+            }
+            else if (!string.IsNullOrEmpty(node.layoutOverridePrefabPath))
+            {
+                lines.Add("LAYOUT OVERRIDE — warning");
+                lines.Add("A path was saved but Unity could not load that prefab (moved, deleted, or wrong folder).");
+                lines.Add("Fix: pick the prefab again from the Project, or clear the field to use the default layout from the question / QuizManager.");
+                hasIssues = true;
+            }
+            else
+            {
+                lines.Add("LAYOUT OVERRIDE — not set");
+                lines.Add("Optional. If empty, the game uses the default UI prefab for this question type (from the question asset or QuizManager). Use this when you want a custom layout prefab for this node only.");
+            }
+
+            string title = hasIssues ? "Reference check — please read" : "Reference check — all good";
+            string body = string.Join("\n", lines);
+            EditorUtility.DisplayDialog(title, body, "OK");
+        }
+
+        private static bool IsQuestionParentProjectAsset(UnityEngine.Object v)
+        {
+            if (v == null) return false;
+            if (v is GameObject go) return AssetDatabase.Contains(go);
+            if (v is Component c && c.gameObject != null) return AssetDatabase.Contains(c.gameObject);
+            return false;
+        }
+
+        /// <summary>
+        /// Resolves a Project prefab or a prefab instance in the scene; rejects plain scene objects and prefabs without QuestionUI.
+        /// </summary>
+        private static bool TryResolveLayoutOverridePrefab(GameObject v, out GameObject prefabAsset, out string errorTitle, out string errorMessage)
+        {
+            prefabAsset = null;
+            errorTitle = "Layout Override";
+            errorMessage = null;
+
+            if (v == null)
+                return true;
+
+            GameObject candidate;
+
+            if (AssetDatabase.Contains(v))
+            {
+                candidate = v;
+            }
+            else
+            {
+                var source = PrefabUtility.GetCorrespondingObjectFromSource(v);
+                if (source is GameObject sourceGo && AssetDatabase.Contains(sourceGo))
+                    candidate = sourceGo;
+                else
+                {
+                    errorTitle = "Layout Override — not a prefab (plain scene object)";
+                    errorMessage =
+                        "What went wrong:\n" +
+                        "You dragged a normal GameObject from the scene that is not an instance of a prefab (or we could not find its source prefab).\n\n" +
+                        "What \"Layout Override\" is for:\n" +
+                        "It must point to a UI prefab file (in the Project) so the game knows exactly which layout to spawn for this question. " +
+                        "A random empty GameObject in the scene is not enough.\n\n" +
+                        "How to fix it:\n" +
+                        "1) In the Project window, find your quiz UI prefab (icon is usually a blue cube).\n" +
+                        "2) Drag that prefab into \"Layout Override\", OR drag an instance from the Hierarchy that was created from a prefab (Unity will use the prefab it came from).\n\n" +
+                        "If you only wanted to say WHERE the question should appear (which panel in the scene):\n" +
+                        "Use \"Question Parent\" above instead — drag your scene container (e.g. Quiz_Container) from the Hierarchy.\n\n" +
+                        "Quick rule:\n" +
+                        "• Scene position / parent → Question Parent (Hierarchy)\n" +
+                        "• Which UI prefab to spawn → Layout Override (Project prefab)";
+                    return false;
+                }
+            }
+
+            if (candidate.GetComponentInChildren<QuestionUI>(true) == null)
+            {
+                errorTitle = "Layout Override — prefab is missing QuestionUI";
+                errorMessage =
+                    "What went wrong:\n" +
+                    "The GameObject you picked is a valid prefab file, but nothing on that prefab (root or children) has a QuestionUI script.\n\n" +
+                    "Why that matters:\n" +
+                    "The quiz system needs a component that inherits QuestionUI — for example MultipleChoiceUI, FillInTheBlankUI, TrueFalseUI. " +
+                    "That script connects the buttons and inputs to scoring and the node graph.\n\n" +
+                    "How to fix it:\n" +
+                    "1) Double-click the prefab in the Project to open Prefab Mode.\n" +
+                    "2) On the root or a child, Add Component → your question type UI (must inherit QuestionUI), or use a ready-made quiz UI prefab from this project.\n" +
+                    "3) Save the prefab, then assign it again in \"Layout Override\".\n\n" +
+                    "Tip: Your question asset (multiple choice, fill blank, etc.) must match the kind of UI on the prefab.";
+                return false;
+            }
+
+            prefabAsset = candidate;
+            return true;
         }
 
         /// <summary>

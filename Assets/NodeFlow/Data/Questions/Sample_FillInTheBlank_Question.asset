@@ -1,0 +1,41 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b05a8422df4802346be6373cff8422c3, type: 3}
+  m_Name: Sample_FillInTheBlank_Question
+  m_EditorClassIdentifier: 
+  questionText: 'Chemical symbols: gold is _____, silver is _____, and iron is _____.'
+  questionType: 4
+  hints:
+  - Gold and silver are in the same column as copper (Cu)
+  - "Silver\u2019s symbol is the first two letters of its Latin name, argentum"
+  - "Iron\u2019s symbol does not start with I \u2014 think of the Latin ferrum"
+  showHintAfterAttempt: 1
+  maxAttempts: 1
+  points: 15
+  explanation: Gold is Au (from Latin aurum), silver is Ag (from argentum), and iron
+    is Fe (from ferrum).
+  customUIPrefab: {fileID: 0}
+  blanks:
+  - correctAnswer: Au
+    alternativeAnswers:
+    - au
+  - correctAnswer: Ag
+    alternativeAnswers:
+    - ag
+  - correctAnswer: Fe
+    alternativeAnswers:
+    - fe
+  correctAnswer: 
+  alternativeAnswers: []
+  caseSensitive: 0
+  allowPartialMatch: 0
+  partialMatchThreshold: 0.8

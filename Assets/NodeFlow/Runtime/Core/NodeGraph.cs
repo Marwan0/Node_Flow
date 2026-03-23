@@ -63,6 +63,7 @@ namespace NodeSystem
     public class NodeAssetReference
     {
         public string nodeGuid;
+        public string key;  // optional key for nodes with multiple asset refs (e.g. "layoutOverride")
         public UnityEngine.Object assetReference;
     }
 
@@ -174,7 +175,34 @@ namespace NodeSystem
             {
                 Debug.Log($"[NodeGraph] OnEnable (kept existing): {graphName} - {_runtimeNodes.Count} nodes already in memory");
             }
+
+#if UNITY_EDITOR
+            // Re-restore scene references after scene reload (e.g. restart in play mode).
+            // Scene objects get new instanceIDs, so targetRef fields become null.
+            UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoadedRestore;
+            UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoadedRestore;
+#endif
         }
+
+#if UNITY_EDITOR
+        private void OnSceneLoadedRestore(UnityEngine.SceneManagement.Scene scene, UnityEngine.SceneManagement.LoadSceneMode mode)
+        {
+            if (_runtimeNodes != null && _runtimeNodes.Count > 0)
+            {
+                // Delay one frame so all scene objects are fully initialized
+                UnityEditor.EditorApplication.delayCall += () =>
+                {
+                    if (this != null)
+                        TryRestoreSceneReferencesInEditor(saveIfChanged: false);
+                };
+            }
+        }
+
+        private void OnDisable()
+        {
+            UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoadedRestore;
+        }
+#endif
 
         private void EnsureLoaded()
         {
@@ -506,6 +534,22 @@ namespace NodeSystem
                             anyRestored = true;
                         }
                     }
+
+                    // Restore layout override prefab from asset path
+                    if (loadNode.layoutOverridePrefab == null && !string.IsNullOrEmpty(loadNode.layoutOverridePrefabPath))
+                    {
+                        loadNode.layoutOverridePrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(loadNode.layoutOverridePrefabPath);
+                        if (loadNode.layoutOverridePrefab != null)
+                            anyRestored = true;
+                    }
+
+                    // Restore question ref from asset path
+                    if (loadNode.questionRef == null && !string.IsNullOrEmpty(loadNode.questionAssetPath))
+                    {
+                        loadNode.questionRef = UnityEditor.AssetDatabase.LoadAssetAtPath<QuestionData>(loadNode.questionAssetPath);
+                        if (loadNode.questionRef != null)
+                            anyRestored = true;
+                    }
                 }
 
                 if (node is Nodes.Quiz.ScoreProgressBarNode progressNode)
@@ -533,6 +577,16 @@ namespace NodeSystem
                         }
                     }
                 }
+
+                if (node is Nodes.PlaySoundNode soundNode)
+                {
+                    if (soundNode.audioClipRef == null && !string.IsNullOrEmpty(soundNode.audioClipPath))
+                    {
+                        soundNode.audioClipRef = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>(soundNode.audioClipPath);
+                        if (soundNode.audioClipRef != null)
+                            anyRestored = true;
+                    }
+                }
             }
 
             if (anyRestored && saveIfChanged)
@@ -543,8 +597,9 @@ namespace NodeSystem
 
             return anyRestored;
         }
+#endif
 
-        private UnityEngine.Object RestoreGameObjectFromPath(string path)
+        private GameObject RestoreGameObjectFromPath(string path)
         {
             if (string.IsNullOrEmpty(path)) return null;
 
@@ -604,16 +659,13 @@ namespace NodeSystem
             }
             return null;
         }
-#endif
 
         /// <summary>
-        /// Runtime: re-resolve any direct UnityEngine.Object scene references from their
-        /// path-string fallbacks. Call this after a scene reload so that nodes like
-        /// LoadQuestionNode, ScoreProgressBarNode, and ShowMessageNode can find their
-        /// targets in the freshly loaded scene.
+        /// Re-bind scene GameObjects from saved hierarchy paths when direct references are null (e.g. after scene reload in play mode).
         /// </summary>
         public void ResolveSceneReferencesAtRuntime()
         {
+            EnsureLoaded();
             if (_runtimeNodes == null) return;
 
             foreach (var node in _runtimeNodes)
@@ -623,61 +675,21 @@ namespace NodeSystem
                 if (node is Nodes.Quiz.LoadQuestionNode loadNode)
                 {
                     if (loadNode.questionContainerRef == null && !string.IsNullOrEmpty(loadNode.questionContainerPath))
-                    {
-                        var go = FindGameObjectByPath(loadNode.questionContainerPath);
-                        if (go != null) loadNode.questionContainerRef = go;
-                    }
+                        loadNode.questionContainerRef = RestoreGameObjectFromPath(loadNode.questionContainerPath);
                 }
 
                 if (node is Nodes.Quiz.ScoreProgressBarNode progressNode)
                 {
                     if (progressNode.targetRef == null && !string.IsNullOrEmpty(progressNode.targetPath))
-                    {
-                        var go = FindGameObjectByPath(progressNode.targetPath);
-                        if (go != null) progressNode.targetRef = go;
-                    }
+                        progressNode.targetRef = RestoreGameObjectFromPath(progressNode.targetPath);
                 }
 
                 if (node is Nodes.ShowMessageNode showNode)
                 {
                     if (showNode.targetRef == null && !string.IsNullOrEmpty(showNode.targetPath))
-                    {
-                        var go = FindGameObjectByPath(showNode.targetPath);
-                        if (go != null) showNode.targetRef = go;
-                    }
+                        showNode.targetRef = RestoreGameObjectFromPath(showNode.targetPath);
                 }
             }
-        }
-
-        private static GameObject FindGameObjectByPath(string path)
-        {
-            if (string.IsNullOrEmpty(path)) return null;
-
-            var found = GameObject.Find(path);
-            if (found != null) return found;
-
-            var parts = path.Split('/');
-            if (parts.Length > 0)
-            {
-                string rootName = parts[0];
-                for (int i = 0; i < UnityEngine.SceneManagement.SceneManager.sceneCount; i++)
-                {
-                    var scene = UnityEngine.SceneManagement.SceneManager.GetSceneAt(i);
-                    if (!scene.isLoaded) continue;
-
-                    foreach (var rootGo in scene.GetRootGameObjects())
-                    {
-                        if (rootGo.name != rootName) continue;
-                        if (parts.Length == 1) return rootGo;
-
-                        var relativePath = string.Join("/", parts, 1, parts.Length - 1);
-                        var t = rootGo.transform.Find(relativePath);
-                        if (t != null) return t.gameObject;
-                    }
-                }
-            }
-
-            return null;
         }
 
         /// <summary>
@@ -693,37 +705,32 @@ namespace NodeSystem
             {
                 if (node == null) continue;
 
-                // Find asset reference for this node
-                var assetRef = _nodeAssetReferences.Find(r => r.nodeGuid == node.Guid);
-                if (assetRef == null || assetRef.assetReference == null) continue;
-
-                // Restore LoadQuestionNode question reference
+                // Restore LoadQuestionNode references
                 if (node is Nodes.Quiz.LoadQuestionNode loadNode)
                 {
-                    if (assetRef.assetReference is QuizSystem.QuestionData questionData)
+                    var questionRef = _nodeAssetReferences.Find(r => r.nodeGuid == node.Guid && (r.key ?? "") == "");
+                    if (questionRef?.assetReference is QuizSystem.QuestionData questionData)
                     {
                         loadNode.questionRef = questionData;
                         restoredCount++;
-                        Debug.Log($"[NodeGraph] Restored QuestionData reference for node {node.Name} ({node.Guid})");
                     }
-                    else
+
+                    var layoutRef = _nodeAssetReferences.Find(r => r.nodeGuid == node.Guid && (r.key ?? "") == "layoutOverride");
+                    if (layoutRef?.assetReference is GameObject layoutPrefab)
                     {
-                        Debug.LogWarning($"[NodeGraph] Asset reference for {node.Name} is not QuestionData type: {assetRef.assetReference?.GetType()}");
+                        loadNode.layoutOverridePrefab = layoutPrefab;
+                        restoredCount++;
                     }
                 }
 
                 // Restore PlaySoundNode audio clip reference
                 if (node is Nodes.PlaySoundNode soundNode)
                 {
-                    if (assetRef.assetReference is AudioClip audioClip)
+                    var assetRef = _nodeAssetReferences.Find(r => r.nodeGuid == node.Guid && (r.key ?? "") == "");
+                    if (assetRef?.assetReference is AudioClip audioClip)
                     {
                         soundNode.audioClipRef = audioClip;
                         restoredCount++;
-                        Debug.Log($"[NodeGraph] Restored AudioClip reference for node {node.Name} ({node.Guid})");
-                    }
-                    else
-                    {
-                        Debug.LogWarning($"[NodeGraph] Asset reference for {node.Name} is not AudioClip type: {assetRef.assetReference?.GetType()}");
                     }
                 }
             }
@@ -743,6 +750,11 @@ namespace NodeSystem
         /// </summary>
         public void SetNodeAssetReference(string nodeGuid, UnityEngine.Object asset)
         {
+            SetNodeAssetReference(nodeGuid, "", asset);
+        }
+
+        public void SetNodeAssetReference(string nodeGuid, string key, UnityEngine.Object asset)
+        {
             if (string.IsNullOrEmpty(nodeGuid))
             {
                 Debug.LogWarning("[NodeGraph] SetNodeAssetReference called with empty nodeGuid");
@@ -755,20 +767,20 @@ namespace NodeSystem
                 _nodeAssetReferences = new List<NodeAssetReference>();
             }
 
-            var existing = _nodeAssetReferences.Find(r => r.nodeGuid == nodeGuid);
+            string k = key ?? "";
+            var existing = _nodeAssetReferences.Find(r => r.nodeGuid == nodeGuid && (r.key ?? "") == k);
             if (existing != null)
             {
                 existing.assetReference = asset;
-                Debug.Log($"[NodeGraph] Updated asset reference for node {nodeGuid}: {(asset != null ? asset.name : "null")}");
             }
             else
             {
                 _nodeAssetReferences.Add(new NodeAssetReference
                 {
                     nodeGuid = nodeGuid,
+                    key = k,
                     assetReference = asset
                 });
-                Debug.Log($"[NodeGraph] Added asset reference for node {nodeGuid}: {(asset != null ? asset.name : "null")}");
             }
 
 #if UNITY_EDITOR
@@ -781,8 +793,14 @@ namespace NodeSystem
         /// </summary>
         public UnityEngine.Object GetNodeAssetReference(string nodeGuid)
         {
+            return GetNodeAssetReference(nodeGuid, "");
+        }
+
+        public UnityEngine.Object GetNodeAssetReference(string nodeGuid, string key)
+        {
             if (string.IsNullOrEmpty(nodeGuid)) return null;
-            var refEntry = _nodeAssetReferences.Find(r => r.nodeGuid == nodeGuid);
+            string k = key ?? "";
+            var refEntry = _nodeAssetReferences.Find(r => r.nodeGuid == nodeGuid && (r.key ?? "") == k);
             return refEntry?.assetReference;
         }
 
@@ -1116,11 +1134,24 @@ namespace NodeSystem
                     {
                         SetNodeAssetReference(node.Guid, assetToSave);
                         syncedCount++;
-                        Debug.Log($"[NodeGraph] Synced QuestionData reference for {node.Name}: {assetToSave.name}");
                     }
                     else if (!string.IsNullOrEmpty(loadNode.questionAssetPath))
                     {
                         Debug.LogWarning($"[NodeGraph] LoadQuestionNode {node.Name} has path but asset not found: {loadNode.questionAssetPath}");
+                    }
+
+                    // Sync layout override prefab
+                    GameObject layoutToSave = loadNode.layoutOverridePrefab;
+                    if (layoutToSave == null && !string.IsNullOrEmpty(loadNode.layoutOverridePrefabPath))
+                    {
+                        layoutToSave = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(loadNode.layoutOverridePrefabPath);
+                        if (layoutToSave != null)
+                            loadNode.layoutOverridePrefab = layoutToSave;
+                    }
+                    if (layoutToSave != null)
+                    {
+                        SetNodeAssetReference(node.Guid, "layoutOverride", layoutToSave);
+                        syncedCount++;
                     }
                 }
 
@@ -1164,11 +1195,19 @@ namespace NodeSystem
             {
                 if (node == null) continue;
 
-                if (node is Nodes.Quiz.LoadQuestionNode loadNode && loadNode.questionRef != null)
+                if (node is Nodes.Quiz.LoadQuestionNode loadNode)
                 {
-                    checkedCount++;
-                    SetNodeAssetReference(node.Guid, loadNode.questionRef);
-                    syncedCount++;
+                    if (loadNode.questionRef != null)
+                    {
+                        checkedCount++;
+                        SetNodeAssetReference(node.Guid, loadNode.questionRef);
+                        syncedCount++;
+                    }
+                    if (loadNode.layoutOverridePrefab != null)
+                    {
+                        SetNodeAssetReference(node.Guid, "layoutOverride", loadNode.layoutOverridePrefab);
+                        syncedCount++;
+                    }
                 }
                 else if (node is Nodes.PlaySoundNode soundNode && soundNode.audioClipRef != null)
                 {

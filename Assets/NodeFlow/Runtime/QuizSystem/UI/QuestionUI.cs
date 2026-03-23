@@ -6,6 +6,7 @@ using DG.Tweening;
 
 namespace QuizSystem
 {
+    [RequireComponent(typeof(CanvasGroup))]
     public abstract class QuestionUI : MonoBehaviour
     {
         [Header("Common UI Elements")]
@@ -647,11 +648,11 @@ namespace QuizSystem
             // Only show correct-answer hint if hints are globally enabled
             if (HintsEnabled)
             {
-                ShowHint($"Correct answer: {GetCorrectAnswerDisplay()}");
+                string correctLine = $"Correct answer: {GetCorrectAnswerDisplay()}";
                 if (!string.IsNullOrEmpty(currentQuestion.explanation))
-                {
-                    ShowHint($"{hintText.text}\n\nExplanation: {currentQuestion.explanation}");
-                }
+                    ShowHint($"{correctLine}\n\nExplanation: {currentQuestion.explanation}");
+                else
+                    ShowHint(correctLine);
             }
 
             if (hintButton != null) hintButton.gameObject.SetActive(false);

@@ -545,8 +545,21 @@ namespace QuizSystem
             }
         }
 
+        /// <summary>
+        /// Stops any audio currently playing on the quiz audio source.
+        /// </summary>
+        public void StopAudio()
+        {
+            if (_quizAudioSource != null)
+            {
+                _quizAudioSource.Stop();
+                _quizAudioSource.clip = null;
+            }
+        }
+
         public void ResetState()
         {
+            StopAudio();
             totalQuestions = 0;
             questionsAnswered = 0;
             correctAnswers = 0;

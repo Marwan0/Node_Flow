@@ -859,7 +859,7 @@ namespace NodeSystem.Editor
 
         private void OnRuntimeNodeStarted(NodeGraphRunner runner, NodeData node)
         {
-            if (Graph == null || runner.Graph != Graph) return;
+            if (Graph == null || runner.SourceGraph != Graph) return;
 
             _currentRunningNodeGuid = node.Guid;
             UpdateNodeVisualState(node.Guid, NodeState.Running);
@@ -870,7 +870,7 @@ namespace NodeSystem.Editor
 
         private void OnRuntimeNodeCompleted(NodeGraphRunner runner, NodeData node)
         {
-            if (Graph == null || runner.Graph != Graph) return;
+            if (Graph == null || runner.SourceGraph != Graph) return;
 
             _executedNodeGuids.Add(node.Guid);
             _currentRunningNodeGuid = null;
@@ -911,7 +911,7 @@ namespace NodeSystem.Editor
 
         private void OnRuntimeGraphStarted(NodeGraphRunner runner)
         {
-            if (Graph == null || runner.Graph != Graph) return;
+            if (Graph == null || runner.SourceGraph != Graph) return;
 
             // Reset tracking
             _executedNodeGuids.Clear();
@@ -949,7 +949,7 @@ namespace NodeSystem.Editor
             if (Graph == null) return;
 
             var runner = NodeGraphRunner.ActiveRunner;
-            if (runner == null || runner.Graph != Graph) return;
+            if (runner == null || runner.SourceGraph != Graph) return;
 
             // Rebuild our tracking from the runner's execution path
             _executedNodeGuids.Clear();

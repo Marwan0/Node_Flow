@@ -211,6 +211,13 @@ namespace QuizSystem
             }
 
             T question = ScriptableObject.CreateInstance<T>();
+            if (question is FillInTheBlankQuestionData fitbNew)
+            {
+                fitbNew.blanks = new List<FillBlankSlot> { new FillBlankSlot() };
+                fitbNew.correctAnswer = "";
+                fitbNew.alternativeAnswers = new List<string>();
+            }
+
             string assetPath = AssetDatabase.GenerateUniqueAssetPath($"{path}/{defaultName}.asset");
             AssetDatabase.CreateAsset(question, assetPath);
             AssetDatabase.SaveAssets();

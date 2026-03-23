@@ -123,20 +123,40 @@ namespace QuizSystem
             EnsurePath();
 
             var q = ScriptableObject.CreateInstance<FillInTheBlankQuestionData>();
-            q.questionText = "The chemical symbol for water is _____.";
-            q.correctAnswer = "H2O";
-            q.alternativeAnswers = new List<string> { "h2o", "H₂O" };
+            q.questionText =
+                "Chemical symbols: gold is _____, silver is _____, and iron is _____.";
+            q.blanks = new List<FillBlankSlot>
+            {
+                new FillBlankSlot
+                {
+                    correctAnswer = "Au",
+                    alternativeAnswers = new List<string> { "au" }
+                },
+                new FillBlankSlot
+                {
+                    correctAnswer = "Ag",
+                    alternativeAnswers = new List<string> { "ag" }
+                },
+                new FillBlankSlot
+                {
+                    correctAnswer = "Fe",
+                    alternativeAnswers = new List<string> { "fe" }
+                }
+            };
+            q.correctAnswer = "";
+            q.alternativeAnswers = new List<string>();
             q.caseSensitive = false;
             q.allowPartialMatch = false;
             q.hints = new string[]
             {
-                "It contains Hydrogen and Oxygen",
-                "There are two atoms of hydrogen",
-                "It starts with H"
+                "Gold and silver are in the same column as copper (Cu)",
+                "Silver’s symbol is the first two letters of its Latin name, argentum",
+                "Iron’s symbol does not start with I — think of the Latin ferrum"
             };
             q.maxAttempts = 3;
-            q.points = 10;
-            q.explanation = "Water's chemical formula is H2O — two hydrogen atoms bonded to one oxygen atom.";
+            q.points = 15;
+            q.explanation =
+                "Gold is Au (from Latin aurum), silver is Ag (from argentum), and iron is Fe (from ferrum).";
 
             SaveAndSelect(q, "Sample_FillInTheBlank_Question");
         }

@@ -5,6 +5,7 @@ using DG.Tweening;
 
 namespace QuizSystem
 {
+    [RequireComponent(typeof(CanvasGroup))]
     public class MultipleChoiceUI : QuestionUI
     {
         [Header("Multiple Choice UI")]
@@ -22,7 +23,7 @@ namespace QuizSystem
         [Range(0.1f, 0.5f)]
         [Tooltip("Duration of button entrance animation")]
         public float buttonEntranceDuration = 0.3f;
-        
+
         // Note: submitButton field is inherited from QuestionUI base class but not used here
         // It's needed for other question types (FillInTheBlank, DragDrop, etc.) but Multiple Choice auto-submits on click
 
@@ -137,7 +138,7 @@ namespace QuizSystem
                     // Use default animation from inspector
                     // Kill any existing tweens first
                     answerButtons[i].transform.DOKill();
-                    
+
                     Vector3 originalScale = answerButtons[i].transform.localScale;
                     answerButtons[i].transform.localScale = Vector3.zero;
 
@@ -334,7 +335,7 @@ namespace QuizSystem
 
             Vector3 originalScale = buttonTransform.localScale;
             Sequence sequence = DOTween.Sequence();
-            
+
             // Scale bounce
             sequence.Append(buttonTransform.DOScale(originalScale * 1.15f, feedbackDuration * 0.3f).SetEase(Ease.OutQuad));
             sequence.Append(buttonTransform.DOScale(originalScale, feedbackDuration * 0.7f).SetEase(Ease.InQuad));

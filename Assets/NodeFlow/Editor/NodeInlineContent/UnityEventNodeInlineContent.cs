@@ -40,7 +40,7 @@ namespace NodeSystem.Editor
                 var runners = UnityEngine.Object.FindObjectsOfType<NodeGraphRunner>();
                 foreach (var runner in runners)
                 {
-                    if (runner.Graph == graph)
+                    if (runner.SourceGraph == graph)
                     {
                         activeRunner = runner;
                         break;

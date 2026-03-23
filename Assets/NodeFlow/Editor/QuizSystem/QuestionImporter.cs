@@ -125,15 +125,32 @@ namespace QuizSystem
 
                 case QuestionType.FillInTheBlank:
                     var fitb = ScriptableObject.CreateInstance<FillInTheBlankQuestionData>();
-                    fitb.correctAnswer = entry.correctText ?? "";
-                    fitb.alternativeAnswers = entry.alternativeAnswers != null 
-                        ? new List<string>(entry.alternativeAnswers) 
-                        : new List<string>();
                     fitb.caseSensitive = entry.caseSensitive;
                     fitb.allowPartialMatch = entry.allowPartialMatch;
                     fitb.partialMatchThreshold = entry.partialMatchThreshold > 0 
                         ? entry.partialMatchThreshold 
                         : 0.8f;
+                    if (entry.fillBlankSlots != null && entry.fillBlankSlots.Length > 0)
+                    {
+                        fitb.blanks = new List<FillBlankSlot>();
+                        foreach (var slot in entry.fillBlankSlots)
+                        {
+                            fitb.blanks.Add(new FillBlankSlot
+                            {
+                                correctAnswer = slot.correct ?? "",
+                                alternativeAnswers = slot.alternatives != null
+                                    ? new List<string>(slot.alternatives)
+                                    : new List<string>()
+                            });
+                        }
+                    }
+                    else
+                    {
+                        fitb.correctAnswer = entry.correctText ?? "";
+                        fitb.alternativeAnswers = entry.alternativeAnswers != null
+                            ? new List<string>(entry.alternativeAnswers)
+                            : new List<string>();
+                    }
                     question = fitb;
                     break;
 

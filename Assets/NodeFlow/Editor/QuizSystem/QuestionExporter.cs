@@ -79,11 +79,27 @@ namespace QuizSystem
                     break;
 
                 case FillInTheBlankQuestionData fitb:
-                    entry.correctText = fitb.correctAnswer;
-                    entry.alternativeAnswers = fitb.alternativeAnswers?.ToArray();
                     entry.caseSensitive = fitb.caseSensitive;
                     entry.allowPartialMatch = fitb.allowPartialMatch;
                     entry.partialMatchThreshold = fitb.partialMatchThreshold;
+                    if (fitb.blanks != null && fitb.blanks.Count > 0)
+                    {
+                        entry.fillBlankSlots = fitb.blanks
+                            .Select(b => new ExportedFillBlankSlot
+                            {
+                                correct = b.correctAnswer,
+                                alternatives = b.alternativeAnswers?.ToArray()
+                            })
+                            .ToArray();
+                        entry.correctText = fitb.blanks[0].correctAnswer;
+                        entry.alternativeAnswers = fitb.blanks[0].alternativeAnswers?.ToArray();
+                    }
+                    else
+                    {
+                        entry.fillBlankSlots = null;
+                        entry.correctText = fitb.correctAnswer;
+                        entry.alternativeAnswers = fitb.alternativeAnswers?.ToArray();
+                    }
                     break;
 
                 case MultiSelectQuestionData ms:

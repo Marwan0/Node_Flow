@@ -2,7 +2,6 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine.UIElements;
@@ -92,11 +91,10 @@ namespace NodeSystem.Editor
             
             // Refresh inline content when play mode changes
             EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
-            
-            // Refresh inline content when a scene loads (fixes ObjectFields showing
-            // "None" after scene reload because the old scene objects were destroyed)
-            SceneManager.sceneLoaded += OnSceneLoaded;
-            
+
+            // Refresh inline content when scene reloads (e.g. restart during play mode)
+            UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoadedRefresh;
+
             // Restore state after UI is created (so _graphField exists)
             RestoreState();
         }
@@ -105,31 +103,45 @@ namespace NodeSystem.Editor
         {
             SaveState();
             SaveCurrentGraph();
-            
+
             // Unsubscribe from runtime events
             Selection.selectionChanged -= OnSelectionChanged;
             NodeGraphRunner.OnNodeStarted -= OnRuntimeNodeStarted;
             NodeGraphRunner.OnNodeCompleted -= OnRuntimeNodeCompleted;
             NodeGraphRunner.OnGraphStarted -= OnRuntimeGraphStarted;
             NodeGraphRunner.OnGraphEnded -= OnRuntimeGraphEnded;
-            
+
             // Unsubscribe from play mode changes
             EditorApplication.playModeStateChanged -= OnPlayModeStateChanged;
-            SceneManager.sceneLoaded -= OnSceneLoaded;
+
+            // Unsubscribe from scene loads
+            UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoadedRefresh;
         }
         
         private void OnPlayModeStateChanged(PlayModeStateChange state)
         {
-            RefreshAllNodeViews();
+            // Refresh all node inline content when play mode changes
+            // Use delayCall to ensure it happens after play mode transition completes
+            EditorApplication.delayCall += () =>
+            {
+                if (_graphView != null)
+                {
+                    foreach (var element in _graphView.graphElements.ToList())
+                    {
+                        if (element is NodeView nodeView)
+                        {
+                            nodeView.RefreshInlineContent();
+                        }
+                    }
+                }
+            };
         }
 
-        private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+        private void OnSceneLoadedRefresh(UnityEngine.SceneManagement.Scene scene, UnityEngine.SceneManagement.LoadSceneMode mode)
         {
-            RefreshAllNodeViews();
-        }
-
-        private void RefreshAllNodeViews()
-        {
+            // When the scene reloads (e.g. restart), all scene GameObjects get new instanceIDs.
+            // The ObjectFields in node inline content still hold stale references → "Missing".
+            // Delay one frame so all scene objects are fully initialized, then redraw.
             EditorApplication.delayCall += () =>
             {
                 if (_graphView != null)
@@ -151,7 +163,7 @@ namespace NodeSystem.Editor
             if (selectedGO != null)
             {
                 var runner = selectedGO.GetComponent<NodeGraphRunner>();
-                if (runner != null && _currentGraph != null && runner.Graph == _currentGraph)
+                if (runner != null && _currentGraph != null && runner.SourceGraph == _currentGraph)
                 {
                     SetActiveRunner(runner);
                     return;
@@ -159,7 +171,7 @@ namespace NodeSystem.Editor
             }
             
             // If selection is unrelated, DO NOT clear active runner if it's still valid (Sticky Context)
-            if (_activeRunner != null && _activeRunner.Graph == _currentGraph)
+            if (_activeRunner != null && _activeRunner.SourceGraph == _currentGraph)
             {
                 return;
             }
@@ -173,13 +185,13 @@ namespace NodeSystem.Editor
             if (_currentGraph == null) return;
 
             // If we already have a valid runner, keep it
-            if (_activeRunner != null && _activeRunner.Graph == _currentGraph) return;
+            if (_activeRunner != null && _activeRunner.SourceGraph == _currentGraph) return;
 
             // Search scene
             var runners = FindObjectsOfType<NodeGraphRunner>();
             foreach (var runner in runners)
             {
-                if (runner.Graph == _currentGraph)
+                if (runner.SourceGraph == _currentGraph)
                 {
                     SetActiveRunner(runner);
                     return;
@@ -666,19 +678,19 @@ namespace NodeSystem.Editor
 
         private void OnRuntimeNodeStarted(NodeGraphRunner runner, NodeData node)
         {
-            if (_currentGraph == null || runner.Graph != _currentGraph) return;
+            if (_currentGraph == null || runner.SourceGraph != _currentGraph) return;
             UpdateRuntimeStatus(node, "Running");
         }
 
         private void OnRuntimeNodeCompleted(NodeGraphRunner runner, NodeData node)
         {
-            if (_currentGraph == null || runner.Graph != _currentGraph) return;
+            if (_currentGraph == null || runner.SourceGraph != _currentGraph) return;
             UpdateRuntimeStatus(node, "Completed");
         }
 
         private void OnRuntimeGraphStarted(NodeGraphRunner runner)
         {
-            if (_currentGraph == null || runner.Graph != _currentGraph) return;
+            if (_currentGraph == null || runner.SourceGraph != _currentGraph) return;
             UpdateRuntimeStatus(null, "Graph Started");
             
             // Update indicator to running (green)
@@ -690,7 +702,7 @@ namespace NodeSystem.Editor
 
         private void OnRuntimeGraphEnded(NodeGraphRunner runner)
         {
-            if (_currentGraph == null || runner.Graph != _currentGraph) return;
+            if (_currentGraph == null || runner.SourceGraph != _currentGraph) return;
             UpdateRuntimeStatus(null, "Graph Completed");
             
             // Update indicator to idle

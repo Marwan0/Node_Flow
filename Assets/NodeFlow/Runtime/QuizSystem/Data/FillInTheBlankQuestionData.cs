@@ -3,11 +3,25 @@ using UnityEngine;
 
 namespace QuizSystem
 {
+    [System.Serializable]
+    public class FillBlankSlot
+    {
+        [Tooltip("Correct text for this blank (case sensitivity follows question settings)")]
+        public string correctAnswer = "";
+
+        [Tooltip("Other acceptable answers for this blank")]
+        public List<string> alternativeAnswers = new List<string>();
+    }
+
     [CreateAssetMenu(fileName = "FillInTheBlankQuestion", menuName = "Quiz System/Fill in the Blank Question")]
     public class FillInTheBlankQuestionData : QuestionData
     {
-        [Header("Answer")]
-        [Tooltip("The correct answer (case-sensitive if Case Sensitive is enabled)")]
+        [Header("Blanks (ordered)")]
+        [Tooltip("One entry per blank, top to bottom in the UI. Leave empty to use the single Correct Answer fields below.")]
+        public List<FillBlankSlot> blanks = new List<FillBlankSlot>();
+
+        [Header("Single blank (legacy)")]
+        [Tooltip("Used only when the Blanks list is empty.")]
         public string correctAnswer = "";
 
         [Tooltip("Alternative acceptable answers (synonyms, variations)")]
@@ -28,37 +42,134 @@ namespace QuizSystem
             questionType = QuestionType.FillInTheBlank;
         }
 
-        public bool IsAnswerCorrect(string userAnswer)
+        public int GetBlankSlotCount()
+        {
+            if (blanks != null && blanks.Count > 0)
+                return blanks.Count;
+            return 1;
+        }
+
+        private void ResolveSlot(int index, out string primary, out List<string> alts)
+        {
+            if (blanks != null && blanks.Count > 0)
+            {
+                var slot = blanks[index];
+                primary = slot.correctAnswer ?? "";
+                alts = slot.alternativeAnswers ?? new List<string>();
+                return;
+            }
+
+            if (index == 0)
+            {
+                primary = correctAnswer ?? "";
+                alts = alternativeAnswers ?? new List<string>();
+                return;
+            }
+
+            primary = "";
+            alts = new List<string>();
+        }
+
+        public bool IsSlotAnswerCorrect(int slotIndex, string userAnswer)
         {
             if (string.IsNullOrEmpty(userAnswer))
                 return false;
 
+            ResolveSlot(slotIndex, out string correctRaw, out List<string> alts);
+            if (string.IsNullOrEmpty(correctRaw) && (alts == null || alts.Count == 0))
+                return false;
+
             string normalizedUser = caseSensitive ? userAnswer : userAnswer.ToLower();
-            string normalizedCorrect = caseSensitive ? correctAnswer : correctAnswer.ToLower();
 
-            // Exact match
-            if (normalizedUser == normalizedCorrect)
-                return true;
-
-            // Check alternatives
-            foreach (var alt in alternativeAnswers)
+            if (!string.IsNullOrEmpty(correctRaw))
             {
-                string normalizedAlt = caseSensitive ? alt : alt.ToLower();
-                if (normalizedUser == normalizedAlt)
+                string normCorrect = caseSensitive ? correctRaw : correctRaw.ToLower();
+                if (normalizedUser == normCorrect)
                     return true;
             }
 
-            // Partial match if enabled
-            if (allowPartialMatch)
+            if (alts != null)
             {
-                if (normalizedUser.Contains(normalizedCorrect) || normalizedCorrect.Contains(normalizedUser))
+                foreach (var alt in alts)
                 {
-                    float similarity = CalculateSimilarity(normalizedUser, normalizedCorrect);
+                    if (string.IsNullOrEmpty(alt)) continue;
+                    string normalizedAlt = caseSensitive ? alt : alt.ToLower();
+                    if (normalizedUser == normalizedAlt)
+                        return true;
+                }
+            }
+
+            if (allowPartialMatch && !string.IsNullOrEmpty(correctRaw))
+            {
+                string nc = caseSensitive ? correctRaw : correctRaw.ToLower();
+                if (normalizedUser.Contains(nc) || nc.Contains(normalizedUser))
+                {
+                    float similarity = CalculateSimilarity(normalizedUser, nc);
                     return similarity >= partialMatchThreshold;
                 }
             }
 
             return false;
+        }
+
+        /// <summary>Single-blank validation (legacy API).</summary>
+        public bool IsAnswerCorrect(string userAnswer)
+        {
+            if (GetBlankSlotCount() != 1)
+                return false;
+            return IsSlotAnswerCorrect(0, userAnswer);
+        }
+
+        public bool AreAllAnswersCorrect(IReadOnlyList<string> userAnswers)
+        {
+            if (userAnswers == null)
+                return false;
+
+            int n = GetBlankSlotCount();
+            if (userAnswers.Count != n)
+                return false;
+
+            for (int i = 0; i < n; i++)
+            {
+                if (!IsSlotAnswerCorrect(i, userAnswers[i]))
+                    return false;
+            }
+
+            return true;
+        }
+
+        public string GetJoinedCorrectAnswersDisplay(string separator = " | ")
+        {
+            int n = GetBlankSlotCount();
+            if (n == 0) return "";
+
+            var parts = new List<string>(n);
+            for (int i = 0; i < n; i++)
+            {
+                parts.Add(GetPrimaryCorrectAnswerForDisplay(i));
+            }
+
+            return string.Join(separator, parts);
+        }
+
+        /// <summary>
+        /// Canonical text shown for a blank (primary answer, else first alternative, else "?").
+        /// </summary>
+        public string GetPrimaryCorrectAnswerForDisplay(int slotIndex)
+        {
+            ResolveSlot(slotIndex, out string primary, out List<string> alts);
+            if (!string.IsNullOrEmpty(primary))
+                return primary;
+            if (alts != null)
+            {
+                foreach (var a in alts)
+                {
+                    if (!string.IsNullOrEmpty(a))
+                        return a;
+                }
+            }
+
+            return "?";
         }
 
         private float CalculateSimilarity(string str1, string str2)
