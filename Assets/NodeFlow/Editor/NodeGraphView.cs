@@ -1199,14 +1199,58 @@ namespace NodeSystem.Editor
         public void Initialize(EditorWindow window)
         {
             _editorWindow = window;
-            _searchWindow = ScriptableObject.CreateInstance<NodeSearchWindow>();
-            _searchWindow.Initialize(this, window);
+            EnsureSearchWindowReady();
             
             nodeCreationRequest = ctx =>
             {
+                EnsureSearchWindowReady();
+                if (_searchWindow == null)
+                    return;
                 PendingConnectPort = null; // normal creation, no auto-connect
                 SearchWindow.Open(new SearchWindowContext(ctx.screenMousePosition), _searchWindow);
             };
+        }
+
+        /// <summary>
+        /// Creates <see cref="NodeSearchWindow"/> if missing (e.g. after domain reload when ScriptableObject refs are lost).
+        /// </summary>
+        private void EnsureSearchWindowReady()
+        {
+            if (_searchWindow != null)
+                return;
+
+            if (_editorWindow == null)
+                _editorWindow = ResolveHostEditorWindow();
+
+            if (_editorWindow == null)
+                return;
+
+            _searchWindow = ScriptableObject.CreateInstance<NodeSearchWindow>();
+            _searchWindow.Initialize(this, _editorWindow);
+        }
+
+        /// <summary>
+        /// Finds the editor window that hosts this graph view (supports multiple open graph windows).
+        /// </summary>
+        private EditorWindow ResolveHostEditorWindow()
+        {
+            var focused = EditorWindow.focusedWindow;
+            if (focused is NodeGraphEditorWindow)
+                return focused;
+
+            var all = Resources.FindObjectsOfTypeAll<NodeGraphEditorWindow>();
+            foreach (var w in all)
+            {
+                if (w == null || w.rootVisualElement == null) continue;
+                var gv = w.rootVisualElement.Q<NodeGraphView>();
+                if (gv == this)
+                    return w;
+            }
+
+            if (all != null && all.Length == 1 && all[0] != null)
+                return all[0];
+
+            return focused;
         }
 
         // ============================================================
@@ -1333,9 +1377,12 @@ namespace NodeSystem.Editor
                     Debug.LogWarning("[EdgeDrop] OnDropOutsidePort: sourcePort is null, aborting.");
                     return;
                 }
+                _graphView.EnsureSearchWindowReady();
                 if (_graphView._searchWindow == null)
                 {
-                    Debug.LogWarning("[EdgeDrop] OnDropOutsidePort: _searchWindow is null, aborting.");
+                    Debug.LogWarning(
+                        "[EdgeDrop] OnDropOutsidePort: could not create node search window (no host editor found). " +
+                        "Click the graph editor window, then try again.");
                     return;
                 }
 
