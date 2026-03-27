@@ -18,9 +18,12 @@ The **Photoshop Layout Importer** is a Unity editor window that imports Photosho
 1. Open your PSD file in Photoshop
 2. Go to `File > Scripts > Browse...` and select [`export_layers_v3.jsx`](Photoshop/export_layers_v3.jsx)
 3. Select an output folder when prompted
-4. Wait for the export to complete (you'll see a progress window)
-5. The script will create:
-   - Individual PNG files for each layer
+4. **Choose text export mode** when the dialog appears:
+   - **YES** = Rasterize text layers to PNG (preserves exact visual appearance including effects)
+   - **NO** = Export text as metadata only (editable in Unity with TextMeshPro)
+5. Wait for the export to complete (you'll see a progress window)
+6. The script will create:
+   - Individual PNG files for each layer (text layers excluded if you chose metadata-only)
    - A `layout.json` file with layer metadata and positioning
 
 **Export Features:**
@@ -28,6 +31,7 @@ The **Photoshop Layout Importer** is a Unity editor window that imports Photosho
 - Preserves Photoshop effects exactly
 - Exports layer hierarchy and positioning
 - Shows progress with phase indicators
+- **Text export flag**: choose between pixel-perfect rasterized text or editable TMP text in Unity
 
 ### Step 2: Import in Unity
 
@@ -58,9 +62,11 @@ The **Photoshop Layout Importer** is a Unity editor window that imports Photosho
 
 ### Create Text Objects
 - **Default**: Enabled
-- When enabled, creates TextMeshProUGUI components for text layers
-- Text layers without associated PNG files will become editable text
-- When disabled, text layers are skipped (only image layers imported)
+- When enabled, text layers are imported as **TextMeshProUGUI** components (requires TextMeshPro package)
+- Takes priority over rasterized PNGs: if a text layer has both a PNG and text content, TMP is used
+- Works best when the Photoshop export script's text flag is set to "metadata only"
+- When disabled, text layers use their rasterized PNG image (if available) or are skipped
+- **Note**: If TextMeshPro is not installed, text layers without PNGs become empty objects with a console warning
 
 ### Respect Visibility
 - **Default**: Enabled
@@ -125,6 +131,7 @@ Each layer from the PSD becomes a Unity GameObject:
 - Groups become parent GameObjects
 - Child layers are nested under group GameObjects
 - Maintains layer hierarchy from Photoshop
+- Groups with opacity < 100% get a **CanvasGroup** component to propagate alpha to children
 
 ### Layer Properties Preserved
 - **Position**: Exact X, Y coordinates from Photoshop
@@ -329,13 +336,18 @@ If you provide a target canvas, the importer will:
 - Change font, size, color, alignment
 - Add effects and styling
 
+## Undo Support
+
+The entire import operation is registered as a single Undo step. Press **Ctrl+Z** (Cmd+Z on Mac) immediately after import to remove all created GameObjects and revert the scene.
+
 ## Limitations
 
 1. **Smart Objects**: Rasterized during export (not editable in Unity)
 2. **Layer Effects**: Baked into PNG files (not separate components)
-3. **Vector Text**: Rasterized unless imported as TextMeshPro
+3. **Vector Text**: Rasterized unless exported with text metadata flag and imported as TextMeshPro
 4. **Animations**: Not imported (can be added manually in Unity)
 5. **Layer Styles**: Baked into PNG files
+6. **TextMeshPro Required**: Editable text import requires the TextMeshPro package (bundled with Unity 2018.3+)
 
 ## Future Enhancements
 
@@ -370,6 +382,6 @@ For issues or questions:
 
 ---
 
-**Last Updated:** 2026-03-09
-**Importer Version:** 3.0
+**Last Updated:** 2026-03-26
+**Importer Version:** 3.1
 **Unity Version:** Compatible with Unity 2020.3+

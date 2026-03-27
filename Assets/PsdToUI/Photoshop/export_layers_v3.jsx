@@ -4,7 +4,7 @@
 
  Key optimizations (inspired by Baum2):
    1. Pre-rasterizes ALL layers upfront (bakes styles, masks, smart objects)
-   2. ActionManager snapshot for reliable revert
+   2. Named ActionManager snapshot for reliable revert across large files
    3. No mergeVisibleLayers needed for non-clipped layers
    4. Only clipped layers merge (fast since pre-rasterized)
    5. SaveAs PNG instead of slow SaveForWeb
@@ -14,11 +14,12 @@
 #target photoshop
 app.bringToFront();
 
-// Force pixel units for accuracy
 var _savedRulerUnits = app.preferences.rulerUnits;
 var _savedTypeUnits = app.preferences.typeUnits;
 app.preferences.rulerUnits = Units.PIXELS;
 app.preferences.typeUnits = TypeUnits.PIXELS;
+
+var SNAPSHOT_NAME = "PSDTOUI_EXPORT_SNAP";
 
 if (app.documents.length === 0) {
     alert("Open a PSD document first.");
@@ -26,6 +27,8 @@ if (app.documents.length === 0) {
     var originalDoc = app.activeDocument;
     var outputFolder = Folder.selectDialog("Select export folder for PNG + layout.json");
     if (outputFolder) {
+        var exportTextAsImage = showTextExportDialog();
+
         var layout = {
             version: 2,
             document: {
@@ -38,11 +41,8 @@ if (app.documents.length === 0) {
         };
 
         var counterObj = { value: 0 };
-
-        // Count total layers for progress bar
         var totalArtLayers = countArtLayers(originalDoc.layers);
 
-        // ── Create progress window ──
         var progress = createProgressWindow(totalArtLayers);
         progress.show();
 
@@ -57,7 +57,6 @@ if (app.documents.length === 0) {
         rasterizeAllLayers(workDoc, workDoc.layers, progress);
         app.displayDialogs = savedDM;
 
-        // Hide everything and take a snapshot
         hideAllLayers(workDoc.layers);
         var snapshotId = takeSnapshot(workDoc);
 
@@ -65,7 +64,7 @@ if (app.documents.length === 0) {
         progress.setPhase("Phase 2/3: Exporting PNGs", 0, totalArtLayers);
         exportLayerCollection(
             originalDoc, workDoc, originalDoc.layers,
-            "", "", layout, outputFolder, counterObj, snapshotId, progress
+            "", "", layout, outputFolder, counterObj, snapshotId, progress, exportTextAsImage
         );
 
         // ── Phase 3: Cleanup ──
@@ -84,16 +83,64 @@ if (app.documents.length === 0) {
     }
 }
 
-// Restore units
 app.preferences.rulerUnits = _savedRulerUnits;
 app.preferences.typeUnits = _savedTypeUnits;
+
+
+// =====================================================================
+//  TEXT EXPORT MODE DIALOG (ScriptUI — reliable across PS versions)
+// =====================================================================
+
+function showTextExportDialog() {
+    var dlg = new Window("dialog", "Text Layer Export Mode");
+    dlg.orientation = "column";
+    dlg.alignChildren = ["fill", "top"];
+    dlg.preferredSize = [380, -1];
+
+    dlg.add("statictext", undefined, "How should text layers be handled?");
+    dlg.add("statictext", undefined, " ");
+
+    var desc1 = dlg.add("statictext", undefined,
+        "Export as Images: Rasterize text to PNG. Preserves exact visual appearance including effects, but text is not editable in Unity.",
+        { multiline: true });
+    desc1.preferredSize = [360, 40];
+
+    dlg.add("statictext", undefined, " ");
+
+    var desc2 = dlg.add("statictext", undefined,
+        "Export as Text: Skip PNG for text layers. Text content is stored as metadata and imported as editable TextMeshPro in Unity.",
+        { multiline: true });
+    desc2.preferredSize = [360, 40];
+
+    dlg.add("statictext", undefined, " ");
+
+    var btnGroup = dlg.add("group");
+    btnGroup.alignment = ["center", "top"];
+    btnGroup.spacing = 16;
+
+    var btnImage = btnGroup.add("button", undefined, "Export as Images");
+    btnImage.preferredSize = [160, 32];
+
+    var btnText = btnGroup.add("button", undefined, "Export as Text");
+    btnText.preferredSize = [160, 32];
+
+    btnImage.onClick = function () { dlg.close(1); };
+    btnText.onClick = function () { dlg.close(2); };
+
+    dlg.defaultElement = btnImage;
+
+    var result = dlg.show();
+
+    // result === 1 → Export as Images (rasterize), result === 2 → Text only
+    return (result === 1);
+}
 
 
 // =====================================================================
 //  LAYER TREE WALKER
 // =====================================================================
 
-function exportLayerCollection(originalDoc, workDoc, layers, parentId, parentPath, layout, outputFolder, counterObj, snapshotId, progress) {
+function exportLayerCollection(originalDoc, workDoc, layers, parentId, parentPath, layout, outputFolder, counterObj, snapshotId, progress, exportTextAsImage) {
     if (!layers || layers.length === 0) return;
 
     for (var i = layers.length - 1; i >= 0; i--) {
@@ -121,7 +168,12 @@ function exportLayerCollection(originalDoc, workDoc, layers, parentId, parentPat
         var finalWidth = bounds.width;
         var finalHeight = bounds.height;
 
-        if (isArtLayer && bounds.width > 0 && bounds.height > 0) {
+        var shouldExportPng = isArtLayer && bounds.width > 0 && bounds.height > 0;
+        if (isText && !exportTextAsImage) {
+            shouldExportPng = false;
+        }
+
+        if (shouldExportPng) {
             progress.update(safeString(layer.name));
             var exportResult = exportSingleLayer(
                 workDoc, nodeId, outputFolder, counterObj,
@@ -170,7 +222,7 @@ function exportLayerCollection(originalDoc, workDoc, layers, parentId, parentPat
         if (isGroup) {
             exportLayerCollection(
                 originalDoc, workDoc, layer.layers, nodeId, nodeId,
-                layout, outputFolder, counterObj, snapshotId, progress
+                layout, outputFolder, counterObj, snapshotId, progress, exportTextAsImage
             );
         }
     }
@@ -187,17 +239,14 @@ function exportSingleLayer(workDoc, layerPath, outputFolder, counterObj, sourceL
     var outputFile = new File(outputFolder.fsName + "/" + fileName);
 
     try {
-        // 1. Revert to snapshot (all layers hidden, all pre-rasterized)
         revertToSnapshot(workDoc, snapshotId);
 
-        // 2. Show only the target layer + parent chain
         var targetLayer = findLayerByPath(workDoc, layerPath);
         if (!targetLayer) return null;
 
         showParentChain(targetLayer);
         targetLayer.visible = true;
 
-        // 3. Handle clipping chain if layer is clipped
         var isClipped = false;
         try { isClipped = !!targetLayer.grouped; } catch (e) {}
 
@@ -205,9 +254,6 @@ function exportSingleLayer(workDoc, layerPath, outputFolder, counterObj, sourceL
             showRequiredClippingChain(targetLayer);
         }
 
-        // 4. ALWAYS merge visible to get fully composited result
-        //    Add a temporary empty layer so mergeVisibleLayers never fails
-        //    (it requires 2+ visible layers). The empty layer adds no pixels.
         var tempHelper = workDoc.artLayers.add();
         tempHelper.name = "MERGE_HELPER";
         tempHelper.visible = true;
@@ -216,21 +262,21 @@ function exportSingleLayer(workDoc, layerPath, outputFolder, counterObj, sourceL
         app.displayDialogs = DialogModes.NO;
         try {
             workDoc.mergeVisibleLayers();
-        } catch (mergeErr) {}
+        } catch (mergeErr) {
+            app.displayDialogs = savedDM;
+            revertToSnapshot(workDoc, snapshotId);
+            return null;
+        }
         app.displayDialogs = savedDM;
 
-        // mergeVisibleLayers returns undefined in ExtendScript,
-        // the merged result becomes the active layer
         var renderedLayer = workDoc.activeLayer;
 
-        // 4. Get bounds and validate
         var renderBounds = getLayerBoundsSafe(renderedLayer);
         if (renderBounds.width <= 0 || renderBounds.height <= 0) {
             revertToSnapshot(workDoc, snapshotId);
             return null;
         }
 
-        // 5. Crop to layer content
         try {
             workDoc.crop([
                 UnitValue(renderBounds.x, "px"),
@@ -240,10 +286,7 @@ function exportSingleLayer(workDoc, layerPath, outputFolder, counterObj, sourceL
             ]);
         } catch (cropErr) {}
 
-        // 6. Save as PNG (fast SaveAs, not slow SaveForWeb)
         savePngFast(workDoc, outputFile);
-
-        // 7. Revert to snapshot for next layer
         revertToSnapshot(workDoc, snapshotId);
 
         if (!outputFile.exists) return null;
@@ -281,24 +324,20 @@ function rasterizeAllLayers(doc, layers, progress) {
 
         if (layer.typename !== "ArtLayer") continue;
 
-        // Skip text layers (we need their text content for metadata)
         progress.update(safeString(layer.name));
 
         try {
             if (layer.kind === LayerKind.TEXT) continue;
         } catch (e) {}
 
-        // Make visible temporarily (some rasterize ops need visibility)
         var wasVisible = layer.visible;
         layer.visible = true;
 
         try {
             doc.activeLayer = layer;
 
-            // 1. Rasterize layer styles (drop shadow, bevel, stroke, etc.)
             amRasterizeLayerStyle();
 
-            // 2. Handle vector masks
             if (amHasVectorMask()) {
                 amRasterizeLayer();
                 amSelectVectorMask();
@@ -306,14 +345,12 @@ function rasterizeAllLayers(doc, layers, progress) {
                 amApplyLayerMask();
             }
 
-            // 3. Handle layer masks
             if (amHasLayerMask()) {
                 amRasterizeLayer();
                 amSelectLayerMask();
                 amApplyLayerMask();
             }
 
-            // 4. Final rasterize (smart objects, fill layers, etc.)
             layer.rasterize(RasterizeType.ENTIRELAYER);
         } catch (e) {}
 
@@ -419,7 +456,7 @@ function amApplyLayerMask() {
 
 
 // =====================================================================
-//  SNAPSHOT (ActionManager-based, more reliable than History state)
+//  SNAPSHOT (name-based for stability across large layer counts)
 // =====================================================================
 
 function takeSnapshot(doc) {
@@ -430,20 +467,25 @@ function takeSnapshot(doc) {
     var refFrom = new ActionReference();
     refFrom.putProperty(charIDToTypeID("HstS"), charIDToTypeID("CrnH"));
     desc.putReference(charIDToTypeID("From"), refFrom);
+    desc.putString(charIDToTypeID("Nm  "), SNAPSHOT_NAME);
     executeAction(charIDToTypeID("Mk  "), desc, DialogModes.NO);
-    return getLastSnapshotId(doc);
+    return SNAPSHOT_NAME;
 }
 
-function getLastSnapshotId(doc) {
+function revertToSnapshot(doc, snapshotName) {
     var states = doc.historyStates;
     for (var i = states.length - 1; i >= 0; i--) {
-        if (states[i].snapshot) return i;
+        if (states[i].snapshot && states[i].name === snapshotName) {
+            doc.activeHistoryState = states[i];
+            return;
+        }
     }
-    return 0;
-}
-
-function revertToSnapshot(doc, snapshotId) {
-    doc.activeHistoryState = doc.historyStates[snapshotId];
+    for (var j = states.length - 1; j >= 0; j--) {
+        if (states[j].snapshot) {
+            doc.activeHistoryState = states[j];
+            return;
+        }
+    }
 }
 
 
@@ -577,19 +619,15 @@ function createProgressWindow(totalLayers) {
     win.alignChildren = ["fill", "top"];
     win.preferredSize = [420, 140];
 
-    // Phase label
     var phaseText = win.add("statictext", undefined, "Initializing...");
     phaseText.alignment = ["fill", "top"];
 
-    // Layer name label
     var layerText = win.add("statictext", undefined, " ");
     layerText.alignment = ["fill", "top"];
 
-    // Progress bar
     var bar = win.add("progressbar", undefined, 0, totalLayers);
     bar.preferredSize = [400, 20];
 
-    // Counter label
     var counterText = win.add("statictext", undefined, "0 / " + totalLayers);
     counterText.alignment = ["center", "top"];
 
@@ -658,7 +696,6 @@ function buildFileName(layerPath, layerName, counter) {
 function toAsciiSlug(value) {
     if (!value) return "layer";
     var text = String(value);
-    // Replace non-ASCII
     var out = "";
     for (var i = 0; i < text.length; i++) {
         var c = text.charCodeAt(i);
@@ -668,7 +705,6 @@ function toAsciiSlug(value) {
             out += "_";
         }
     }
-    // Replace filesystem-unsafe chars
     out = out.split("\\").join("_");
     out = out.split("/").join("_");
     out = out.split(":").join("_");
@@ -678,13 +714,10 @@ function toAsciiSlug(value) {
     out = out.split("<").join("_");
     out = out.split(">").join("_");
     out = out.split("|").join("_");
-    // Clean up whitespace and underscores
     out = out.split(" ").join("_");
-    // Collapse multiple underscores
     while (out.indexOf("__") >= 0) {
         out = out.split("__").join("_");
     }
-    // Trim leading/trailing underscores
     while (out.length > 0 && out.charAt(0) === "_") out = out.substring(1);
     while (out.length > 0 && out.charAt(out.length - 1) === "_") out = out.substring(0, out.length - 1);
 

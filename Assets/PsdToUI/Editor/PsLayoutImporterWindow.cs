@@ -10,26 +10,79 @@ namespace Object_Flow.PsdToUI.Editor
 {
     public class PsLayoutImporterWindow : EditorWindow
     {
-        private string jsonPath = "";
-        private string importSpritesFolder = "Assets/PsdToUI/ImportedLayouts";
-        private RectTransform targetCanvas;
-        private bool createTextObjects = true;
-        private bool respectVisibility = true;
-        private bool copyImagesIntoProject = true;
-        private PivotMode pivotMode = PivotMode.Center;
+        // ── Serialized Settings ──────────────────────────────────────────
+        [SerializeField] private string jsonPath = "";
+        [SerializeField] private string importSpritesFolder = "Assets/PsdToUI/ImportedLayouts";
+        [SerializeField] private RectTransform targetCanvas;
+        [SerializeField] private bool createTextObjects = true;
+        [SerializeField] private bool respectVisibility = true;
+        [SerializeField] private bool copyImagesIntoProject = true;
+        [SerializeField] private PivotMode pivotMode = PivotMode.Center;
+
+        // ── UI State ─────────────────────────────────────────────────────
+        private Vector2 scrollPos;
+        private bool isDragHovering;
+
+        // ── Preview Cache ────────────────────────────────────────────────
+        private string previewCachedPath;
+        private bool previewValid;
+        private string previewDocName;
+        private int previewDocWidth, previewDocHeight;
+        private int previewNodeCount, previewImageCount, previewTextCount, previewGroupCount;
+
+        // ── Import Results ───────────────────────────────────────────────
+        private bool showResults;
+        private string resultDocName;
+        private int resultNodeCount, resultImageCount, resultTextCount, resultGroupCount;
+        private double resultDuration;
+
+        // ── Cached Styles ────────────────────────────────────────────────
+        private bool stylesReady;
+        private GUIStyle headerTitle;
+        private GUIStyle headerSub;
+        private GUIStyle versionLabel;
+        private GUIStyle sectionBox;
+        private GUIStyle sectionTitle;
+        private GUIStyle dropZoneLabel;
+        private GUIStyle importBtn;
+        private GUIStyle hintLabel;
+        private GUIStyle richLabel;
+        private GUIStyle overlayLabel;
+        private GUIStyle statValue;
+
+        private static readonly Color AccentBlue = new Color(0.33f, 0.60f, 0.87f);
+        private static readonly Color SuccessGreen = new Color(0.33f, 0.78f, 0.47f);
+        private static readonly Color ErrorRed = new Color(0.87f, 0.33f, 0.33f);
+        private static readonly Color Subtle = new Color(0.55f, 0.55f, 0.55f);
+
+        // ── Enums / Inner Types ──────────────────────────────────────────
 
         public enum PivotMode
         {
             Center,
-            TopLeft
+            TopLeft,
+            TopCenter,
+            TopRight,
+            MiddleLeft,
+            MiddleRight,
+            BottomLeft,
+            BottomCenter,
+            BottomRight
         }
 
         private static Vector2 PivotModeToVector(PivotMode mode)
         {
             switch (mode)
             {
-                case PivotMode.TopLeft: return new Vector2(0f, 1f);
-                default:               return new Vector2(0.5f, 0.5f);
+                case PivotMode.TopLeft:      return new Vector2(0f, 1f);
+                case PivotMode.TopCenter:    return new Vector2(0.5f, 1f);
+                case PivotMode.TopRight:     return new Vector2(1f, 1f);
+                case PivotMode.MiddleLeft:   return new Vector2(0f, 0.5f);
+                case PivotMode.MiddleRight:  return new Vector2(1f, 0.5f);
+                case PivotMode.BottomLeft:   return new Vector2(0f, 0f);
+                case PivotMode.BottomCenter: return new Vector2(0.5f, 0f);
+                case PivotMode.BottomRight:  return new Vector2(1f, 0f);
+                default:                     return new Vector2(0.5f, 0.5f);
             }
         }
 
@@ -44,62 +97,517 @@ namespace Object_Flow.PsdToUI.Editor
         public static void ShowWindow()
         {
             var window = GetWindow<PsLayoutImporterWindow>("PS Layout Importer");
-            window.minSize = new Vector2(560f, 300f);
+            window.minSize = new Vector2(480f, 540f);
             window.Show();
         }
 
+
+        // ═════════════════════════════════════════════════════════════════
+        //  STYLES
+        // ═════════════════════════════════════════════════════════════════
+
+        private void EnsureStyles()
+        {
+            if (stylesReady) return;
+            stylesReady = true;
+
+            bool dk = EditorGUIUtility.isProSkin;
+
+            headerTitle = new GUIStyle(EditorStyles.boldLabel)
+            {
+                fontSize = 16,
+                padding = new RectOffset(0, 0, 0, 0)
+            };
+
+            headerSub = new GUIStyle(EditorStyles.label)
+            {
+                fontSize = 11,
+                normal = { textColor = Subtle }
+            };
+
+            versionLabel = new GUIStyle(EditorStyles.miniLabel)
+            {
+                alignment = TextAnchor.UpperRight,
+                normal = { textColor = Subtle }
+            };
+
+            sectionBox = new GUIStyle(EditorStyles.helpBox)
+            {
+                padding = new RectOffset(12, 12, 10, 10),
+                margin = new RectOffset(4, 4, 2, 2)
+            };
+
+            sectionTitle = new GUIStyle(EditorStyles.miniLabel)
+            {
+                fontSize = 10,
+                fontStyle = FontStyle.Bold,
+                normal = { textColor = dk ? new Color(0.50f, 0.58f, 0.70f) : new Color(0.30f, 0.38f, 0.55f) },
+                padding = new RectOffset(0, 0, 0, 6)
+            };
+
+            dropZoneLabel = new GUIStyle(EditorStyles.centeredGreyMiniLabel)
+            {
+                fontSize = 11,
+                fontStyle = FontStyle.Italic,
+                wordWrap = true,
+                alignment = TextAnchor.MiddleCenter
+            };
+
+            importBtn = new GUIStyle(GUI.skin.button)
+            {
+                fontSize = 13,
+                fontStyle = FontStyle.Bold,
+                fixedHeight = 38,
+                richText = true
+            };
+
+            hintLabel = new GUIStyle(EditorStyles.centeredGreyMiniLabel)
+            {
+                fontSize = 10,
+                padding = new RectOffset(0, 0, 4, 0)
+            };
+
+            richLabel = new GUIStyle(EditorStyles.label)
+            {
+                richText = true,
+                wordWrap = true,
+                fontSize = 11,
+                padding = new RectOffset(4, 4, 1, 1)
+            };
+
+            overlayLabel = new GUIStyle(EditorStyles.boldLabel)
+            {
+                fontSize = 18,
+                alignment = TextAnchor.MiddleCenter,
+                normal = { textColor = AccentBlue }
+            };
+
+            statValue = new GUIStyle(EditorStyles.boldLabel)
+            {
+                fontSize = 20,
+                alignment = TextAnchor.MiddleCenter,
+                padding = new RectOffset(0, 0, 0, 0)
+            };
+        }
+
+
+        // ═════════════════════════════════════════════════════════════════
+        //  MAIN LAYOUT
+        // ═════════════════════════════════════════════════════════════════
+
         private void OnGUI()
         {
-            GUILayout.Label("Photoshop JSON + PNG Importer", EditorStyles.boldLabel);
-            EditorGUILayout.Space();
+            EnsureStyles();
+            UpdatePreviewCache();
 
-            DrawPathField(
-                "Layout JSON",
-                ref jsonPath,
-                () => EditorUtility.OpenFilePanel("Select layout JSON", "", "json"));
+            scrollPos = EditorGUILayout.BeginScrollView(scrollPos);
 
-            DrawPathField(
-                "Import Sprites To",
-                ref importSpritesFolder,
-                () => EditorUtility.OpenFolderPanel("Select import destination under Assets", Application.dataPath, ""));
+            DrawHeader();
+            EditorGUILayout.Space(6);
+            DrawSourceSection();
+            EditorGUILayout.Space(2);
+            DrawSettingsSection();
+            EditorGUILayout.Space(2);
+            DrawImportSection();
 
-            targetCanvas = (RectTransform)EditorGUILayout.ObjectField("Target Canvas (Opt)", targetCanvas, typeof(RectTransform), true);
-            createTextObjects = EditorGUILayout.Toggle("Create Text Objects", createTextObjects);
-            respectVisibility = EditorGUILayout.Toggle("Respect Visibility", respectVisibility);
-            copyImagesIntoProject = EditorGUILayout.Toggle("Copy Images Into Project", copyImagesIntoProject);
-            pivotMode = (PivotMode)EditorGUILayout.EnumPopup("Layer Pivot", pivotMode);
-
-            EditorGUILayout.Space();
-            GUI.enabled = File.Exists(jsonPath);
-            if (GUILayout.Button("Import Layout", GUILayout.Height(40f)))
+            if (showResults)
             {
-                ImportLayout();
+                EditorGUILayout.Space(2);
+                DrawResultsSection();
             }
-            GUI.enabled = true;
 
-            if (!string.IsNullOrEmpty(jsonPath) && !File.Exists(jsonPath))
-            {
-                EditorGUILayout.HelpBox("Layout JSON path is invalid.", MessageType.Error);
-            }
+            GUILayout.FlexibleSpace();
+            EditorGUILayout.EndScrollView();
+
+            HandleDragAndDrop();
+            if (isDragHovering) DrawDragOverlay();
         }
 
-        private static void DrawPathField(string label, ref string value, Func<string> browseAction)
+
+        // ═════════════════════════════════════════════════════════════════
+        //  HEADER
+        // ═════════════════════════════════════════════════════════════════
+
+        private void DrawHeader()
         {
-            GUILayout.BeginHorizontal();
-            value = EditorGUILayout.TextField(label, value);
-            if (GUILayout.Button("Browse", GUILayout.Width(70f)))
+            EditorGUILayout.Space(4);
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.BeginVertical();
+            GUILayout.Label("Photoshop Layout Importer", headerTitle);
+            GUILayout.Label("Import PSD designs as Unity UI", headerSub);
+            EditorGUILayout.EndVertical();
+            GUILayout.Label("v3.1", versionLabel, GUILayout.Width(36));
+            EditorGUILayout.EndHorizontal();
+
+            EditorGUILayout.Space(6);
+            Rect sep = GUILayoutUtility.GetRect(0, 1, GUILayout.ExpandWidth(true));
+            EditorGUI.DrawRect(sep, EditorGUIUtility.isProSkin
+                ? new Color(0.18f, 0.18f, 0.18f)
+                : new Color(0.72f, 0.72f, 0.72f));
+        }
+
+
+        // ═════════════════════════════════════════════════════════════════
+        //  SOURCE
+        // ═════════════════════════════════════════════════════════════════
+
+        private void DrawSourceSection()
+        {
+            EditorGUILayout.BeginVertical(sectionBox);
+            GUILayout.Label("SOURCE", sectionTitle);
+
+            // Drop zone
+            bool dk = EditorGUIUtility.isProSkin;
+            Rect dz = GUILayoutUtility.GetRect(0, 52, GUILayout.ExpandWidth(true));
+            Color dzBg = dk ? new Color(0.17f, 0.19f, 0.22f) : new Color(0.90f, 0.92f, 0.95f);
+            Color dzBorder = isDragHovering
+                ? AccentBlue
+                : (dk ? new Color(0.28f, 0.30f, 0.34f) : new Color(0.68f, 0.70f, 0.74f));
+            EditorGUI.DrawRect(dz, dzBg);
+            DrawBorder(dz, dzBorder, isDragHovering ? 2f : 1f);
+            GUI.Label(dz, isDragHovering
+                ? "Release to load"
+                : "Drag & drop layout.json here", dropZoneLabel);
+
+            EditorGUILayout.Space(8);
+
+            // Path field
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.PrefixLabel("Layout JSON");
+            jsonPath = EditorGUILayout.TextField(jsonPath);
+            if (GUILayout.Button("Browse", GUILayout.Width(60)))
             {
-                string path = browseAction.Invoke();
-                if (!string.IsNullOrEmpty(path))
+                string p = EditorUtility.OpenFilePanel("Select layout JSON", "", "json");
+                if (!string.IsNullOrEmpty(p))
                 {
-                    value = path;
+                    jsonPath = p;
+                    previewCachedPath = null;
+                    showResults = false;
                 }
             }
-            GUILayout.EndHorizontal();
+            EditorGUILayout.EndHorizontal();
+
+            // Preview / validation
+            if (previewValid || !string.IsNullOrEmpty(jsonPath))
+            {
+                EditorGUILayout.Space(6);
+                DrawPreviewInfo();
+            }
+
+            EditorGUILayout.EndVertical();
         }
+
+        private void DrawPreviewInfo()
+        {
+            if (previewValid)
+            {
+                string gh = ColorUtility.ToHtmlStringRGB(SuccessGreen);
+
+                EditorGUILayout.BeginHorizontal();
+                GUILayout.Label(
+                    $"<color=#{gh}>\u2713</color>  <b>{previewDocName}</b>",
+                    richLabel);
+                GUILayout.FlexibleSpace();
+                GUILayout.Label(
+                    $"{previewDocWidth} \u00d7 {previewDocHeight}",
+                    richLabel);
+                EditorGUILayout.EndHorizontal();
+
+                EditorGUILayout.Space(4);
+                DrawStatCards(previewImageCount, previewTextCount, previewGroupCount, previewNodeCount);
+            }
+            else
+            {
+                string rh = ColorUtility.ToHtmlStringRGB(ErrorRed);
+                string msg = File.Exists(jsonPath) ? "Invalid layout JSON" : "File not found";
+                GUILayout.Label($"<color=#{rh}>\u2715  {msg}</color>", richLabel);
+            }
+        }
+
+        private void DrawStatCards(int images, int text, int groups, int total)
+        {
+            bool dk = EditorGUIUtility.isProSkin;
+            Color cardBg = dk ? new Color(0.20f, 0.20f, 0.22f) : new Color(0.88f, 0.88f, 0.90f);
+
+            EditorGUILayout.BeginHorizontal();
+            DrawSingleStat(cardBg, images.ToString(), "images", dk);
+            GUILayout.Space(4);
+            DrawSingleStat(cardBg, text.ToString(), "text", dk);
+            GUILayout.Space(4);
+            DrawSingleStat(cardBg, groups.ToString(), "groups", dk);
+            GUILayout.Space(4);
+            DrawSingleStat(cardBg, total.ToString(), "total", dk);
+            EditorGUILayout.EndHorizontal();
+        }
+
+        private void DrawSingleStat(Color bg, string value, string label, bool dk)
+        {
+            EditorGUILayout.BeginVertical();
+            Rect card = GUILayoutUtility.GetRect(0, 48, GUILayout.ExpandWidth(true));
+            EditorGUI.DrawRect(card, bg);
+            DrawBorder(card, dk ? new Color(0.26f, 0.26f, 0.28f) : new Color(0.76f, 0.76f, 0.78f));
+
+            float half = card.height * 0.55f;
+            Rect valRect = new Rect(card.x, card.y + 2, card.width, half);
+            Rect lblRect = new Rect(card.x, card.y + half - 2, card.width, card.height - half);
+
+            GUI.Label(valRect, value, statValue);
+            var miniCentered = new GUIStyle(EditorStyles.centeredGreyMiniLabel)
+            {
+                fontSize = 9,
+                alignment = TextAnchor.UpperCenter
+            };
+            GUI.Label(lblRect, label, miniCentered);
+            EditorGUILayout.EndVertical();
+        }
+
+
+        // ═════════════════════════════════════════════════════════════════
+        //  SETTINGS
+        // ═════════════════════════════════════════════════════════════════
+
+        private void DrawSettingsSection()
+        {
+            EditorGUILayout.BeginVertical(sectionBox);
+            GUILayout.Label("IMPORT", sectionTitle);
+
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.PrefixLabel(
+                new GUIContent("Destination", "Folder under Assets/ where imported sprites are stored"));
+            importSpritesFolder = EditorGUILayout.TextField(importSpritesFolder);
+            if (GUILayout.Button("Browse", GUILayout.Width(60)))
+            {
+                string p = EditorUtility.OpenFolderPanel(
+                    "Select import destination under Assets", Application.dataPath, "");
+                if (!string.IsNullOrEmpty(p)) importSpritesFolder = p;
+            }
+            EditorGUILayout.EndHorizontal();
+
+            targetCanvas = (RectTransform)EditorGUILayout.ObjectField(
+                new GUIContent("Target Canvas", "Parent canvas for imported UI. Auto-created if empty."),
+                targetCanvas, typeof(RectTransform), true);
+
+            pivotMode = (PivotMode)EditorGUILayout.EnumPopup(
+                new GUIContent("Layer Pivot", "Pivot point for each imported RectTransform"),
+                pivotMode);
+
+            EditorGUILayout.Space(6);
+            Rect line = GUILayoutUtility.GetRect(0, 1, GUILayout.ExpandWidth(true));
+            EditorGUI.DrawRect(line, new Color(0.5f, 0.5f, 0.5f, 0.12f));
+            EditorGUILayout.Space(4);
+
+            GUILayout.Label("CONTENT", sectionTitle);
+
+            createTextObjects = EditorGUILayout.Toggle(
+                new GUIContent("Create Text Objects",
+                    "Text layers become editable TextMeshPro components.\n" +
+                    "When enabled, TMP takes priority over rasterized PNGs for text layers."),
+                createTextObjects);
+
+            respectVisibility = EditorGUILayout.Toggle(
+                new GUIContent("Respect Visibility",
+                    "Layers hidden in Photoshop become inactive GameObjects in Unity."),
+                respectVisibility);
+
+            copyImagesIntoProject = EditorGUILayout.Toggle(
+                new GUIContent("Copy Images Into Project",
+                    "Copies PNGs from the export folder into Unity Assets.\n" +
+                    "Recommended for project portability."),
+                copyImagesIntoProject);
+
+            EditorGUILayout.EndVertical();
+        }
+
+
+        // ═════════════════════════════════════════════════════════════════
+        //  IMPORT BUTTON
+        // ═════════════════════════════════════════════════════════════════
+
+        private void DrawImportSection()
+        {
+            bool canImport = previewValid;
+
+            EditorGUILayout.BeginVertical(sectionBox);
+
+            Color prevBg = GUI.backgroundColor;
+            if (canImport) GUI.backgroundColor = new Color(0.30f, 0.55f, 0.85f);
+            GUI.enabled = canImport;
+
+            string label = previewValid && !string.IsNullOrEmpty(previewDocName)
+                ? $"Import \u201c{previewDocName}\u201d"
+                : "Import Layout";
+
+            if (GUILayout.Button(label, importBtn))
+                ImportLayout();
+
+            GUI.enabled = true;
+            GUI.backgroundColor = prevBg;
+
+            GUILayout.Label("The entire import is a single undo step \u2014 Ctrl+Z to revert", hintLabel);
+
+            EditorGUILayout.EndVertical();
+        }
+
+
+        // ═════════════════════════════════════════════════════════════════
+        //  RESULTS
+        // ═════════════════════════════════════════════════════════════════
+
+        private void DrawResultsSection()
+        {
+            EditorGUILayout.BeginVertical(sectionBox);
+            GUILayout.Label("LAST IMPORT", sectionTitle);
+
+            string gh = ColorUtility.ToHtmlStringRGB(SuccessGreen);
+            GUILayout.Label(
+                $"<color=#{gh}>\u2713</color>  Imported <b>{resultNodeCount}</b> nodes from " +
+                $"<b>{resultDocName}</b> in {resultDuration:F1}s",
+                richLabel);
+
+            EditorGUILayout.Space(4);
+            DrawStatCards(resultImageCount, resultTextCount, resultGroupCount, resultNodeCount);
+
+            EditorGUILayout.EndVertical();
+        }
+
+
+        // ═════════════════════════════════════════════════════════════════
+        //  DRAG & DROP
+        // ═════════════════════════════════════════════════════════════════
+
+        private void HandleDragAndDrop()
+        {
+            Event evt = Event.current;
+
+            switch (evt.type)
+            {
+                case EventType.DragUpdated:
+                    if (HasJsonInDrag())
+                    {
+                        DragAndDrop.visualMode = DragAndDropVisualMode.Copy;
+                        isDragHovering = true;
+                        evt.Use();
+                        Repaint();
+                    }
+                    break;
+
+                case EventType.DragPerform:
+                    string path = GetJsonFromDrag();
+                    if (!string.IsNullOrEmpty(path))
+                    {
+                        DragAndDrop.AcceptDrag();
+                        jsonPath = path;
+                        previewCachedPath = null;
+                        showResults = false;
+                    }
+                    isDragHovering = false;
+                    evt.Use();
+                    Repaint();
+                    break;
+
+                case EventType.DragExited:
+                    isDragHovering = false;
+                    Repaint();
+                    break;
+            }
+        }
+
+        private static bool HasJsonInDrag()
+        {
+            if (DragAndDrop.paths == null) return false;
+            for (int i = 0; i < DragAndDrop.paths.Length; i++)
+                if (DragAndDrop.paths[i].EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+                    return true;
+            return false;
+        }
+
+        private static string GetJsonFromDrag()
+        {
+            if (DragAndDrop.paths == null) return null;
+            for (int i = 0; i < DragAndDrop.paths.Length; i++)
+                if (DragAndDrop.paths[i].EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+                    return DragAndDrop.paths[i];
+            return null;
+        }
+
+        private void DrawDragOverlay()
+        {
+            Rect wr = new Rect(0, 0, position.width, position.height);
+            Color bg = EditorGUIUtility.isProSkin
+                ? new Color(0.12f, 0.22f, 0.45f, 0.18f)
+                : new Color(0.20f, 0.40f, 0.80f, 0.08f);
+            EditorGUI.DrawRect(wr, bg);
+            DrawBorder(wr, AccentBlue, 2f);
+            GUI.Label(wr, "Drop layout.json", overlayLabel);
+        }
+
+
+        // ═════════════════════════════════════════════════════════════════
+        //  DRAWING HELPERS
+        // ═════════════════════════════════════════════════════════════════
+
+        private static void DrawBorder(Rect r, Color c, float w = 1f)
+        {
+            EditorGUI.DrawRect(new Rect(r.x, r.y, r.width, w), c);
+            EditorGUI.DrawRect(new Rect(r.x, r.yMax - w, r.width, w), c);
+            EditorGUI.DrawRect(new Rect(r.x, r.y, w, r.height), c);
+            EditorGUI.DrawRect(new Rect(r.xMax - w, r.y, w, r.height), c);
+        }
+
+
+        // ═════════════════════════════════════════════════════════════════
+        //  PREVIEW CACHE
+        // ═════════════════════════════════════════════════════════════════
+
+        private void UpdatePreviewCache()
+        {
+            if (previewCachedPath == jsonPath) return;
+            previewCachedPath = jsonPath;
+            previewValid = false;
+
+            if (string.IsNullOrEmpty(jsonPath) || !File.Exists(jsonPath)) return;
+
+            try
+            {
+                string json = File.ReadAllText(jsonPath);
+                PsExportLayout layout = JsonUtility.FromJson<PsExportLayout>(json);
+                if (layout == null || layout.document == null) return;
+
+                previewDocName = layout.document.name ?? Path.GetFileNameWithoutExtension(jsonPath);
+                previewDocWidth = layout.document.width;
+                previewDocHeight = layout.document.height;
+
+                var nodes = BuildNodeList(layout);
+                previewNodeCount = nodes.Count;
+                previewImageCount = previewTextCount = previewGroupCount = 0;
+                for (int i = 0; i < nodes.Count; i++)
+                {
+                    if (nodes[i].isGroup) previewGroupCount++;
+                    else if (nodes[i].isText) previewTextCount++;
+                    else previewImageCount++;
+                }
+                previewValid = previewNodeCount > 0;
+            }
+            catch
+            {
+                previewValid = false;
+            }
+        }
+
+
+        // ═════════════════════════════════════════════════════════════════
+        //  IMPORT LOGIC
+        // ═════════════════════════════════════════════════════════════════
 
         private void ImportLayout()
         {
+            showResults = false;
+            double startTime = EditorApplication.timeSinceStartup;
+
+            Undo.IncrementCurrentGroup();
+            int undoGroup = Undo.GetCurrentGroup();
+            Undo.SetCurrentGroupName("Import PS Layout");
+
             try
             {
                 string json = File.ReadAllText(jsonPath);
@@ -125,13 +633,32 @@ namespace Object_Flow.PsdToUI.Editor
                 RectTransform rootRt = CreateRoot(canvasRt, layout.document);
                 BuildHierarchy(nodes, rootRt, spriteCache);
 
-                Debug.Log($"[PS Layout Importer] Imported {nodes.Count} nodes from '{layout.document.name}'.");
+                Undo.CollapseUndoOperations(undoGroup);
+
+                resultDocName = layout.document.name ?? Path.GetFileNameWithoutExtension(jsonPath);
+                resultNodeCount = nodes.Count;
+                resultImageCount = resultTextCount = resultGroupCount = 0;
+                for (int i = 0; i < nodes.Count; i++)
+                {
+                    if (nodes[i].isGroup) resultGroupCount++;
+                    else if (nodes[i].isText) resultTextCount++;
+                    else resultImageCount++;
+                }
+                resultDuration = EditorApplication.timeSinceStartup - startTime;
+                showResults = true;
+
+                Debug.Log($"[PS Layout Importer] Imported {resultNodeCount} nodes from '{resultDocName}' in {resultDuration:F1}s.");
             }
             catch (Exception ex)
             {
-                Debug.LogError($"[PS Layout Importer] Failed: {ex.Message}");
+                Debug.LogError($"[PS Layout Importer] Failed:\n{ex}");
             }
         }
+
+
+        // ═════════════════════════════════════════════════════════════════
+        //  NODE TREE
+        // ═════════════════════════════════════════════════════════════════
 
         private List<PsExportNode> BuildNodeList(PsExportLayout layout)
         {
@@ -143,25 +670,15 @@ namespace Object_Flow.PsdToUI.Editor
                 {
                     PsExportNode node = layout.nodes[i];
                     if (string.IsNullOrEmpty(node.id))
-                    {
                         node.id = i.ToString();
-                    }
-
                     if (node.order < 0)
-                    {
                         node.order = i;
-                    }
-
                     nodes.Add(node);
                 }
-
                 return nodes;
             }
 
-            if (layout.layers == null)
-            {
-                return nodes;
-            }
+            if (layout.layers == null) return nodes;
 
             for (int i = 0; i < layout.layers.Length; i++)
             {
@@ -188,14 +705,16 @@ namespace Object_Flow.PsdToUI.Editor
             return nodes;
         }
 
+
+        // ═════════════════════════════════════════════════════════════════
+        //  ASSET PREPARATION
+        // ═════════════════════════════════════════════════════════════════
+
         private string ResolveSourceImagesFolder()
         {
             string jsonDirectory = Path.GetDirectoryName(jsonPath);
             if (!string.IsNullOrEmpty(jsonDirectory) && Directory.Exists(jsonDirectory))
-            {
                 return jsonDirectory;
-            }
-
             throw new DirectoryNotFoundException("Could not resolve images folder from layout JSON path.");
         }
 
@@ -206,53 +725,53 @@ namespace Object_Flow.PsdToUI.Editor
 
             for (int i = 0; i < nodes.Count; i++)
             {
-                if (string.IsNullOrEmpty(nodes[i].file) == false)
-                {
+                if (!string.IsNullOrEmpty(nodes[i].file))
                     uniqueFiles.Add(nodes[i].file);
-                }
             }
 
-            if (uniqueFiles.Count == 0)
-            {
-                return fileToAssetPath;
-            }
+            if (uniqueFiles.Count == 0) return fileToAssetPath;
 
             string destinationAssetFolder = ResolveDestinationAssetFolder();
             string destinationAbsoluteFolder = AssetPathToAbsolutePath(destinationAssetFolder);
             Directory.CreateDirectory(destinationAbsoluteFolder);
 
-            foreach (string fileName in uniqueFiles)
+            AssetDatabase.StartAssetEditing();
+            try
             {
-                string sourcePath = Path.Combine(sourceFolder, fileName);
-                if (!File.Exists(sourcePath))
+                foreach (string fileName in uniqueFiles)
                 {
-                    Debug.LogWarning($"[PS Layout Importer] Missing source image: {sourcePath}");
-                    continue;
-                }
-
-                string destinationAbsolutePath = Path.Combine(destinationAbsoluteFolder, fileName);
-                Directory.CreateDirectory(Path.GetDirectoryName(destinationAbsolutePath) ?? destinationAbsoluteFolder);
-
-                if (copyImagesIntoProject)
-                {
-                    if (!PathsEqual(sourcePath, destinationAbsolutePath))
+                    string sourcePath = Path.Combine(sourceFolder, fileName);
+                    if (!File.Exists(sourcePath))
                     {
-                        File.Copy(sourcePath, destinationAbsolutePath, true);
-                    }
-                }
-                else
-                {
-                    string sourceAssetPath = AbsolutePathToAssetPath(sourcePath);
-                    if (!string.IsNullOrEmpty(sourceAssetPath))
-                    {
-                        fileToAssetPath[fileName] = sourceAssetPath;
+                        Debug.LogWarning($"[PS Layout Importer] Missing source image: {sourcePath}");
                         continue;
                     }
 
-                    File.Copy(sourcePath, destinationAbsolutePath, true);
-                }
+                    string destinationAbsolutePath = Path.Combine(destinationAbsoluteFolder, fileName);
+                    Directory.CreateDirectory(Path.GetDirectoryName(destinationAbsolutePath) ?? destinationAbsoluteFolder);
 
-                fileToAssetPath[fileName] = AbsolutePathToAssetPath(destinationAbsolutePath);
+                    if (copyImagesIntoProject)
+                    {
+                        if (!PathsEqual(sourcePath, destinationAbsolutePath))
+                            File.Copy(sourcePath, destinationAbsolutePath, true);
+                    }
+                    else
+                    {
+                        string sourceAssetPath = AbsolutePathToAssetPath(sourcePath);
+                        if (!string.IsNullOrEmpty(sourceAssetPath))
+                        {
+                            fileToAssetPath[fileName] = sourceAssetPath;
+                            continue;
+                        }
+                        File.Copy(sourcePath, destinationAbsolutePath, true);
+                    }
+
+                    fileToAssetPath[fileName] = AbsolutePathToAssetPath(destinationAbsolutePath);
+                }
+            }
+            finally
+            {
+                AssetDatabase.StopAssetEditing();
             }
 
             AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
@@ -263,15 +782,11 @@ namespace Object_Flow.PsdToUI.Editor
         {
             string baseFolder = NormalizeToAssetPath(importSpritesFolder);
             if (string.IsNullOrEmpty(baseFolder))
-            {
                 baseFolder = "Assets/PsdToUI/ImportedLayouts";
-            }
 
             string layoutFolder = SanitizePathPart(Path.GetFileNameWithoutExtension(jsonPath));
             if (string.IsNullOrEmpty(layoutFolder))
-            {
                 layoutFolder = "LayoutImport";
-            }
 
             return $"{baseFolder}/{layoutFolder}";
         }
@@ -280,43 +795,51 @@ namespace Object_Flow.PsdToUI.Editor
         {
             var spriteCache = new Dictionary<string, Sprite>();
 
+            AssetDatabase.StartAssetEditing();
+            try
+            {
+                foreach (var kv in fileToAssetPath)
+                {
+                    if (string.IsNullOrEmpty(kv.Value)) continue;
+
+                    TextureImporter importer = AssetImporter.GetAtPath(kv.Value) as TextureImporter;
+                    if (importer != null)
+                    {
+                        importer.textureType = TextureImporterType.Sprite;
+                        importer.spriteImportMode = SpriteImportMode.Single;
+                        importer.alphaIsTransparency = true;
+                        importer.mipmapEnabled = false;
+                        importer.SaveAndReimport();
+                    }
+                    else
+                    {
+                        AssetDatabase.ImportAsset(kv.Value, ImportAssetOptions.ForceUpdate);
+                    }
+                }
+            }
+            finally
+            {
+                AssetDatabase.StopAssetEditing();
+            }
+
             foreach (var kv in fileToAssetPath)
             {
-                string fileName = kv.Key;
-                string assetPath = kv.Value;
+                if (string.IsNullOrEmpty(kv.Value)) continue;
 
-                if (string.IsNullOrEmpty(assetPath))
-                {
-                    continue;
-                }
-
-                TextureImporter importer = AssetImporter.GetAtPath(assetPath) as TextureImporter;
-                if (importer != null)
-                {
-                    importer.textureType = TextureImporterType.Sprite;
-                    importer.spriteImportMode = SpriteImportMode.Single;
-                    importer.alphaIsTransparency = true;
-                    importer.mipmapEnabled = false;
-                    importer.SaveAndReimport();
-                }
-                else
-                {
-                    AssetDatabase.ImportAsset(assetPath, ImportAssetOptions.ForceUpdate);
-                }
-
-                Sprite sprite = AssetDatabase.LoadAssetAtPath<Sprite>(assetPath);
+                Sprite sprite = AssetDatabase.LoadAssetAtPath<Sprite>(kv.Value);
                 if (sprite != null)
-                {
-                    spriteCache[fileName] = sprite;
-                }
+                    spriteCache[kv.Key] = sprite;
                 else
-                {
-                    Debug.LogWarning($"[PS Layout Importer] Failed to load sprite at '{assetPath}'.");
-                }
+                    Debug.LogWarning($"[PS Layout Importer] Failed to load sprite at '{kv.Value}'.");
             }
 
             return spriteCache;
         }
+
+
+        // ═════════════════════════════════════════════════════════════════
+        //  HIERARCHY CONSTRUCTION
+        // ═════════════════════════════════════════════════════════════════
 
         private RectTransform EnsureCanvas(int width, int height)
         {
@@ -328,11 +851,11 @@ namespace Object_Flow.PsdToUI.Editor
                     scaler.uiScaleMode = CanvasScaler.ScaleMode.ConstantPixelSize;
                     scaler.scaleFactor = 1f;
                 }
-
                 return targetCanvas;
             }
 
             GameObject canvasGo = new GameObject("PS_Layout_Canvas");
+            Undo.RegisterCreatedObjectUndo(canvasGo, "Create PS Layout Canvas");
             Canvas canvas = canvasGo.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             CanvasScaler canvasScaler = canvasGo.AddComponent<CanvasScaler>();
@@ -350,6 +873,7 @@ namespace Object_Flow.PsdToUI.Editor
                 : Path.GetFileNameWithoutExtension(document.name);
 
             GameObject rootGo = new GameObject(rootName);
+            Undo.RegisterCreatedObjectUndo(rootGo, "Create PS Layout Root");
             RectTransform rootRt = rootGo.AddComponent<RectTransform>();
             rootRt.SetParent(canvasRt, false);
             rootRt.anchorMin = new Vector2(0.5f, 0.5f);
@@ -370,6 +894,7 @@ namespace Object_Flow.PsdToUI.Editor
             {
                 PsExportNode node = nodes[i];
                 GameObject go = new GameObject(SafeGameObjectName(node.name));
+                Undo.RegisterCreatedObjectUndo(go, "Create PS Layer");
                 RectTransform rt = go.AddComponent<RectTransform>();
 
                 runtimeById[node.id] = new RuntimeNode
@@ -390,7 +915,8 @@ namespace Object_Flow.PsdToUI.Editor
                 float parentX = 0f;
                 float parentY = 0f;
 
-                if (!string.IsNullOrEmpty(node.parentId) && runtimeById.TryGetValue(node.parentId, out RuntimeNode parentRuntime))
+                if (!string.IsNullOrEmpty(node.parentId) &&
+                    runtimeById.TryGetValue(node.parentId, out RuntimeNode parentRuntime))
                 {
                     parentId = parentRuntime.Data.id;
                     parentRt = parentRuntime.RectTransform;
@@ -426,8 +952,16 @@ namespace Object_Flow.PsdToUI.Editor
                     bool hasFile = !string.IsNullOrEmpty(node.file);
                     Sprite sprite = null;
                     bool hasSprite = hasFile && spriteCache.TryGetValue(node.file, out sprite);
+                    bool useText = createTextObjects && node.isText && !string.IsNullOrEmpty(node.text);
 
-                    if (hasFile)
+                    if (useText)
+                    {
+                        TextMeshProUGUI tmp = runtime.GameObject.AddComponent<TextMeshProUGUI>();
+                        tmp.text = node.text;
+                        tmp.raycastTarget = false;
+                        tmp.color = Color.black;
+                    }
+                    else if (hasFile)
                     {
                         Image img = runtime.GameObject.AddComponent<Image>();
                         img.sprite = hasSprite ? sprite : null;
@@ -435,26 +969,19 @@ namespace Object_Flow.PsdToUI.Editor
                         Color c = img.color;
                         c.a = Mathf.Clamp01(node.opacity);
                         img.color = c;
-                    }
 
-                    if (hasFile && !hasSprite)
-                    {
-                        Debug.LogWarning($"[PS Layout Importer] Sprite missing for layer '{node.name}' file '{node.file}'.");
+                        if (!hasSprite)
+                            Debug.LogWarning($"[PS Layout Importer] Sprite missing for layer '{node.name}' file '{node.file}'.");
                     }
-
-                    if (createTextObjects && node.isText && !string.IsNullOrEmpty(node.text) && !hasFile)
-                    {
-                        TextMeshProUGUI tmp = runtime.GameObject.AddComponent<TextMeshProUGUI>();
-                        tmp.text = node.text;
-                        tmp.raycastTarget = false;
-                        tmp.color = Color.black;
-                    }
+                }
+                else if (node.opacity < 1f)
+                {
+                    CanvasGroup group = runtime.GameObject.AddComponent<CanvasGroup>();
+                    group.alpha = Mathf.Clamp01(node.opacity);
                 }
 
                 if (respectVisibility && !node.visible)
-                {
                     runtime.GameObject.SetActive(false);
-                }
             }
 
             ApplySiblingOrder(string.Empty, childrenByParentId);
@@ -463,60 +990,41 @@ namespace Object_Flow.PsdToUI.Editor
         private static void ApplySiblingOrder(string parentId, Dictionary<string, List<RuntimeNode>> childrenByParentId)
         {
             if (!childrenByParentId.TryGetValue(parentId, out List<RuntimeNode> children) || children.Count == 0)
-            {
                 return;
-            }
 
             children.Sort((a, b) =>
             {
                 int byOrder = b.Data.order.CompareTo(a.Data.order);
-                if (byOrder != 0)
-                {
-                    return byOrder;
-                }
-
-                return string.CompareOrdinal(a.Data.id, b.Data.id);
+                return byOrder != 0 ? byOrder : string.CompareOrdinal(a.Data.id, b.Data.id);
             });
 
             for (int i = 0; i < children.Count; i++)
-            {
                 children[i].RectTransform.SetAsLastSibling();
-            }
 
             for (int i = 0; i < children.Count; i++)
-            {
                 ApplySiblingOrder(children[i].Data.id, childrenByParentId);
-            }
         }
+
+
+        // ═════════════════════════════════════════════════════════════════
+        //  PATH UTILITIES
+        // ═════════════════════════════════════════════════════════════════
 
         private static string NormalizeToAssetPath(string path)
         {
-            if (string.IsNullOrEmpty(path))
-            {
-                return string.Empty;
-            }
+            if (string.IsNullOrEmpty(path)) return string.Empty;
 
             string normalized = path.Replace("\\", "/");
             if (normalized.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase))
-            {
                 return normalized;
-            }
-
             if (normalized.Equals("Assets", StringComparison.OrdinalIgnoreCase))
-            {
                 return "Assets";
-            }
-
             if (Path.IsPathRooted(normalized))
             {
                 if (normalized.StartsWith(Application.dataPath.Replace("\\", "/"), StringComparison.OrdinalIgnoreCase))
-                {
                     return "Assets" + normalized.Substring(Application.dataPath.Length).Replace("\\", "/");
-                }
-
                 return string.Empty;
             }
-
             return "Assets/" + normalized.TrimStart('/');
         }
 
@@ -524,10 +1032,7 @@ namespace Object_Flow.PsdToUI.Editor
         {
             string normalized = assetPath.Replace("\\", "/");
             if (!normalized.StartsWith("Assets", StringComparison.OrdinalIgnoreCase))
-            {
                 throw new InvalidOperationException($"Invalid asset path '{assetPath}'.");
-            }
-
             string projectRoot = Directory.GetParent(Application.dataPath).FullName;
             return Path.Combine(projectRoot, normalized.Replace("/", Path.DirectorySeparatorChar.ToString()));
         }
@@ -537,10 +1042,7 @@ namespace Object_Flow.PsdToUI.Editor
             string full = Path.GetFullPath(absolutePath).Replace("\\", "/");
             string assets = Path.GetFullPath(Application.dataPath).Replace("\\", "/");
             if (!full.StartsWith(assets, StringComparison.OrdinalIgnoreCase))
-            {
                 return string.Empty;
-            }
-
             return "Assets" + full.Substring(assets.Length);
         }
 
@@ -553,29 +1055,23 @@ namespace Object_Flow.PsdToUI.Editor
 
         private static string SanitizePathPart(string value)
         {
-            if (string.IsNullOrEmpty(value))
-            {
-                return "Export";
-            }
-
+            if (string.IsNullOrEmpty(value)) return "Export";
             foreach (char c in Path.GetInvalidFileNameChars())
-            {
                 value = value.Replace(c, '_');
-            }
-
             return value;
         }
 
         private static string SafeGameObjectName(string name)
         {
-            if (string.IsNullOrEmpty(name))
-            {
-                return "Layer";
-            }
-
+            if (string.IsNullOrEmpty(name)) return "Layer";
             return name.Replace("/", "_");
         }
     }
+
+
+    // ═════════════════════════════════════════════════════════════════════
+    //  DATA CLASSES
+    // ═════════════════════════════════════════════════════════════════════
 
     [Serializable]
     public class PsExportLayout
